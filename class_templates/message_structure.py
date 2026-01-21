@@ -1,3 +1,49 @@
+import numpy as np
+
+class Message:
+    def __init__(self, dataset_id=None, dataset_version=None, metadata=None,
+                 selection=None, methods=None, graphics=None, data=None, results=None):
+        self.dataset_id = dataset_id
+        self.dataset_version = dataset_version
+        self.metadata = metadata or []
+
+        self.selection = selection or {
+            "rows": [],
+            "cols": [],
+        }
+
+        self.methods = methods or []  # List of method dicts with 'id' and 'params'
+        self.graphics = graphics or []  # List of graphic request dicts
+
+        self.data = data or []  # 2D list representing the raw data
+
+        self.results = results or []  # List of result dicts for each method
+
+        #i want to go through each of these and convert to numpy arrays where applicable
+        self._to_numpy()
+
+    def _to_numpy(self):
+        if self.data:
+            self.data = np.array(self.data)
+        if self.selection and "rows" in self.selection:
+            self.selection["rows"] = [np.array(r) for r in self.selection["rows"]]
+        if self.selection and "cols" in self.selection:
+            self.selection["cols"] = np.array(self.selection["cols"])
+
+
+    def to_dict(self) -> dict:
+        return {
+            "dataset_id": self.dataset_id,
+            "dataset_version": self.dataset_version,
+            "metadata": self.metadata,
+            "selection": self.selection,
+            "methods": self.methods,
+            "graphics": self.graphics,
+            "data": self.data,
+            "results": self.results,
+        }
+    
+"""
 message = {
     # Dataset context
     "dataset_id": "ds_001", #4.5
@@ -49,3 +95,4 @@ message = {
 
 
 }
+"""
