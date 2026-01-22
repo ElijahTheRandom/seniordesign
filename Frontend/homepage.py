@@ -170,8 +170,6 @@ div[data-testid="stButton"] > button {
 </style>
 """, unsafe_allow_html=True)
 
-
-
 # HTML and CSS for the homepage
 components.html(
     """
