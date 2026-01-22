@@ -7,6 +7,17 @@ st.set_page_config(
     layout="wide",
 )
 
+st.markdown("""
+<style>
+:root {
+    --primary-color: #e4781d !important;
+    --primary-color-rgb: 228, 120, 29 !important;
+    --secondary-background-color: #ffffff00 !important;
+    --text-color: #000000 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Hide Streamlit header and adjust padding
 st.markdown("""
 <style>
@@ -72,6 +83,8 @@ with right:
     selectColmmOne = st.selectbox("Select Column 1:", options=editedTable.columns)
     selectColmnTwo = st.selectbox("Select Column 2:", options=editedTable.columns)
 
+    st.markdown("---")
+
     st.markdown("**Select Analysis Types:**")
 
     cl1, cl2 = st.columns(2)
@@ -94,5 +107,3 @@ with right:
     st.markdown("---")
     st.header("Charts")
     st.empty()  # Placeholder for future chart implementations  
-
-

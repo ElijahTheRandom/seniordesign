@@ -33,11 +33,6 @@ st.markdown(
         max-width: 100%;
     }
 
-    /* Force full white background */
-    .stApp {
-        background-color: white;
-    }
-
     section.main > div {
     padding-top: 0rem !important;
     }
@@ -107,20 +102,12 @@ iframe {
 st.markdown(
     """
     <style>
-    /* Full-app background gradient */
     .stApp {
-        background: linear-gradient(
-            90deg,
-            #f8fafc 0%,
-            #eef2ff 40%,
-            #ffffff 70%,
-            #ffffff 100%
-        );
+        background-color: #000000 !important;
     }
 
-    /* Ensure no white bleed from body */
     html, body {
-        background: transparent;
+        background-color: #000000 !important;
         margin: 0;
         padding: 0;
     }
@@ -128,6 +115,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 st.markdown(
     """
@@ -157,16 +145,44 @@ st.markdown("""
 <style>
 div[data-testid="stButton"] {
     position: absolute;
-    top: 477px;
+    top: 472px;
     left: 835px;
     width: 147px;
     z-index: 9999;
 }
-
+            
 div[data-testid="stButton"] > button {
     height: 47px;
-    opacity: 0;
+    background: transparent;
+    color: transparent;
+    border: none;
+    cursor: pointer;
+    pointer-events: none;
 }
+
+div[data-testid="stButton"] > button {
+    pointer-events: auto;
+}
+            
+.cta button {
+  margin-top:36px;
+  padding:14px 32px;
+  font-size:15px;
+  font-weight:600;
+  border-radius:8px;
+
+  background: #e4781d !important;   /* Streamlit primary color */
+  color: white !important;                /* Streamlit button text */
+  border: none !important;                /* Streamlit removes borders */
+
+  cursor:pointer;
+  transition: background 0.2s ease;
+}
+
+.cta button:hover {
+  background: #d66b1d !important;         /* darker version of #F63366 */
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -185,15 +201,19 @@ components.html(
   --text:#0f172a;
   --muted:#64748b;
   --border:#e5e7eb;
-  --accent:#2563eb;
+  --accent:#e4781d;
+
+  --accent-20: rgba(246,51,102,0.20);
+  --accent-60: rgba(246,51,102,0.60);
+  --accent-25: rgba(246,51,102,0.25);
 }
 * { box-sizing: border-box; }
 
 body {
   margin:0;
   padding:0;
-  font-family:'Cantora One', serif;
-  background:var(--bg);
+  font-family: "Source Sans Pro", sans-serif !important;
+  background:transparent !important;
   color:var(--text);
   height:100vh;
   width:100vw;
@@ -215,7 +235,7 @@ body {
   position:relative;
   height:100vh;
   width:100%;
-  background:linear-gradient(135deg,#f8fafc,#eef2ff);
+  background:#262730 !important;
   overflow:hidden;
   padding:48px;
   margin:0;
@@ -263,31 +283,38 @@ body {
   width:80px;
   height:80px;
   border-radius:50%;
-  background:conic-gradient(var(--accent) 65%, #e5e7eb 0%);
+  background:conic-gradient(var(--accent) 65%, var(--border) 0%);
   margin:12px auto;
 }
+
 .sparkline {
   height:40px;
-  background:linear-gradient(90deg,
-    rgba(37,99,235,.2),
-    rgba(37,99,235,.6),
-    rgba(37,99,235,.2));
+  background:linear-gradient(
+    90deg,
+    rgba(228,120,29,0.20),
+    rgba(228,120,29,0.60),
+    rgba(228,120,29,0.20)
+  );
   border-radius:8px;
 }
+
+
 .line {
   height:100px;
-  background:linear-gradient(180deg,
-    rgba(37,99,235,.25),
-    rgba(37,99,235,0));
+  background:linear-gradient(
+    180deg,
+    rgba(228,120,29,0.25),
+    rgba(228,120,29,0)
+  );
   border-radius:10px;
 }
 
 /* POSITIONS */
-.chart-panel {top:60px;left:80px;width:220px;}
-.table-panel {top:260px;left:40px;width:260px;}
-.line-panel {top:140px;left:340px;width:240px;}
-.donut-panel {top:360px;left:320px;width:180px;}
-.spark-panel {top:40px;left:360px;width:200px;}
+.chart-panel { top:5%; left:5%; width:40%; }
+.table-panel { top:35%; left:5%; width:40%; }
+.line-panel { top:5%; left:50%; width:40%; }
+.donut-panel { top:35%; left:50%; width:40%; }
+.spark-panel { top:65%; left:5%; width:85%; }
 
 .table {
   width:100%;
@@ -307,7 +334,7 @@ body {
   font-size:13px;
   letter-spacing:.08em;
   text-transform:uppercase;
-  color:var(--muted);
+  color: white !important;
   margin-bottom:16px;
   animation:fadeIn 2s ease-in-out;
 }
@@ -316,12 +343,13 @@ body {
     to { opacity: 1; }
   }
 h1 {
-  font-family:"Cantora One",serif;
+  font-family: "Source Sans Pro", sans-serif !important;
   font-size:clamp(36px,4vw,52px);
   margin:0 0 24px;
+  color: white !important;
 }
 p {
-  color:var(--muted);
+  color: white !important;
   font-size:18px;
   max-width:480px;
 }
@@ -331,10 +359,19 @@ p {
   font-size:15px;
   font-weight:600;
   border-radius:8px;
-  border:1px solid var(--text);
-  background:transparent;
+
+  background: #e4781d !important;
+  color: white !important;
+  border: none !important;
+
   cursor:pointer;
+  transition: background 0.2s ease;
 }
+
+.cta button:hover {
+  background: #d66b1d !important;
+}
+
 
 @media(max-width:900px){
   .layout{grid-template-columns:1fr;}
@@ -348,7 +385,7 @@ p {
 
 <section class="visual">
   <div class="panel chart-panel">
-    <strong>Distribution</strong>
+    <strong>Vertical Bar Charts</strong>
     <div class="chart">
       <div class="bar" style="height:40%"></div>
       <div class="bar" style="height:70%"></div>
@@ -373,7 +410,7 @@ p {
   </div>
 
   <div class="panel donut-panel">
-    <strong>Completion</strong>
+    <strong>Pie Charts</strong>
     <div class="donut"></div>
   </div>
 
