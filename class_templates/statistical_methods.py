@@ -1,36 +1,34 @@
+import numpy as np
+
+
 class MethodName:
-    def __init__(self, stat_id, params=None):
+    def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
-        self.stat_id = stat_id
+        self.stat_id = "method_name"
+        self.data = data
+        self.metadata = metadata
         self.params = params or {}
 
-    def applicable(self, data):
+    def _applicable(self):
         # Check whether this statistic is valid for the given data selection
         pass
 
-    def compute(self, data):
-        # Perform the statistical computation and return a standardized result dictionary
+    def _generate_return_structure(self):
+        # Check whether this statistic is valid for the given data selection
         pass
+
+    def compute(self):
+        # Perform the statistical computation and return a standardized result dictionary
+        _applicable = self._applicable()
+        if not _applicable:
+            return {
+                "stat_id": self.stat_id,
+                "error": "Statistic not applicable to the selected data.",
+            }
+        
+        results = self._generate_return_structure()
+        return results
 
     def create_graphic(self, results):
         # Generate a chart or visualization object for the computed results
         pass
-
-    def summarize(self, results):
-        # Produce a plain-text summary of the statistic for reporting
-        pass
-
-    def return_report(self, data):
-        # Full pipeline: check applicability, compute, visualize, and summarize
-        if not self.applicable(data):
-            raise ValueError("Statistic not applicable to the provided data.")
-        
-        results = self.compute(data)
-        graphic = self.create_graphic(results)
-        summary = self.summarize(results)
-        
-        return {
-            "results": results,
-            "graphic": graphic,
-            "summary": summary
-        }
