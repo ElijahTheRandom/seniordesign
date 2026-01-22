@@ -24,7 +24,7 @@ header[data-testid="stHeader"] { display: none; }
 st.markdown("""
 <style>
 .stApp {
-background-color: #EEEEEE;
+ //background-color: #EEEEEE;
 }
 </style>
 """,
@@ -66,3 +66,34 @@ with left:
         use_container_width=True,
         height = 450
     )
+
+with right:
+    st.header("Data Analysis Options")
+
+    selectColmmOne = st.selectbox("Select Column 1:", options=editedTable.columns)
+    selectColmnTwo = st.selectbox("Select Column 2:", options=editedTable.columns)
+
+    st.markdown("**Select Analysis Types:**")
+
+    cl1, cl2 = st.columns(2)
+
+    with cl1:
+        meanCheck = st.checkbox("Mean")
+        medianCheck = st.checkbox("Median")
+        modeCheck = st.checkbox("Mode")
+        variationCheck = st.checkbox("Variation")
+        stdDevCheck = st.checkbox("Standard Deviation")
+        percentilesCheck = st.checkbox("Percentiles")
+    with cl2:
+        pearsonsCheck = st.checkbox("Pearson's Correlation")
+        spearmansCheck = st.checkbox("Spearman's Rank")
+        regressionCheck = st.checkbox("Least Squares Regression")
+        chiSquareCheck = st.checkbox("Chi-Square Test")
+        binomialCheck = st.checkbox("Binomial Distribution Test")
+        varianceCheck = st.checkbox("Variance")
+
+    st.markdown("---")
+    st.header("Charts")
+    st.empty()  # Placeholder for future chart implementations  
+
+
