@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
 
-
 # Set page configuration
 st.set_page_config(
-    page_title="Data Analyzer",
+    page_title="Statistical Analyzer",
     layout="wide",
 )
 

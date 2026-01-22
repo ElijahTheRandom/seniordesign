@@ -83,7 +83,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-
 # Disable scrolling
 st.markdown("""
 <style>
@@ -147,6 +146,31 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
+# REAL Streamlit button (must be BEFORE the iframe)
+clicked = st.button("Get Started", key="real_button")
+
+if clicked:
+    st.switch_page("pages/mainpage.py")
+
+st.markdown("""
+<style>
+div[data-testid="stButton"] {
+    position: absolute;
+    top: 477px;
+    left: 835px;
+    width: 147px;
+    z-index: 9999;
+}
+
+div[data-testid="stButton"] > button {
+    height: 47px;
+    opacity: 0;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 
 # HTML and CSS for the homepage
 components.html(
@@ -362,13 +386,14 @@ p {
 </section>
 
 <section class="content">
-  <div class="eyebrow"></div>
-  <h1>Powerful statistical analysis,<br/> beautifully visualized</h1>
+  <div class="eyebrow">Powered by Group 6</div>
+  <h1>PS Analytics<br/></h1>
   <p>
-    Analyze datasets, explore trends, and understand your numbers with
-    clean charts, clear tables, and intuitive tools built for insight.
+    Your go-to tool for statistical analytics.
+    <br>Import files, edit tables, visualize datasets,
+     compare results, and export your reports all on one platform.
   </p>
-  <div class="cta">
+  <div class="cta" style="position: relative;">
     <button>Get Started</button>
   </div>  
 </section>
