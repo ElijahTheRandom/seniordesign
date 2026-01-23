@@ -1,24 +1,18 @@
 import streamlit as st
 import pandas as pd
 
-# Set page configuration
+# Session state
+if "analysis_runs" not in st.session_state:
+    st.session_state.analysis_runs = []
+
+
+# Page config
 st.set_page_config(
     page_title="Statistical Analyzer",
     layout="wide",
 )
 
-st.markdown("""
-<style>
-:root {
-    --primary-color: #e4781d !important;
-    --primary-color-rgb: 228, 120, 29 !important;
-    --secondary-background-color: #ffffff00 !important;
-    --text-color: #000000 !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# Hide Streamlit header and adjust padding
+# Styling
 st.markdown("""
 <style>
 header[data-testid="stHeader"] { display: none; }
@@ -30,80 +24,115 @@ header[data-testid="stHeader"] { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
-# Change background color
-st.markdown("""
-<style>
-.stApp {
- //background-color: #EEEEEE;
-}
-</style>
-""",
-unsafe_allow_html=True
-)
+# Build tabs
+tab_labels = ["Main Workspace"]
+tab_labels += [f"Run {i+1}" for i in range(len(st.session_state.analysis_runs))]
 
-# Set up columns for layout
-top_left, top_spacer, top_right = st.columns([6, 2, 4])
-left, right = st.columns([3, 2], gap="small")
+tabs = st.tabs(tab_labels)
 
-# Top right buttons
-with top_right:
-    c1, c2, c3 = st.columns(3)
-    c1.button("View Results")
-    c2.button("Save Run")
-    c3.button("Load Run")
+# Main Workspace Tab
+with tabs[0]:
+    left_col, right_col = st.columns([3, 2], gap="medium")
 
-with left: 
-    st.header("Tabular Data Input")
+    # Data Input
+    with left_col:
+        st.header("Data Input & Table")
 
-    # File uploader for CSV files
-    uploaded_files = st.file_uploader(
-    "Upload data", accept_multiple_files=True, type="csv"
-    )
-    
-    # Initialize with default empty table
-    if uploaded_files:
-        # Use the last uploaded file
-        df = pd.read_csv(uploaded_files[-1])
-        table = df.copy()
-    else:
-        # Default empty table 
-        table = pd.DataFrame(columns=["Data input..."])
+        uploaded_files = st.file_uploader(
+            "Upload CSV files",
+            accept_multiple_files=True,
+            type="csv",
+        )
 
-    # Display editable data table
-    editedTable = st.data_editor(
-        table,
-        num_rows="dynamic",
-        use_container_width=True,
-        height = 450
-    )
+        if uploaded_files:
+            df = pd.read_csv(uploaded_files[-1])
+            table = df.copy()
+            st.info(f"Loaded: {uploaded_files[-1].name}")
+        else:
+            table = pd.DataFrame(columns=["Enter your data..."])
 
-with right:
-    st.header("Data Analysis Options")
+        edited_table = st.data_editor(
+            table,
+            num_rows="dynamic",
+            use_container_width=True,
+            height=450,
+        )
 
-    selectColmmOne = st.selectbox("Select Column 1:", options=editedTable.columns)
-    selectColmnTwo = st.selectbox("Select Column 2:", options=editedTable.columns)
+    # Analysis Options
+    with right_col:
+        st.header("Analysis Configuration")
 
-    st.markdown("---")
+        col1 = st.selectbox("Primary Column", edited_table.columns)
+        col2 = st.selectbox("Secondary Column", edited_table.columns)
 
-    st.markdown("**Select Analysis Types:**")
+        st.subheader("Analysis Types")
 
-    cl1, cl2 = st.columns(2)
+        c1, c2 = st.columns(2)
 
-    with cl1:
-        meanCheck = st.checkbox("Mean")
-        medianCheck = st.checkbox("Median")
-        modeCheck = st.checkbox("Mode")
-        variationCheck = st.checkbox("Variation")
-        stdDevCheck = st.checkbox("Standard Deviation")
-        percentilesCheck = st.checkbox("Percentiles")
-    with cl2:
-        pearsonsCheck = st.checkbox("Pearson's Correlation")
-        spearmansCheck = st.checkbox("Spearman's Rank")
-        regressionCheck = st.checkbox("Least Squares Regression")
-        chiSquareCheck = st.checkbox("Chi-Square Test")
-        binomialCheck = st.checkbox("Binomial Distribution Test")
-        varianceCheck = st.checkbox("Variance")
+        with c1:
+            mean = st.checkbox("Mean")
+            median = st.checkbox("Median")
+            mode = st.checkbox("Mode")
+            variance = st.checkbox("Variance")
+            std_dev = st.checkbox("Standard Deviation")
+            percentiles = st.checkbox("Percentiles")
 
-    st.markdown("---")
-    st.header("Charts")
-    st.empty()  # Placeholder for future chart implementations  
+        with c2:
+            pearson = st.checkbox("Pearson's Correlation")
+            spearman = st.checkbox("Spearman's Rank")
+            regression = st.checkbox("Least Squares Regression")
+            chi_square = st.checkbox("Chi-Square Test")
+            binomial = st.checkbox("Binomial Distribution")
+            variation = st.checkbox("Coefficient of Variation")
+
+        st.markdown("---")
+
+        if st.button("Run Analysis", type="primary", use_container_width=True):
+            run = {
+                "table": edited_table,
+                "col1": col1,
+                "col2": col2,
+                "methods": [
+                    name for name, selected in {
+                        "Mean": mean,
+                        "Median": median,
+                        "Mode": mode,
+                        "Variance": variance,
+                        "Standard Deviation": std_dev,
+                        "Percentiles": percentiles,
+                        "Pearson": pearson,
+                        "Spearman": spearman,
+                        "Regression": regression,
+                        "Chi-Square": chi_square,
+                        "Binomial": binomial,
+                        "Variation": variation,
+                    }.items() if selected
+                ],
+            }
+
+            st.session_state.analysis_runs.append(run)
+            st.rerun()
+
+# Analysis Result Tabs
+for i, tab in enumerate(tabs[1:]):
+    with tab:
+        run = st.session_state.analysis_runs[i]
+
+        st.header(f"Analysis Results — Run {i+1}")
+        #st.caption(f"Created: {run['timestamp']}")
+
+        st.markdown("### Columns Used")
+        st.write(run["col1"], "vs", run["col2"])
+
+        st.markdown("### Methods Applied")
+        for m in run["methods"]:
+            st.write("•", m)
+
+        st.markdown("### Data Snapshot")
+        st.dataframe(run["table"], use_container_width=True)
+
+        st.markdown("---")
+
+        if st.button("Delete This Run", key=f"delete_{i}"):
+            st.session_state.analysis_runs.pop(i)
+            st.rerun()
