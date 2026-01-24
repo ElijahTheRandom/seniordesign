@@ -1,8 +1,10 @@
 import streamlit as st
 import streamlit.components.v1 as components
  
+# Debug print
 print("Loading homepage.py") 
 
+# Set page configuration
 st.set_page_config(
     page_title="Statistical Analyzer",
     layout="wide",
@@ -51,6 +53,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# Prevent scrolling
 st.markdown(
     """
     <style>
@@ -78,7 +81,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Disable scrolling
+# More scroll blocking
 st.markdown("""
 <style>
 /* Kill all scrolling */
@@ -99,6 +102,7 @@ iframe {
 </style>
 """, unsafe_allow_html=True)
 
+# Set black background
 st.markdown(
     """
     <style>
@@ -116,7 +120,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-
+# Adjust spacing
 st.markdown(
     """
     <style>
@@ -135,17 +139,19 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# REAL Streamlit button (must be BEFORE the iframe)
+# REAL Streamlit button (must stay BEFORE the iframe)
 clicked = st.button("Get Started", key="real_button")
 
+# Redirect to mainpage.py on click
 if clicked:
     st.switch_page("pages/mainpage.py")
 
+# Invisible button so HTML one still looks nice but this one handles movement
 st.markdown("""
 <style>
 div[data-testid="stButton"] {
     position: absolute;
-    top: 472px;
+    top: 450px;
     left: 835px;
     width: 147px;
     z-index: 9999;
@@ -186,14 +192,13 @@ div[data-testid="stButton"] > button {
 </style>
 """, unsafe_allow_html=True)
 
-# HTML and CSS for the homepage
+# HTML and CSS for the homepage all fake charts, layout, and movement, etc.
 components.html(
     """
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<link href="https://fonts.googleapis.com/css2?family=Cantora+One&display=swap" rel="stylesheet">
 
 <style>
 :root {
@@ -218,6 +223,13 @@ body {
   height:100vh;
   width:100vw;
   overflow:hidden;
+}
+
+.layout {
+  animation: fadeIn 1s ease-in-out;
+  animation-delay: 0s;
+  opacity: 0;
+  animation-fill-mode: forwards;
 }
 
 .layout {
@@ -250,21 +262,52 @@ body {
   border-radius:14px;
   box-shadow:0 20px 40px rgba(0,0,0,0.08);
   padding:16px;
-  animation: float 6s ease-in-out infinite, fade 10s ease-in-out infinite;
+  opacity: 0.25;
+
+  animation:
+    idleFloat 6s ease-in-out infinite,
+    spotlight 12s ease-in-out infinite;
 }
 
-.panel:nth-child(2){animation-delay:2s;}
-.panel:nth-child(3){animation-delay:4s;}
-.panel:nth-child(4){animation-delay:6s;}
-.panel:nth-child(5){animation-delay:8s;}
-
-@keyframes float {
-  0%,100% { transform:translateY(0); }
-  50% { transform:translateY(-20px); }
+body {
+  animation: none;
 }
-@keyframes fade {
-  0%,100% { opacity:.5; }
-  50% { opacity:1; }
+
+.panel {
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+/* Spotlight order */
+.chart-panel  { animation-delay: -1s, 0s; }
+.line-panel   { animation-delay: -3s, 2s; }
+.donut-panel  { animation-delay: -5s, 4s; }
+.spark-panel  { animation-delay: -7s, 6s; }
+.table-panel  { animation-delay: -9s, 8s; }
+.trend-panel  { animation-delay: -11s,10s; }
+
+.chart-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes idleFloat {
+  0%   { transform: translateY(-10px); }
+  50%  { transform: translateY(-20px); }
+  100% { transform: translateY(-10px); }
+}
+
+
+@keyframes spotlight {
+  0%   { opacity: 0.25; }
+  25%  { opacity: 1; }
+  40%  { opacity: 0.25; }
+  100% { opacity: 0.25; }
 }
 
 /* CHARTS */
@@ -298,23 +341,29 @@ body {
   border-radius:8px;
 }
 
+.scatter {
+  position: relative;
+  width: 100%;
+  height: 100px;
+  background: transparent;
+  border-radius: 10px;
+}
 
-.line {
-  height:100px;
-  background:linear-gradient(
-    180deg,
-    rgba(228,120,29,0.25),
-    rgba(228,120,29,0)
-  );
-  border-radius:10px;
+.dot {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  border-radius: 50%;
 }
 
 /* POSITIONS */
 .chart-panel { top:5%; left:5%; width:40%; }
-.table-panel { top:35%; left:5%; width:40%; }
+.table-panel { top:65%; left:5%; width:40%; }
 .line-panel { top:5%; left:50%; width:40%; }
-.donut-panel { top:35%; left:50%; width:40%; }
-.spark-panel { top:65%; left:5%; width:85%; }
+.donut-panel { top:35%; left:5%; width:40%; }
+.spark-panel { top:35%; left:50%; width:40%; }
+.trend-panel { top:65%; left:50%; width:40%; }
 
 .table {
   width:100%;
@@ -324,19 +373,18 @@ body {
 
 /* RIGHT CONTENT */
 .content {
+  margin-top: -10px !important;
   padding:80px 72px;
   display:flex;
   flex-direction:column;
   justify-content:center;
-  animation:fadeIn 2s ease-in-out;
 }
 .eyebrow {
   font-size:13px;
   letter-spacing:.08em;
   text-transform:uppercase;
   color: white !important;
-  margin-bottom:16px;
-  animation:fadeIn 2s ease-in-out;
+  margin-bottom: 6px;
 }
 @keyframes fadeIn {
     from { opacity: 0; }
@@ -345,7 +393,8 @@ body {
 h1 {
   font-family: "Source Sans Pro", sans-serif !important;
   font-size:clamp(36px,4vw,52px);
-  margin:0 0 24px;
+  margin: 0 0 10px;
+  margin-bottom: 5px;
   color: white !important;
 }
 p {
@@ -353,6 +402,7 @@ p {
   font-size:18px;
   max-width:480px;
 }
+
 .cta button {
   margin-top:36px;
   padding:14px 32px;
@@ -372,6 +422,67 @@ p {
   background: #d66b1d !important;
 }
 
+.hbar-chart {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 8px;
+  height: auto;
+  padding: 10px;
+  background: linear-gradient(
+    180deg,
+    rgba(228,120,29,0.25),
+    rgba(228,120,29,0)
+  );
+  border-radius: 10px;
+}
+
+.hbar {
+  height: 16px;
+  background: var(--accent);
+  border-radius: 4px;
+}
+
+.trend-panel {
+  top: 65%;
+  left: 50%;
+  width: 40%;
+}
+
+.line-graph {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  background: transparent;
+  border-radius: 10px;
+}
+
+.line-point {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.line-path {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.faded-bg {
+  background: linear-gradient(
+    180deg,
+    rgba(228,120,29,0.25),
+    rgba(228,120,29,0)
+  );
+  border-radius: 10px;
+  padding: 10px;
+}
 
 @media(max-width:900px){
   .layout{grid-template-columns:1fr;}
@@ -385,38 +496,90 @@ p {
 
 <section class="visual">
   <div class="panel chart-panel">
-    <strong>Vertical Bar Charts</strong>
-    <div class="chart">
-      <div class="bar" style="height:40%"></div>
-      <div class="bar" style="height:70%"></div>
-      <div class="bar" style="height:55%"></div>
-      <div class="bar" style="height:85%"></div>
-      <div class="bar" style="height:60%"></div>
+  <strong>Vertical Bar Charts</strong>
+    <div class="chart-body faded-bg">
+      <div class="chart">
+        <div class="bar" style="height:40%"></div>
+        <div class="bar" style="height:70%"></div>
+        <div class="bar" style="height:55%"></div>
+        <div class="bar" style="height:85%"></div>
+        <div class="bar" style="height:60%"></div>
+        <div class="bar" style="height:75%"></div>
+        <div class="bar" style="height:30%"></div>
+      </div>
     </div>
   </div>
 
   <div class="panel table-panel">
-    <strong>Summary</strong>
-    <table class="table">
-      <tr><th>Mean</th><td>42.6</td></tr>
-      <tr><th>Median</th><td>41.0</td></tr>
-      <tr><th>Std Dev</th><td>6.2</td></tr>
-    </table>
+  <strong>Results</strong>
+    <div class="chart-body faded-bg">
+      <table class="table">
+        <tr><th>Mean:</th><td>42.6</td></tr>
+        <tr><th>Median:</th><td>41.0</td></tr>
+        <tr><th>Std Dev:</th><td>6.2</td></tr>
+        <tr><th>Variance:</th><td>38.4</td></tr>
+        <tr><th>Mode:</th><td>5.7</td></tr>
+      </table>
+    </div>
   </div>
 
   <div class="panel line-panel">
-    <strong>Trend</strong>
-    <div class="line"></div>
+  <strong>Scatter Plots</strong>
+    <div class="chart-body faded-bg">
+      <div class="scatter">
+        <div class="dot" style="left:20%; top:60%"></div>
+        <div class="dot" style="left:25%; top:40%"></div>
+        <div class="dot" style="left:45%; top:50%"></div>
+        <div class="dot" style="left:65%; top:30%"></div>
+        <div class="dot" style="left:85%; top:50%"></div>
+        <div class="dot" style="left:35%; top:60%"></div>
+        <div class="dot" style="left:50%; top:10%"></div>
+        <div class="dot" style="left:55%; top:50%"></div>
+        <div class="dot" style="left:65%; top:50%"></div>
+        <div class="dot" style="left:40%; top:70%"></div>
+      </div>
+    </div>
   </div>
 
   <div class="panel donut-panel">
-    <strong>Pie Charts</strong>
-    <div class="donut"></div>
+  <strong>Pie Charts</strong>
+    <div class="chart-body faded-bg">
+      <div class="donut"></div>
+    </div>
   </div>
 
-  <div class="panel spark-panel"> 
-    <strong>Signal</strong>
-    <div class="sparkline"></div>
+  <div class="panel spark-panel">
+  <strong>Horizontal Bar Charts</strong>
+    <div class="hbar-chart">
+      <div class="hbar" style="width: 40%"></div>
+      <div class="hbar" style="width: 70%"></div>
+      <div class="hbar" style="width: 55%"></div>
+      <div class="hbar" style="width: 85%"></div>
+      <div class="hbar" style="width: 60%"></div>
+    </div>
+  </div>
+
+  <div class="panel trend-panel">
+  <strong>Line Graphs</strong>
+    <div class="chart-body faded-bg">
+      <div class="line-graph">
+        <div class="line-point" style="left:5%; top:60%"></div>
+        <div class="line-point" style="left:20%; top:50%"></div>
+        <div class="line-point" style="left:35%; top:55%"></div>
+        <div class="line-point" style="left:50%; top:40%"></div>
+        <div class="line-point" style="left:65%; top:45%"></div>
+        <div class="line-point" style="left:80%; top:30%"></div>
+        <div class="line-point" style="left:95%; top:40%"></div>
+        <svg class="line-path">
+          <polyline 
+            points="5,75 240,40"
+            stroke="#e4781d"
+            stroke-width="3"
+            fill="none"
+          />
+        </svg>
+      </div>
+    </div>
   </div>
 </section>
 
