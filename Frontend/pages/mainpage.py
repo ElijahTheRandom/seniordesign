@@ -7,17 +7,6 @@ st.set_page_config(
     layout="wide",
 )
 
-st.markdown("""
-<style>
-:root {
-    --primary-color: #e4781d !important;
-    --primary-color-rgb: 228, 120, 29 !important;
-    --secondary-background-color: #ffffff00 !important;
-    --text-color: #000000 !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # Hide Streamlit header and adjust padding
 st.markdown("""
 <style>
@@ -52,6 +41,7 @@ with top_right:
     c2.button("Save Run")
     c3.button("Load Run")
 
+# Left panel for data input
 with left: 
     st.header("Tabular Data Input")
 
@@ -77,18 +67,22 @@ with left:
         height = 450
     )
 
+# Right panel for analysis options
 with right:
     st.header("Data Analysis Options")
 
+    # Dropdowns for selecting columns
     selectColmmOne = st.selectbox("Select Column 1:", options=editedTable.columns)
     selectColmnTwo = st.selectbox("Select Column 2:", options=editedTable.columns)
 
     st.markdown("---")
 
+    # Section header
     st.markdown("**Select Analysis Types:**")
 
     cl1, cl2 = st.columns(2)
 
+    # Checkboxes for analysis options
     with cl1:
         meanCheck = st.checkbox("Mean")
         medianCheck = st.checkbox("Median")
@@ -103,6 +97,7 @@ with right:
         chiSquareCheck = st.checkbox("Chi-Square Test")
         binomialCheck = st.checkbox("Binomial Distribution Test")
         varianceCheck = st.checkbox("Variance")
+
 
     st.markdown("---")
     st.header("Charts")
