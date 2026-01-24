@@ -5,7 +5,6 @@ import pandas as pd
 if "analysis_runs" not in st.session_state:
     st.session_state.analysis_runs = []
 
-
 # Page config
 st.set_page_config(
     page_title="Statistical Analyzer",
@@ -23,6 +22,27 @@ header[data-testid="stHeader"] { display: none; }
 }
 </style>
 """, unsafe_allow_html=True)
+
+# Checkbox styling
+st.markdown("""
+<style>
+div[data-testid="stCheckbox"] span {
+    background-color: #d66b1d !important;
+    border-radius: 4px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Button Styling
+st.markdown("""
+            <style>
+            div[data-testid="stButton"] .st-emotion-cache-1krtkoa {
+                background-color: #d66b1d !important;
+                color: white !important;
+                border-radius: 4px !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
 
 # Build tabs
 tab_labels = ["Main Workspace"]

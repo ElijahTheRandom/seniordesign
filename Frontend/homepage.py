@@ -51,6 +51,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# Lock viewport to prevent scrolling
 st.markdown(
     """
     <style>
@@ -99,6 +100,7 @@ iframe {
 </style>
 """, unsafe_allow_html=True)
 
+# Set background to black
 st.markdown(
     """
     <style>
@@ -116,7 +118,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-
+# Remove vertical gaps in layout blocks
 st.markdown(
     """
     <style>
