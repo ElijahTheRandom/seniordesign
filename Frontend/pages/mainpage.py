@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 import uuid
+import time
+from PIL import Image
+
 
 # Session state
 if "analysis_runs" not in st.session_state:
@@ -20,9 +23,16 @@ header[data-testid="stHeader"] { display: none; }
     padding-top: 0rem !important;
     padding-left: 1rem;
     padding-right: 1rem;
+    margin-top: -3rem !important;
+    margin-bottom: -3rem !important;
+}
+div[data-testid="stTabs"] {
+    margin-top: -2rem !important;
+    margin-bottom: -3rem !important;
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 # Checkbox and column selection styling
 st.markdown("""
@@ -202,8 +212,8 @@ with tabs[0]:
     with right_col:
         st.header("Analysis Configuration", anchor=False)
 
-        col1 = st.selectbox("Primary Column", edited_table.columns)
-        col2 = st.selectbox("Secondary Column", edited_table.columns)
+        col1 = st.multiselect("Columns", edited_table.columns)
+        col2 = st.multiselect("Rows", [f"Row {i}" for i in edited_table.index])
 
         st.subheader("Analysis Types")
 
