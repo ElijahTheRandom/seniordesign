@@ -600,7 +600,7 @@ p {
 </body>
 </html>
 """,
-    height=695,
+    height=740,
     scrolling=False
 )
 
