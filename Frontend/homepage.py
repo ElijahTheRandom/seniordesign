@@ -1,8 +1,5 @@
 import streamlit as st
 import streamlit.components.v1 as components
- 
-#Christopher delete this line in a minute I have to add it to commit
-print("Stupid commit button")
 
 # Debug print
 print("Loading homepage.py") 
@@ -142,58 +139,152 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# REAL Streamlit button (must stay BEFORE the iframe)
-clicked = st.button("Get Started", key="real_button")
-
-# Redirect to mainpage.py on click
-if clicked:
-    st.switch_page("pages/mainpage.py")
-
-# Invisible button so HTML one still looks nice but this one handles movement
 st.markdown("""
 <style>
-div[data-testid="stButton"] {
-    position: absolute;
-    top: 430px;
-    left: 838px;
-    width: 147px;
-    z-index: 9999;
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
 }
-            
-div[data-testid="stButton"] > button {
-    height: 47px;
-    background: transparent;
-    color: transparent;
+
+.stApp,
+[data-testid="stAppViewContainer"],
+section.main,
+section.main > div {
+    height: 100vh;
+    overflow: hidden;
+}
+
+iframe {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
     border: none;
-    cursor: pointer;
-    pointer-events: none;
+    overflow: hidden;
 }
-
-div[data-testid="stButton"] > button {
-    pointer-events: auto;
-}
-            
-.cta button {
-  margin-top:36px;
-  padding:14px 32px;
-  font-size:15px;
-  font-weight:600;
-  border-radius:8px;
-
-  background: #e4781d !important;   /* Streamlit primary color */
-  color: white !important;                /* Streamlit button text */
-  border: none !important;                /* Streamlit removes borders */
-
-  cursor:pointer;
-  transition: background 0.2s ease;
-}
-
-.cta button:hover {
-  background: #d66b1d !important;         /* darker version of #F63366 */
-}
-
 </style>
 """, unsafe_allow_html=True)
+
+# REAL Streamlit button (must stay BEFORE the iframe)
+st.markdown( 
+    """ 
+    <style> 
+    /* FORCE move Streamlit button */ 
+    div[data-testid="stButton"] { 
+      position: fixed !important; 
+      right: 505px; bottom: 140px; 
+      width: 200px; 
+      height: 100px; z-index: 9999; 
+    } 
+    </style> 
+    """, 
+    unsafe_allow_html=True 
+    )
+
+# Button styling like Run Analysis
+st.markdown("""
+<style>
+div[data-testid="stButton"] button,
+div[data-testid="stFileUploader"] button {
+    background-color: #d66b1d !important;
+    color: #ffffff !important;
+    border: 1px solid #d66b1d !important;
+    border-radius: 6px !important;
+    font-weight: 600;
+    padding: 8px 16px;
+
+    transition:
+        background-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.12s ease;
+}
+
+div[data-testid="stButton"] button:hover,
+div[data-testid="stFileUploader"] button:hover {
+    background-color: #e4781d !important;
+    border-color: #e4781d !important;
+
+    box-shadow:
+        0 4px 12px rgba(214, 107, 29, 0.45),
+        0 0 0 3px rgba(214, 107, 29, 0.35);
+
+    transform: translateY(-1px);
+}
+
+div[data-testid="stButton"] button:active,
+div[data-testid="stFileUploader"] button:active {
+    background-color: #b85b18 !important;
+    border-color: #b85b18 !important;
+    transform: translateY(0);
+}
+
+div[data-testid="stButton"] button:focus-visible,
+div[data-testid="stFileUploader"] button:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(214, 107, 29, 0.5);
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown(
+"""
+<style>
+@keyframes buttonFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Streamlit button container */
+div[data-testid="stButton"] {
+    position: fixed !important;
+    right: 495px;
+    bottom: 150px;
+    width: 200px;
+    height: 100px;
+    z-index: 9999;
+
+    /* FADE IN */
+    opacity: 0;
+    animation: buttonFadeIn 1s ease-out forwards;
+    animation-delay: 1.2s; /* match your layout fade */
+}
+</style>
+""",
+unsafe_allow_html=True
+)
+
+st.markdown(
+"""
+<style>
+/* Hide button when viewport is narrow (split screen) */
+@media (max-width: 1200px) {
+    div[data-testid="stButton"] {
+        display: none !important;
+    }
+}
+</style>
+""",
+unsafe_allow_html=True
+)
+
+clicked = st.button( 
+    "Get Started", 
+    key="real_button", 
+    use_container_width=True 
+) 
+
+# Redirect to mainpage.py on click 
+if clicked: 
+  st.switch_page("pages/mainpage.py")
 
 # HTML and CSS for the homepage all fake charts, layout, and movement, etc.
 components.html(
@@ -406,25 +497,6 @@ p {
   max-width:480px;
 }
 
-.cta button {
-  margin-top:36px;
-  padding:14px 32px;
-  font-size:15px;
-  font-weight:600;
-  border-radius:8px;
-
-  background: #e4781d !important;
-  color: white !important;
-  border: none !important;
-
-  cursor:pointer;
-  transition: background 0.2s ease;
-}
-
-.cta button:hover {
-  background: #d66b1d !important;
-}
-
 .hbar-chart {
   display: flex;
   flex-direction: column;
@@ -594,17 +666,14 @@ p {
     <br>Import files, edit tables, visualize datasets,
      compare results, and export your reports all on one platform.
   </p>
-  <div class="cta" style="position: relative;">
-    <button>Get Started</button>
-  </div>  
 </section>
 
 </div>
 </body>
 </html>
 """,
-    height=740,
-    scrolling=False
+height=0,
+scrolling=False
 )
 
 st.markdown("""
