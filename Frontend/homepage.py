@@ -151,8 +151,8 @@ st.markdown("""
 <style>
 div[data-testid="stButton"] {
     position: absolute;
-    top: 450px;
-    left: 835px;
+    top: 430px;
+    left: 838px;
     width: 147px;
     z-index: 9999;
 }
@@ -600,6 +600,39 @@ p {
 </body>
 </html>
 """,
-    height=740,
+    height=695,
     scrolling=False
 )
+
+st.markdown("""
+<style>
+/* FINAL SCROLL KILL — DO NOT DUPLICATE ELSEWHERE */
+
+/* Root */
+html, body {
+    height: 100%;
+    overflow: hidden !important;
+    overscroll-behavior: none;
+}
+
+/* Streamlit root containers */
+.stApp,
+[data-testid="stAppViewContainer"],
+section.main,
+section.main > div {
+    height: 100vh !important;
+    overflow: hidden !important;
+}
+
+/* Remove internal scrollbars */
+div[data-testid="stVerticalBlock"] {
+    overflow: hidden !important;
+}
+
+/* Iframes must never scroll */
+iframe {
+    overflow: hidden !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
