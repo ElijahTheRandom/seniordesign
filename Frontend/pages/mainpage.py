@@ -35,31 +35,38 @@ div[data-testid="stCheckbox"] span {
 </style>
 """, unsafe_allow_html=True)
 
+# Selectbox styling
 st.markdown("""
 <style>
+/* Base selectbox styling */
 div[data-testid="stSelectbox"] > div {
     background-color: #262730 !important;
     border: 1px solid #e4781d !important;
     border-radius: 6px !important;
 }
 
+/* Hover and focus effects */
 div[data-testid="stSelectbox"] > div:hover {
     border-color: #d66b1d !important;
 }
 
+/* Focused state */
 div[data-testid="stSelectbox"] > div:has(input:focus) {
     border-color: #e4781d !important;
     box-shadow: 0 0 0 1px #e4781d !important;
 }
 
+/* Dropdown menu styling */
 div[data-testid="stSelectbox"] svg {
     fill: #e4781d !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
+# Checkbox box styling
 st.markdown("""
 <style>
+/* Base checkbox styling */
 div[data-testid="stCheckbox"] > label > div:first-child {
     background-color: #262730;     /* dark background */
     border: 1px solid #e4781d;     /* orange border */
@@ -69,11 +76,13 @@ div[data-testid="stCheckbox"] > label > div:first-child {
     transition: all 0.15s ease;
 }
 
+/* Hover effect for checkbox */
 div[data-testid="stCheckbox"] > label > div:first-child:hover {
     border-color: #d66b1d;
     box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.4);
 }
 
+/* Checked state styling */
 div[data-testid="stCheckbox"] > label > input:checked + div:first-child {
     background-color: #e4781d;
     border-color: #e4781d;
@@ -84,33 +93,44 @@ div[data-testid="stCheckbox"] > label > input:checked + div:first-child {
 # Button styling
 st.markdown("""
 <style>
+/* Base button styling */
 div[data-testid="stButton"] button,
 div[data-testid="stFileUploader"] button {
-    background-color: #262730 !important;   /* dark background */
-    color: white !important;                /* text color */
-    border: 1px solid #e4781d !important;  /* orange border */
+    background-color: #d66b1d !important;
+    color: #ffffff !important;
+    border: 1px solid #d66b1d !important;
     border-radius: 6px !important;
     font-weight: 600;
-    padding: 6px 16px;
-    transition: all 0.15s ease;
-    cursor: pointer;
+    padding: 8px 16px;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+/* Hover */
 div[data-testid="stButton"] button:hover,
 div[data-testid="stFileUploader"] button:hover {
-    border-color: #d66b1d !important;
-    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.4);
-    background-color: #2d2d38 !important; /* slightly lighter on hover */
+    background-color: #e4781d !important;
+    border-color: #e4781d !important;
+    box-shadow: 0 0 0 3px rgba(214, 107, 29, 0.35);
 }
 
+/* Focus Visible */
+div[data-testid="stButton"] button:focus-visible,
+div[data-testid="stFileUploader"] button:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(214, 107, 29, 0.5);
+}
+
+/* Active */ 
 div[data-testid="stButton"] button:active,
 div[data-testid="stFileUploader"] button:active {
-    background-color: #1f1f29 !important;
-    border-color: #e4781d !important;
+    background-color: #b85b18 !important;
+    border-color: #b85b18 !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
+
+# Function to delete an analysis run
 def delete_run(index):
     st.session_state.analysis_runs.pop(index)
 
@@ -120,22 +140,27 @@ tab_labels += [run["name"] for run in st.session_state.analysis_runs]
 
 tabs = st.tabs(tab_labels)
 
+# Tab styling
 st.markdown("""
 <style>
+/* Base tab styling */
 div[data-testid="stTabs"] button[role="tab"] {
     color: #e4781d !important;
     font-weight: 600 !important;
     background: transparent !important;
 }
 
+/* Hover effect for tabs */
 div[data-testid="stTabs"] button[role="tab"]:hover {
     color: #d66b1d !important;
 }
 
+/* Selected tab styling */            
 div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
     color: #e4781d !important;
 }
 
+/* Underline for selected tab */            
 div[data-testid="stTabs"] div[role="tablist"] > div:last-child {
     background-color: #d66b1d !important;
     height: 3px !important;
@@ -151,7 +176,7 @@ with tabs[0]:
 
     # Data Input
     with left_col:
-        st.header("Data Input & Table")
+        st.header("Data Input & Table", anchor=False)
 
         uploaded_files = st.file_uploader(
             "Upload CSV Files",
@@ -175,7 +200,7 @@ with tabs[0]:
 
     # Analysis Options
     with right_col:
-        st.header("Analysis Configuration")
+        st.header("Analysis Configuration", anchor=False)
 
         col1 = st.selectbox("Primary Column", edited_table.columns)
         col2 = st.selectbox("Secondary Column", edited_table.columns)
