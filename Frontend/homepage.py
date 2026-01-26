@@ -1,6 +1,9 @@
 import streamlit as st
 import streamlit.components.v1 as components
  
+#Christopher delete this line in a minute I have to add it to commit
+print("Stupid commit button")
+
 # Debug print
 print("Loading homepage.py") 
 
