@@ -24,7 +24,7 @@ header[data-testid="stHeader"] { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
-# Checkbox styling
+# Checkbox and column selection styling
 st.markdown("""
 <style>
 div[data-testid="stCheckbox"] span {
@@ -35,53 +35,80 @@ div[data-testid="stCheckbox"] span {
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+div[data-testid="stSelectbox"] > div {
+    background-color: #262730 !important;
+    border: 1px solid #e4781d !important;
+    border-radius: 6px !important;
+}
+
+div[data-testid="stSelectbox"] > div:hover {
+    border-color: #d66b1d !important;
+}
+
+div[data-testid="stSelectbox"] > div:has(input:focus) {
+    border-color: #e4781d !important;
+    box-shadow: 0 0 0 1px #e4781d !important;
+}
+
+div[data-testid="stSelectbox"] svg {
+    fill: #e4781d !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+div[data-testid="stCheckbox"] > label > div:first-child {
+    background-color: #262730;     /* dark background */
+    border: 1px solid #e4781d;     /* orange border */
+    border-radius: 4px;
+    width: 18px;
+    height: 18px;
+    transition: all 0.15s ease;
+}
+
+div[data-testid="stCheckbox"] > label > div:first-child:hover {
+    border-color: #d66b1d;
+    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.4);
+}
+
+div[data-testid="stCheckbox"] > label > input:checked + div:first-child {
+    background-color: #e4781d;
+    border-color: #e4781d;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Button styling
 st.markdown("""
 <style>
-.run-analysis-anchor {
-    position: relative;
-    height: 70px;      /* anchor area height */
-}
-
-/* Invisible Streamlit button */
-.run-analysis-anchor button {
-    opacity: 0;
-    position: relative;
-    z-index: 5;
-}
-
-/* Visible overlay button */
-.run-analysis-overlay {
-    position: absolute;
-    top: 760px;
-    left: 913px;
-    width: 580px;
-    height: 42px;
-    background-color: #e4781d;
-    color: white;
-    border: none;
-    border-radius: 8px;
+div[data-testid="stButton"] button,
+div[data-testid="stFileUploader"] button {
+    background-color: #262730 !important;   /* dark background */
+    color: white !important;                /* text color */
+    border: 1px solid #e4781d !important;  /* orange border */
+    border-radius: 6px !important;
     font-weight: 600;
-    font-size: 15px;
+    padding: 6px 16px;
+    transition: all 0.15s ease;
     cursor: pointer;
-    z-index: 10;
-    transition: background-color 0.2s ease;
 }
 
-.run-analysis-overlay:hover {
-    background-color: #d66b1d;
+div[data-testid="stButton"] button:hover,
+div[data-testid="stFileUploader"] button:hover {
+    border-color: #d66b1d !important;
+    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.4);
+    background-color: #2d2d38 !important; /* slightly lighter on hover */
 }
 
-.run-analysis-overlay:active {
-    background-color: #e4781d;
-}
-
-.run-analysis-overlay {
-    pointer-events: none;
+div[data-testid="stButton"] button:active,
+div[data-testid="stFileUploader"] button:active {
+    background-color: #1f1f29 !important;
+    border-color: #e4781d !important;
 }
 </style>
-
-<button class="run-analysis-overlay">Run Analysis</button>
 """, unsafe_allow_html=True)
 
 def delete_run(index):
@@ -90,7 +117,6 @@ def delete_run(index):
 # Build tabs
 tab_labels = ["Main Workspace"]
 tab_labels += [run["name"] for run in st.session_state.analysis_runs]
-
 
 tabs = st.tabs(tab_labels)
 
