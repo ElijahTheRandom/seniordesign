@@ -1,8 +1,6 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-print("Delete me later pls")
-
 # Debug print
 print("Loading homepage.py") 
 
@@ -295,6 +293,9 @@ components.html(
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cantora+One&family=Quicksand:wght@300..700&display=swap" rel="stylesheet">
 
 <style>
 :root {
@@ -313,7 +314,7 @@ components.html(
 body {
   margin:0;
   padding:0;
-  font-family: "Source Sans Pro", sans-serif !important;
+  font-family: "Quicksand", sans-serif !important;
   background:transparent !important;
   color:var(--text);
   height:100vh;
@@ -487,7 +488,7 @@ body {
     to { opacity: 1; }
   }
 h1 {
-  font-family: "Source Sans Pro", sans-serif !important;
+  font-family: "Quicksand", sans-serif !important;
   font-size:clamp(36px,4vw,52px);
   margin: 0 0 10px;
   margin-bottom: 5px;
