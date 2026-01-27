@@ -1,8 +1,6 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-print("Delete me later pls")
-
 # Debug print
 print("Loading homepage.py") 
 

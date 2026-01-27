@@ -73,6 +73,58 @@ div[data-testid="stSelectbox"] svg {
 </style>
 """, unsafe_allow_html=True)
 
+# Column styling
+st.markdown("""
+<style>
+
+/* Kill Streamlit's default red outline anywhere inside the selectbox */
+div[data-testid="stSelectbox"] * {
+    box-shadow: none !important;
+}
+
+/* Outer container */
+div[data-testid="stSelectbox"] {
+    background-color: transparent !important;
+}
+
+/* BaseWeb select wrapper */
+div[data-testid="stSelectbox"] div[data-baseweb="select"] {
+    background-color: #262730 !important;
+    border-radius: 4px !important;
+}
+
+/* The actual clickable combobox area */
+div[data-testid="stSelectbox"] div[role="combobox"] {
+    border: 1px solid #e4781d !important;              /* orange border */
+    border-radius: 4px !important;
+    padding: 2px 6px !important;
+    box-shadow: 0 0 0 1px #e4781d !important;          /* orange outline */
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Hover */
+div[data-testid="stSelectbox"] div[role="combobox"]:hover {
+    border-color: #d66b1d !important;
+    box-shadow: 0 0 0 2px rgba(214, 107, 29, 0.35) !important;
+}
+
+/* Focus / open */
+div[data-testid="stSelectbox"] div[role="combobox"][aria-expanded="true"],
+div[data-testid="stSelectbox"] div[role="combobox"]:focus,
+div[data-testid="stSelectbox"] div[role="combobox"]:focus-visible {
+    outline: none !important;
+    border-color: #e4781d !important;
+    box-shadow: 0 0 0 3px rgba(228, 120, 29, 0.5) !important;
+}
+
+/* Arrow icon */
+div[data-testid="stSelectbox"] svg {
+    fill: #e4781d !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
 # Checkbox box styling
 st.markdown("""
 <style>
@@ -139,7 +191,6 @@ div[data-testid="stFileUploader"] button:active {
 </style>
 """, unsafe_allow_html=True)
 
-
 # Function to delete an analysis run
 def delete_run(index):
     st.session_state.analysis_runs.pop(index)
@@ -197,7 +248,6 @@ with tabs[0]:
         if uploaded_files:
             df = pd.read_csv(uploaded_files[-1])
             table = df.copy()
-            st.info(f"Loaded: {uploaded_files[-1].name}")
         else:
             table = pd.DataFrame(columns=["Enter your data..."])
 
@@ -205,35 +255,78 @@ with tabs[0]:
             table,
             num_rows="dynamic",
             use_container_width=True,
-            height=450,
+            height=808,
         )
+
+        data_ready = len(edited_table.columns) > 0 and len(edited_table) > 0
 
     # Analysis Options
     with right_col:
         st.header("Analysis Configuration", anchor=False)
 
-        col1 = st.multiselect("Columns", edited_table.columns)
-        col2 = st.multiselect("Rows", [f"Row {i}" for i in edited_table.index])
+        if len(edited_table.columns) > 0 and len(edited_table) > 0:
+            col1 = st.multiselect("Columns", edited_table.columns)
+            col2 = st.multiselect("Rows", [f"Row {i}" for i in edited_table.index])
+        else:
+            st.multiselect("Columns", [], disabled=True)
+            st.multiselect("Rows", [], disabled=True)
 
-        st.subheader("Analysis Types")
+        st.markdown("---")
+
+        st.subheader("Computation Options", anchor=False)
 
         c1, c2 = st.columns(2)
 
         with c1:
-            mean = st.checkbox("Mean")
-            median = st.checkbox("Median")
-            mode = st.checkbox("Mode")
-            variance = st.checkbox("Variance")
-            std_dev = st.checkbox("Standard Deviation")
-            percentiles = st.checkbox("Percentiles")
+            mean = st.checkbox("Mean", disabled=not data_ready)
+            median = st.checkbox("Median", disabled=not data_ready)
+            mode = st.checkbox("Mode", disabled=not data_ready)
+            variance = st.checkbox("Variance", disabled=not data_ready)
+            std_dev = st.checkbox("Standard Deviation", disabled=not data_ready)
+            percentiles = st.checkbox("Percentiles", disabled=not data_ready)
 
         with c2:
-            pearson = st.checkbox("Pearson's Correlation")
-            spearman = st.checkbox("Spearman's Rank")
-            regression = st.checkbox("Least Squares Regression")
-            chi_square = st.checkbox("Chi-Square Test")
-            binomial = st.checkbox("Binomial Distribution")
-            variation = st.checkbox("Coefficient of Variation")
+            pearson = st.checkbox("Pearson's Correlation", disabled=not data_ready)
+            spearman = st.checkbox("Spearman's Rank", disabled=not data_ready)
+            regression = st.checkbox("Least Squares Regression", disabled=not data_ready)
+            chi_square = st.checkbox("Chi-Square Test", disabled=not data_ready)
+            binomial = st.checkbox("Binomial Distribution", disabled=not data_ready)
+            variation = st.checkbox("Coefficient of Variation", disabled=not data_ready)
+
+        st.markdown("---")
+
+        st.subheader("Visualization Options", anchor=False)
+
+        v1, v2 = st.columns(2)
+
+        with v1:
+            hist = st.checkbox(
+                "Pie Chart",
+                key="viz_hist",
+                disabled=not data_ready
+            )
+            box = st.checkbox(
+                "Vertical Bar Chart",
+                key="viz_box",
+                disabled=not data_ready
+            )
+            scatter = st.checkbox(
+                "Horizontal Bar Chart",
+                key="viz_scatter",
+                disabled=not data_ready
+            )
+
+        with v2:
+            line = st.checkbox(
+                "Scatter Plot",
+                key="viz_line",
+                disabled=not data_ready
+            )
+            heatmap = st.checkbox(
+                "Line of Best Fit Scatter Plot",
+                key="viz_heatmap",
+                disabled=not data_ready
+            )
 
         st.markdown("---")
 
@@ -242,7 +335,8 @@ with tabs[0]:
         run_clicked = st.button(
             "Run Analysis",
             key="run_analysis",
-            use_container_width=True
+            use_container_width=True,
+            disabled=not data_ready
         )
 
         if run_clicked:
@@ -269,7 +363,6 @@ with tabs[0]:
                     }.items() if selected
                 ],
             }
-
 
             st.markdown('</div>', unsafe_allow_html=True)
 
