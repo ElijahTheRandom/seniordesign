@@ -255,7 +255,7 @@ with tabs[0]:
             table,
             num_rows="dynamic",
             use_container_width=True,
-            height=808,
+            height=754,
         )
 
         data_ready = len(edited_table.columns) > 0 and len(edited_table) > 0

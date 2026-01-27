@@ -650,7 +650,7 @@ p {
         <div class="line-point" style="left:95%; top:40%"></div>
         <svg class="line-path">
           <polyline 
-            points="5,75 240,40"
+            points="5,75 247,40"
             stroke="#e4781d"
             stroke-width="3"
             fill="none"
