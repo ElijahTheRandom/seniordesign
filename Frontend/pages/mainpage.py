@@ -152,6 +152,16 @@ div[data-testid="stCheckbox"] > label > input:checked + div:first-child {
 </style>
 """, unsafe_allow_html=True)
 
+# Multiselect styling
+st.markdown("""
+<style>
+.st-c1 {
+    background-color: #e4781d !important;
+    color: white !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Button styling
 st.markdown("""
 <style>
@@ -266,7 +276,7 @@ with tabs[0]:
 
         if len(edited_table.columns) > 0 and len(edited_table) > 0:
             col1 = st.multiselect("Columns", edited_table.columns)
-            col2 = st.multiselect("Rows", [f"Row {i}" for i in edited_table.index])
+            col2 = st.multiselect("Rows", edited_table.index)
         else:
             st.multiselect("Columns", [], disabled=True)
             st.multiselect("Rows", [], disabled=True)
@@ -332,6 +342,15 @@ with tabs[0]:
 
         st.markdown('<div class="run-analysis-anchor">', unsafe_allow_html=True)
 
+        if col1 and col2:
+            parsedData = edited_table.loc[col2, col1].copy()
+        elif col1:
+            parsedData = edited_table[col1].copy()
+        elif col2:
+            parsedData = edited_table.loc[col2].copy()
+        else:
+            parsedData = edited_table.copy()
+
         run_clicked = st.button(
             "Run Analysis",
             key="run_analysis",
@@ -344,8 +363,9 @@ with tabs[0]:
                 "id": str(uuid.uuid4()),
                 "name": f"Run {len(st.session_state.analysis_runs) + 1}",
                 "table": edited_table,
-                "col1": col1,
-                "col2": col2,
+                "data": parsedData,
+                "columns": col1,
+                "rows": col2,
                 "methods": [
                     name for name, selected in {
                         "Mean": mean,
@@ -374,17 +394,15 @@ for i, tab in enumerate(tabs[1:]):
     with tab:
         run = st.session_state.analysis_runs[i]
 
-        st.header(f"Analysis Results — {run['name']}")
-
-        st.markdown("### Columns Used")
-        st.write(run["col1"], "vs", run["col2"])
+        st.header(f"Analysis Results — {run['name']}", anchor=False)
 
         st.markdown("### Methods Applied")
         for m in run["methods"]:
             st.write("•", m)
 
-        st.markdown("### Data Snapshot")
-        st.dataframe(run["table"], use_container_width=True)
+        st.markdown("### Selected Cell Data")
+        st.dataframe(run["data"], use_container_width=True)
+        st.caption(f"Rows: {run['rows']}, Columns: {run['columns']}")
 
         st.markdown("---")
 
