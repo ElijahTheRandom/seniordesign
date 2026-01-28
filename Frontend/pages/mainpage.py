@@ -16,6 +16,12 @@ if "analysis_runs" not in st.session_state:
 
 if "modal_message" not in st.session_state:
     st.session_state.modal_message = ""
+
+if "has_file" not in st.session_state:
+    st.session_state.has_file = False
+
+if "checkbox_key" not in st.session_state:
+    st.session_state.checkbox_key = 0
     
 # Page config
 st.set_page_config(
@@ -271,6 +277,13 @@ with tabs[0]:
             type="csv",
         )
 
+        # Detect when file is closed and reset checkboxes
+        if not uploaded_files and st.session_state.has_file:
+            st.session_state.checkbox_key += 1
+            st.session_state.has_file = False
+        elif uploaded_files:
+            st.session_state.has_file = True
+
         if uploaded_files:
             df = pd.read_csv(uploaded_files[-1])
             table = df.copy()
@@ -306,20 +319,20 @@ with tabs[0]:
         c1, c2 = st.columns(2)
 
         with c1:
-            mean = st.checkbox("Mean", disabled=not data_ready)
-            median = st.checkbox("Median", disabled=not data_ready)
-            mode = st.checkbox("Mode", disabled=not data_ready)
-            variance = st.checkbox("Variance", disabled=not data_ready)
-            std_dev = st.checkbox("Standard Deviation", disabled=not data_ready)
-            percentiles = st.checkbox("Percentiles", disabled=not data_ready)
+            mean = st.checkbox("Mean", disabled=not data_ready, key=f"mean_{st.session_state.checkbox_key}")
+            median = st.checkbox("Median", disabled=not data_ready, key=f"median_{st.session_state.checkbox_key}")
+            mode = st.checkbox("Mode", disabled=not data_ready, key=f"mode_{st.session_state.checkbox_key}")
+            variance = st.checkbox("Variance", disabled=not data_ready, key=f"variance_{st.session_state.checkbox_key}")
+            std_dev = st.checkbox("Standard Deviation", disabled=not data_ready, key=f"std_dev_{st.session_state.checkbox_key}")
+            percentiles = st.checkbox("Percentiles", disabled=not data_ready, key=f"percentiles_{st.session_state.checkbox_key}")
 
         with c2:
-            pearson = st.checkbox("Pearson's Correlation", disabled=not data_ready)
-            spearman = st.checkbox("Spearman's Rank", disabled=not data_ready)
-            regression = st.checkbox("Least Squares Regression", disabled=not data_ready)
-            chi_square = st.checkbox("Chi-Square Test", disabled=not data_ready)
-            binomial = st.checkbox("Binomial Distribution", disabled=not data_ready)
-            variation = st.checkbox("Coefficient of Variation", disabled=not data_ready)
+            pearson = st.checkbox("Pearson's Correlation", disabled=not data_ready, key=f"pearson_{st.session_state.checkbox_key}")
+            spearman = st.checkbox("Spearman's Rank", disabled=not data_ready, key=f"spearman_{st.session_state.checkbox_key}")
+            regression = st.checkbox("Least Squares Regression", disabled=not data_ready, key=f"regression_{st.session_state.checkbox_key}")
+            chi_square = st.checkbox("Chi-Square Test", disabled=not data_ready, key=f"chi_square_{st.session_state.checkbox_key}")
+            binomial = st.checkbox("Binomial Distribution", disabled=not data_ready, key=f"binomial_{st.session_state.checkbox_key}")
+            variation = st.checkbox("Coefficient of Variation", disabled=not data_ready, key=f"variation_{st.session_state.checkbox_key}")
 
         st.markdown("---")
 
@@ -453,8 +466,8 @@ if error_modal.is_open():
                 background-color: #262730 !important;
                 border: 2px solid #e4781d !important;
                 border-radius: 12px !important;
-                padding: 1rem 2rem !important;
-                max-width: 600px !important;
+                padding: 0.5rem 1rem !important;
+                max-width: 500px !important;
                 width: 90% !important;
             }}
 
@@ -472,16 +485,15 @@ if error_modal.is_open():
                 color: #ffffff;
                 white-space: pre-wrap;
                 line-height: 1.6;
-                margin-bottom: 0.5rem;
-                margin-top: 0.5rem;
+                margin: 0.3rem 0 !important;
                 font-size: 1rem;
                 text-align: center;
             }}
             
             /* Reduce spacing around images */
             div[data-baseweb="modal"] img {{
-                margin-top: 0.5rem;
-                margin-bottom: 0.5rem;
+                margin: 0 !important;
+                padding: 0 !important;
             }}
 
             /* Close button styling */
@@ -503,27 +515,22 @@ if error_modal.is_open():
             unsafe_allow_html=True
         )
         
-        # Display warning squirrel image centered
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            try:
-                img_base64 = image_to_base64("warningSquirrel.PNG")
-                st.markdown(
-                    f"""
-                    <div style="display:flex; justify-content:center;">
-                        <img 
-                            src="data:image/png;base64,{img_base64}" 
-                            style="width:500px; pointer-events:none;"
-                        />
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-            except:
-                st.markdown("### ⚠")
+        # Display warning squirrel image centered and larger
+        try:
+            img_base64 = image_to_base64("warningSquirrel.PNG")
+            st.markdown(
+                f"""
+                <div style="display:flex; justify-content:center; margin: 0; padding: 0;">
+                    <img 
+                        src="data:image/png;base64,{img_base64}" 
+                        style="width:100%; max-width:400px; pointer-events:none; margin: 0; padding: 0;"
+                    />
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        except:
+            st.markdown("### ⚠")
         
-        st.markdown("### Invalid Analysis")
         st.write(st.session_state.modal_message)
-
-
 
