@@ -53,8 +53,9 @@ class LeastSquaresRegression:
         slope, intercept = np.polyfit(x, y, 1)
 
         # calculate the y values for the regression line
-        xFit = np.linspace(x.min(), x.max(), 100)
+        xFit = np.linspace(x.min(), x.max(), 200)
         yFit = slope * x + intercept
+        yFit = np.linspace(y.min(), y.max(), 200)
 
         generatedImage = self.create_graphic(x, y, xFit, yFit)
         
@@ -67,7 +68,7 @@ class LeastSquaresRegression:
         fig = plt.figure()
         plt.figure()
         plt.scatter(xs, ys)
-        plt.scatter(xLine, yLine)
+        plt.plot(xLine, yLine)
         plt.xlabel("X")
         plt.ylabel("Y")
         plt.title("Least Squares Regression Line")
@@ -78,4 +79,4 @@ class LeastSquaresRegression:
         plt.close(fig)
 
         buffer.seek(0)
-        return buffer.getValue()
+        return buffer.getvalue()
