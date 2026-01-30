@@ -1,18 +1,40 @@
 import streamlit as st
 import pandas as pd
 import uuid
-import time
+import base64
 from PIL import Image
+from streamlit_modal import Modal
 
+# Function to convert image to base64
+def image_to_base64(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
 
 # Session state
 if "analysis_runs" not in st.session_state:
     st.session_state.analysis_runs = []
 
+if "modal_message" not in st.session_state:
+    st.session_state.modal_message = ""
+
+if "has_file" not in st.session_state:
+    st.session_state.has_file = False
+
+if "checkbox_key" not in st.session_state:
+    st.session_state.checkbox_key = 0
+    
 # Page config
 st.set_page_config(
     page_title="Statistical Analyzer",
     layout="wide",
+)
+
+# Create modal instance
+error_modal = Modal(
+    "Invalid Analysis", 
+    key="error_modal",
+    padding=20,
+    max_width=500
 )
 
 # Styling
@@ -247,6 +269,13 @@ with tabs[0]:
             type="csv",
         )
 
+        # Detect when file is closed and reset checkboxes
+        if not uploaded_files and st.session_state.has_file:
+            st.session_state.checkbox_key += 1
+            st.session_state.has_file = False
+        elif uploaded_files:
+            st.session_state.has_file = True
+
         if uploaded_files:
             df = pd.read_csv(uploaded_files[-1])
             table = df.copy()
@@ -274,6 +303,8 @@ with tabs[0]:
             col1 = st.multiselect("Columns", edited_table.columns)
             col2 = st.multiselect("Rows", edited_table.index)
         else:
+            col1 = []
+            col2 = []
             st.multiselect("Columns", [], disabled=True)
             st.multiselect("Rows", [], disabled=True)
 
@@ -284,20 +315,20 @@ with tabs[0]:
         c1, c2 = st.columns(2)
 
         with c1:
-            mean = st.checkbox("Mean", disabled=not data_ready)
-            median = st.checkbox("Median", disabled=not data_ready)
-            mode = st.checkbox("Mode", disabled=not data_ready)
-            variance = st.checkbox("Variance", disabled=not data_ready)
-            std_dev = st.checkbox("Standard Deviation", disabled=not data_ready)
-            percentiles = st.checkbox("Percentiles", disabled=not data_ready)
+            mean = st.checkbox("Mean", disabled=not data_ready, key=f"mean_{st.session_state.checkbox_key}")
+            median = st.checkbox("Median", disabled=not data_ready, key=f"median_{st.session_state.checkbox_key}")
+            mode = st.checkbox("Mode", disabled=not data_ready, key=f"mode_{st.session_state.checkbox_key}")
+            variance = st.checkbox("Variance", disabled=not data_ready, key=f"variance_{st.session_state.checkbox_key}")
+            std_dev = st.checkbox("Standard Deviation", disabled=not data_ready, key=f"std_dev_{st.session_state.checkbox_key}")
+            percentiles = st.checkbox("Percentiles", disabled=not data_ready, key=f"percentiles_{st.session_state.checkbox_key}")
 
         with c2:
-            pearson = st.checkbox("Pearson's Correlation", disabled=not data_ready)
-            spearman = st.checkbox("Spearman's Rank", disabled=not data_ready)
-            regression = st.checkbox("Least Squares Regression", disabled=not data_ready)
-            chi_square = st.checkbox("Chi-Square Test", disabled=not data_ready)
-            binomial = st.checkbox("Binomial Distribution", disabled=not data_ready)
-            variation = st.checkbox("Coefficient of Variation", disabled=not data_ready)
+            pearson = st.checkbox("Pearson's Correlation", disabled=not data_ready, key=f"pearson_{st.session_state.checkbox_key}")
+            spearman = st.checkbox("Spearman's Rank", disabled=not data_ready, key=f"spearman_{st.session_state.checkbox_key}")
+            regression = st.checkbox("Least Squares Regression", disabled=not data_ready, key=f"regression_{st.session_state.checkbox_key}")
+            chi_square = st.checkbox("Chi-Square Test", disabled=not data_ready, key=f"chi_square_{st.session_state.checkbox_key}")
+            binomial = st.checkbox("Binomial Distribution", disabled=not data_ready, key=f"binomial_{st.session_state.checkbox_key}")
+            variation = st.checkbox("Coefficient of Variation", disabled=not data_ready, key=f"variation_{st.session_state.checkbox_key}")
 
         st.markdown("---")
 
@@ -355,7 +386,21 @@ with tabs[0]:
         )
 
         if run_clicked:
-            run = {
+            non_numeric_cols = []
+            numeric_required = mean or std_dev or variance or pearson or spearman or regression
+            if numeric_required:
+                non_numeric_cols = [
+                    col for col in parsedData.columns
+                    if not pd.api.types.is_numeric_dtype(parsedData[col])
+                ]
+            if non_numeric_cols:
+                st.session_state.modal_message = (
+                    "The selected statistical method(s) require numerical data.\n\n"
+                    f"Non-numerical columns detected:\n"
+                    f"{', '.join(non_numeric_cols)}\n\n"                )   
+                error_modal.open()
+            else:
+                run = {
                 "id": str(uuid.uuid4()),
                 "name": f"Run {len(st.session_state.analysis_runs) + 1}",
                 "table": edited_table,
@@ -405,3 +450,83 @@ for i, tab in enumerate(tabs[1:]):
         if st.button("Delete This Run", key=f"delete_{i}"):
             st.session_state.analysis_runs.pop(i)
             st.rerun()
+
+# Modal Dialog using streamlit_modal
+if error_modal.is_open():
+    with error_modal.container():
+        st.markdown(
+            f"""
+            <style>
+            /* Modal content styling */
+            div[data-baseweb="modal"] > div:first-child {{
+                background-color: #262730 !important;
+                border: 2px solid #e4781d !important;
+                border-radius: 12px !important;
+                padding: 0.5rem 1rem !important;
+                max-width: 500px !important;
+                width: 90% !important;
+            }}
+
+            /* Modal header */
+            div[data-baseweb="modal"] h3 {{
+                color: #e4781d;
+                margin-top: 0.5rem;
+                margin-bottom: 0.5rem;
+                font-size: 1.5rem;
+                text-align: center;
+            }}
+
+            /* Modal message text */
+            div[data-baseweb="modal"] p {{
+                color: #ffffff;
+                white-space: pre-wrap;
+                line-height: 1.6;
+                margin: 0.3rem 0 !important;
+                font-size: 1rem;
+                text-align: center;
+            }}
+            
+            /* Reduce spacing around images */
+            div[data-baseweb="modal"] img {{
+                margin: 0 !important;
+                padding: 0 !important;
+            }}
+
+            /* Close button styling */
+            button[aria-label="Close"] {{
+                background-color: #262730 !important;
+                color: #e4781d !important;
+                border: 1px solid #e4781d !important;
+                border-radius: 6px !important;
+                font-weight: bold;
+                font-size: 1rem;
+            }}
+
+            button[aria-label="Close"]:hover {{
+                background-color: #e4781d !important;
+                color: #ffffff !important;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        
+        # Display warning squirrel image centered and larger
+        try:
+            img_base64 = image_to_base64("warningSquirrel.PNG")
+            st.markdown(
+                f"""
+                <div style="display:flex; justify-content:center; margin: 0; padding: 0;">
+                    <img 
+                        src="data:image/png;base64,{img_base64}" 
+                        style="width:100%; max-width:400px; pointer-events:none; margin: 0; padding: 0;"
+                    />
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        except:
+            st.markdown("### ⚠")
+        
+        st.write(st.session_state.modal_message)
+
