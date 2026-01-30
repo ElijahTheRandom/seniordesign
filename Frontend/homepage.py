@@ -10,6 +10,27 @@ st.set_page_config(
     layout="wide",
 )
 
+st.markdown(
+"""
+<style>
+/* FORCE SYSTEM FONTS — NO CUSTOM FONTS ANYWHERE */
+
+/* Streamlit app */
+html, body, .stApp, * {
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif !important;
+}
+</style>
+""",
+unsafe_allow_html=True
+)
+
 # Hide Streamlit chrome
 st.markdown(
     """
@@ -47,6 +68,17 @@ st.markdown(
         width: 100%;
         padding: 0;
         background-color: white;
+    }
+
+    * {
+    font-family:
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      Helvetica,
+      Arial,
+      sans-serif !important;
     }
     </style>
     """,
@@ -293,9 +325,6 @@ components.html(
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cantora+One&family=Quicksand:wght@300..700&display=swap" rel="stylesheet">
 
 <style>
 :root {
@@ -314,7 +343,6 @@ components.html(
 body {
   margin:0;
   padding:0;
-  font-family: "Quicksand", sans-serif !important;
   background:transparent !important;
   color:var(--text);
   height:100vh;
@@ -488,7 +516,6 @@ body {
     to { opacity: 1; }
   }
 h1 {
-  font-family: "Quicksand", sans-serif !important;
   font-size:clamp(36px,4vw,52px);
   margin: 0 0 10px;
   margin-bottom: 5px;
@@ -650,7 +677,7 @@ p {
         <div class="line-point" style="left:95%; top:40%"></div>
         <svg class="line-path">
           <polyline 
-            points="5,75 240,40"
+            points="5,75 247,40"
             stroke="#e4781d"
             stroke-width="3"
             fill="none"
