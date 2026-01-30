@@ -391,17 +391,35 @@ with tabs[0]:
 
         if run_clicked:
             non_numeric_cols = []
-            numeric_required = mean or std_dev or variance or pearson or spearman or regression
+            numeric_required = mean or median or mode or std_dev or variance or pearson or spearman or regression
             if numeric_required:
-                non_numeric_cols = [
-                    col for col in parsedData.columns
-                    if not pd.api.types.is_numeric_dtype(parsedData[col])
-                ]
+                for col in parsedData.columns:
+                    coerced = pd.to_numeric(parsedData[col], errors='coerce')
+
+                    for row_idx in parsedData.index:
+                        original_value = parsedData.at[row_idx, col]
+                        coerced_value = coerced.at[row_idx]
+
+                        if pd.notna(original_value) and pd.isna(coerced_value):
+                            if col not in non_numeric_cols:
+                                non_numeric_cols.append({
+                                    "row": row_idx,
+                                    "column": col,
+                                    "value": original_value
+                                }
+                                )
+            # Show modal if non-numeric data found                    
             if non_numeric_cols:
-                st.session_state.modal_message = (
-                    "The selected statistical method(s) require numerical data.\n\n"
-                    f"Non-numerical columns detected:\n"
-                    f"{', '.join(non_numeric_cols)}\n\n"                )   
+                preview = non_numeric_cols[:3]
+                message = " The following non-numeric data was found:\n"
+
+                for cell in preview:
+                    message += f" - Row: {cell['row']}, Column: {cell['column']}, Value: '{cell['value']}'\n"
+                
+                if len(non_numeric_cols) > 3:
+                    message += f" ...and {len(non_numeric_cols) - 3} more entries.\n"
+                
+                st.session_state.modal_message = message
                 error_modal.open()
             else:
                 run = {
