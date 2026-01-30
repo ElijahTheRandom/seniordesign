@@ -55,7 +55,6 @@ div[data-testid="stTabs"] {
 </style>
 """, unsafe_allow_html=True)
 
-
 # Checkbox and column selection styling
 st.markdown("""
 <style>
@@ -67,29 +66,23 @@ div[data-testid="stCheckbox"] span {
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* Highlight selected multiselect items with orange border like checkboxes */
+div[data-baseweb="select"] > div > div > div > div {
+    border: 1px solid #e4781d !important;   /* orange border */
+    border-radius: 4px !important;
+    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.5) !important; /* similar to checkbox hover/focus */
+    background-color: transparent !important; /* keep background transparent */
+    color: #ffffff !important; /* keep text readable */
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Selectbox styling
 st.markdown("""
 <style>
-/* Base selectbox styling */
-div[data-testid="stSelectbox"] > div {
-    background-color: #262730 !important;
-    border: 1px solid #e4781d !important;
-    border-radius: 6px !important;
-}
-
-/* Hover and focus effects */
-div[data-testid="stSelectbox"] > div:hover {
-    border-color: #d66b1d !important;
-}
-
-/* Focused state */
-div[data-testid="stSelectbox"] > div:has(input:focus) {
-    border-color: #e4781d !important;
-    box-shadow: 0 0 0 1px #e4781d !important;
-}
-
-/* Dropdown menu styling */
-div[data-testid="stSelectbox"] svg {
+div[data-baseweb="select"] svg {
     fill: #e4781d !important;
 }
 </style>
@@ -194,8 +187,8 @@ div[data-testid="stFileUploader"] button {
     color: #ffffff !important;
     border: 1px solid #d66b1d !important;
     border-radius: 6px !important;
-    font-weight: 600;
-    /*padding: 8px 16px;*/
+    font-weight: 400;
+    padding: 8px 16px;
     transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -262,7 +255,6 @@ div[data-testid="stTabs"] div[role="tablist"] > div:last-child {
 </style>
 """, unsafe_allow_html=True)
 
-
 # Main Workspace Tab
 with tabs[0]:
     left_col, right_col = st.columns([3, 2], gap="medium")
@@ -295,6 +287,7 @@ with tabs[0]:
             num_rows="dynamic",
             use_container_width=True,
             height=754,
+            hide_index=True,
         )
 
         data_ready = len(edited_table.columns) > 0 and len(edited_table) > 0
@@ -302,6 +295,9 @@ with tabs[0]:
     # Analysis Options
     with right_col:
         st.header("Analysis Configuration", anchor=False)
+
+        col1 = []
+        col2 = []
 
         if len(edited_table.columns) > 0 and len(edited_table) > 0:
             col1 = st.multiselect("Columns", edited_table.columns)
