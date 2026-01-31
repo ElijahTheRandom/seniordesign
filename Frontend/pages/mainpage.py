@@ -66,6 +66,7 @@ div[data-testid="stCheckbox"] span {
 </style>
 """, unsafe_allow_html=True)
 
+# Multiselect selected item styling
 st.markdown("""
 <style>
 /* Highlight selected multiselect items with orange border like checkboxes */
@@ -75,6 +76,40 @@ div[data-baseweb="select"] > div > div > div > div {
     box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.5) !important; /* similar to checkbox hover/focus */
     background-color: transparent !important; /* keep background transparent */
     color: #ffffff !important; /* keep text readable */
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Multiselect box styling
+st.markdown("""
+<style>
+/* MULTISELECT — base state */
+div[data-testid="stMultiSelect"] div[role="combobox"] {
+    background-color: #262730 !important;
+    border: 1px solid #e4781d !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Hover */
+div[data-testid="stMultiSelect"] div[role="combobox"]:hover {
+    border-color: #d66b1d !important;
+    box-shadow: 0 0 0 2px rgba(214, 107, 29, 0.35) !important;
+}
+
+/* Focus / active / open */
+div[data-testid="stMultiSelect"] div[role="combobox"][aria-expanded="true"],
+div[data-testid="stMultiSelect"] div[role="combobox"]:focus,
+div[data-testid="stMultiSelect"] div[role="combobox"]:focus-visible {
+    outline: none !important;
+    border-color: #e4781d !important;
+    box-shadow: 0 0 0 3px rgba(228, 120, 29, 0.5) !important;
+}
+
+/* Remove Streamlit's red internal borders */
+div[data-testid="stMultiSelect"] * {
+    border-color: #e4781d !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -137,6 +172,47 @@ div[data-testid="stSelectbox"] svg {
     fill: #e4781d !important;
 }
 
+</style>
+""", unsafe_allow_html=True)
+
+# Data editor checkbox styling
+st.markdown("""
+<style>
+/* Checkbox box (unchecked) */
+label[data-baseweb="checkbox"] span {
+    border-color: #e4781d !important;
+}
+
+/* Checkbox SVG icon */
+label[data-baseweb="checkbox"] svg {
+    stroke: #e4781d !important;
+    fill: none !important;
+}
+
+/* Checked state */
+label[data-baseweb="checkbox"] input:checked + span svg {
+    fill: #e4781d !important;
+    stroke: #e4781d !important;
+}
+
+/* Hover */
+label[data-baseweb="checkbox"]:hover span {
+    border-color: #f08c2e !important;
+}
+
+/* Focus ring (kill red, add orange) */
+label[data-baseweb="checkbox"] input:focus-visible + span {
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.55) !important;
+}
+
+div[data-testid="stDataEditor"] label[data-baseweb="checkbox"] span {
+    border-color: #e4781d !important;
+}
+
+div[data-testid="stDataEditor"] label[data-baseweb="checkbox"] svg {
+    stroke: #e4781d !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
