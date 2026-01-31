@@ -22,6 +22,9 @@ if "has_file" not in st.session_state:
 
 if "checkbox_key" not in st.session_state:
     st.session_state.checkbox_key = 0
+
+if "show_invalid_modal" not in st.session_state:
+    st.session_state.show_invalid_modal = False
     
 # Page config
 st.set_page_config(
@@ -31,13 +34,22 @@ st.set_page_config(
 
 # Create modal instance
 error_modal = Modal(
-    "Invalid Analysis", 
+    "Invalid Analysis",
     key="error_modal",
     padding=20,
     max_width=500
 )
 
 # Styling
+st.markdown("""
+<style>
+/* Kill the link icon that sits inside the modal title */
+div[data-testid="stModal"] h3 > a {
+    display: none !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.markdown("""
 <style>
 header[data-testid="stHeader"] { display: none; }
@@ -49,8 +61,13 @@ header[data-testid="stHeader"] { display: none; }
     margin-bottom: -3rem !important;
 }
 div[data-testid="stTabs"] {
-    margin-top: -2rem !important;
-    margin-bottom: -3rem !important;
+    margin-top: -3.5rem !important;
+    margin-bottom: -3.5rem !important;
+}
+            
+/* Remove anchor beside the modal title */
+div[data-baseweb="stMarkdownContainer"] h3 a {
+    display: none !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -123,9 +140,25 @@ div[data-baseweb="select"] svg {
 </style>
 """, unsafe_allow_html=True)
 
+# Error message
+st.markdown("""
+<style>
+/* Center the modal on screen */
+div[data-baseweb="modal"] > div:first-child {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    max-width: 500px !important;
+    width: 90% !important;
+    z-index: 9999 !important;
+}
+</style>""", unsafe_allow_html=True)
+
 # Column styling
 st.markdown("""
 <style>
+
 
 /* Kill Streamlit's default red outline anywhere inside the selectbox */
 div[data-testid="stSelectbox"] * {
@@ -172,6 +205,22 @@ div[data-testid="stSelectbox"] svg {
     fill: #e4781d !important;
 }
 
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+/* HARD override for the X inside multiselect pills */
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"] svg path {
+    stroke: white !important;
+    stroke-width: 2px !important;
+}
+
+/* Prevent Streamlit from recoloring it on hover/focus */
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"]:hover svg path,
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"] button:hover svg path {
+    stroke: white !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -365,6 +414,7 @@ with tabs[0]:
             height=754,
             hide_index=True,
         )
+        edited_table.index = edited_table.index + 1
 
         data_ready = len(edited_table.columns) > 0 and len(edited_table) > 0
 
@@ -384,62 +434,74 @@ with tabs[0]:
             st.multiselect("Columns", [], disabled=True)
             st.multiselect("Rows", [], disabled=True)
 
-        st.markdown("---")
+        # Determine how many columns/rows are selected
+        num_cols_selected = len(col1)
+        num_rows_selected = len(col2)
 
+        disable_two_cols = num_cols_selected < 2
+        disable_one_col = num_cols_selected < 1
+        disable_one_row = num_rows_selected < 1
+
+        # Computation Options
         st.subheader("Computation Options", anchor=False)
-
         c1, c2 = st.columns(2)
 
         with c1:
-            mean = st.checkbox("Mean", disabled=not data_ready, key=f"mean_{st.session_state.checkbox_key}")
-            median = st.checkbox("Median", disabled=not data_ready, key=f"median_{st.session_state.checkbox_key}")
-            mode = st.checkbox("Mode", disabled=not data_ready, key=f"mode_{st.session_state.checkbox_key}")
-            variance = st.checkbox("Variance", disabled=not data_ready, key=f"variance_{st.session_state.checkbox_key}")
-            std_dev = st.checkbox("Standard Deviation", disabled=not data_ready, key=f"std_dev_{st.session_state.checkbox_key}")
-            percentiles = st.checkbox("Percentiles", disabled=not data_ready, key=f"percentiles_{st.session_state.checkbox_key}")
+            mean = st.checkbox("Mean", disabled=not data_ready or disable_one_col, key=f"mean_c1_{st.session_state.checkbox_key}")
+            median = st.checkbox("Median", disabled=not data_ready or disable_one_col, key=f"median_c1_{st.session_state.checkbox_key}")
+            mode = st.checkbox("Mode", disabled=not data_ready or disable_one_col, key=f"mode_c1_{st.session_state.checkbox_key}")
+            variance = st.checkbox("Variance", disabled=not data_ready or disable_one_col, key=f"variance_c1_{st.session_state.checkbox_key}")
+            std_dev = st.checkbox("Standard Deviation", disabled=not data_ready or disable_one_col, key=f"std_dev_c1_{st.session_state.checkbox_key}")
+            percentiles = st.checkbox("Percentiles", disabled=not data_ready or disable_one_col, key=f"percentiles_c1_{st.session_state.checkbox_key}")
 
         with c2:
-            pearson = st.checkbox("Pearson's Correlation", disabled=not data_ready, key=f"pearson_{st.session_state.checkbox_key}")
-            spearman = st.checkbox("Spearman's Rank", disabled=not data_ready, key=f"spearman_{st.session_state.checkbox_key}")
-            regression = st.checkbox("Least Squares Regression", disabled=not data_ready, key=f"regression_{st.session_state.checkbox_key}")
-            chi_square = st.checkbox("Chi-Square Test", disabled=not data_ready, key=f"chi_square_{st.session_state.checkbox_key}")
-            binomial = st.checkbox("Binomial Distribution", disabled=not data_ready, key=f"binomial_{st.session_state.checkbox_key}")
-            variation = st.checkbox("Coefficient of Variation", disabled=not data_ready, key=f"variation_{st.session_state.checkbox_key}")
+            pearson = st.checkbox("Pearson's Correlation", disabled=not data_ready or disable_two_cols, key=f"pearson_c2_{st.session_state.checkbox_key}")
+            spearman = st.checkbox("Spearman's Rank", disabled=not data_ready or disable_two_cols, key=f"spearman_c2_{st.session_state.checkbox_key}")
+            regression = st.checkbox("Least Squares Regression", disabled=not data_ready or disable_two_cols, key=f"regression_c2_{st.session_state.checkbox_key}")
+            chi_square = st.checkbox("Chi-Square Test", disabled=not data_ready or disable_one_col, key=f"chi_square_c2_{st.session_state.checkbox_key}")
+            binomial = st.checkbox("Binomial Distribution", disabled=not data_ready or disable_one_col, key=f"binomial_c2_{st.session_state.checkbox_key}")
+            variation = st.checkbox("Coefficient of Variation", disabled=not data_ready or disable_one_col, key=f"variation_c2_{st.session_state.checkbox_key}")
 
         st.markdown("---")
 
         st.subheader("Visualization Options", anchor=False)
+        with st.container():
+            # Determine if any computation method is selected
+            computation_selected = any([mean, median, mode, variance, std_dev, percentiles, pearson, spearman, regression, chi_square, binomial, variation])
 
-        v1, v2 = st.columns(2)
+            disable_viz = not computation_selected  # True if no computation is selected
 
-        with v1:
-            hist = st.checkbox(
-                "Pie Chart",
-                key="viz_hist",
-                disabled=not data_ready
-            )
-            box = st.checkbox(
-                "Vertical Bar Chart",
-                key="viz_box",
-                disabled=not data_ready
-            )
-            scatter = st.checkbox(
-                "Horizontal Bar Chart",
-                key="viz_scatter",
-                disabled=not data_ready
-            )
+            # Visualization Options
+            v1, v2 = st.columns(2)
 
-        with v2:
-            line = st.checkbox(
-                "Scatter Plot",
-                key="viz_line",
-                disabled=not data_ready
-            )
-            heatmap = st.checkbox(
-                "Line of Best Fit Scatter Plot",
-                key="viz_heatmap",
-                disabled=not data_ready
-            )
+            with v1:
+                hist = st.checkbox(
+                    "Pie Chart",
+                    key="viz_hist",
+                    disabled=disable_viz
+                )
+                box = st.checkbox(
+                    "Vertical Bar Chart",
+                    key="viz_box",
+                    disabled=disable_viz
+                )
+                scatter = st.checkbox(
+                    "Horizontal Bar Chart",
+                    key="viz_scatter",
+                    disabled=disable_viz
+                )
+
+            with v2:
+                line = st.checkbox(
+                    "Scatter Plot",
+                    key="viz_line",
+                    disabled=disable_viz
+                )
+                heatmap = st.checkbox(
+                    "Line of Best Fit Scatter Plot",
+                    key="viz_heatmap",
+                    disabled=disable_viz
+                )
 
         st.markdown("---")
 
@@ -463,66 +525,75 @@ with tabs[0]:
 
         if run_clicked:
             non_numeric_cols = []
-            numeric_required = mean or median or mode or std_dev or variance or pearson or spearman or regression
+            numeric_required = mean or median or mode or std_dev or variance or pearson or spearman or regression or percentiles or variation or scatter or line or box or hist or heatmap
+
             if numeric_required:
                 for col in parsedData.columns:
                     coerced = pd.to_numeric(parsedData[col], errors='coerce')
-
                     for row_idx in parsedData.index:
                         original_value = parsedData.at[row_idx, col]
                         coerced_value = coerced.at[row_idx]
-
                         if pd.notna(original_value) and pd.isna(coerced_value):
                             if col not in non_numeric_cols:
                                 non_numeric_cols.append({
                                     "row": row_idx,
                                     "column": col,
                                     "value": original_value
-                                }
-                                )
-            # Show modal if non-numeric data found                    
-            if non_numeric_cols:
-                preview = non_numeric_cols[:3]
-                message = " The following non-numeric data was found:\n"
+                                })
 
+            if non_numeric_cols:
+                # Prepare message
+                preview = non_numeric_cols[:3]
+                message = "The following non-numeric data was found:\n"
                 for cell in preview:
                     message += f" - Row: {cell['row']}, Column: {cell['column']}, Value: '{cell['value']}'\n"
-                
                 if len(non_numeric_cols) > 3:
                     message += f" ...and {len(non_numeric_cols) - 3} more entries.\n"
-                
+
+                # Save message to session state
                 st.session_state.modal_message = message
+
+                # Open the modal immediately
                 error_modal.open()
+
+            # If all data is numeric, create the run
             else:
                 run = {
-                "id": str(uuid.uuid4()),
-                "name": f"Run {len(st.session_state.analysis_runs) + 1}",
-                "table": edited_table,
-                "data": parsedData,
-                "columns": col1,
-                "rows": col2,
-                "methods": [
-                    name for name, selected in {
-                        "Mean": mean,
-                        "Median": median,
-                        "Mode": mode,
-                        "Variance": variance,
-                        "Standard Deviation": std_dev,
-                        "Percentiles": percentiles,
-                        "Pearson": pearson,
-                        "Spearman": spearman,
-                        "Regression": regression,
-                        "Chi-Square": chi_square,
-                        "Binomial": binomial,
-                        "Variation": variation,
-                    }.items() if selected
-                ],
-            }
+                    "id": str(uuid.uuid4()),
+                    "name": f"Run {len(st.session_state.analysis_runs) + 1}",
+                    "table": edited_table,
+                    "data": parsedData,
+                    "columns": col1,
+                    "rows": col2,
+                    "methods": [
+                        name for name, selected in {
+                            "Mean": mean,
+                            "Median": median,
+                            "Mode": mode,
+                            "Variance": variance,
+                            "Standard Deviation": std_dev,
+                            "Percentiles": percentiles,
+                            "Pearson": pearson,
+                            "Spearman": spearman,
+                            "Regression": regression,
+                            "Chi-Square": chi_square,
+                            "Binomial": binomial,
+                            "Variation": variation,
+                        }.items() if selected
+                    ],
+                    "visualizations": [
+                        name for name, selected in {
+                            "Pie Chart": hist,
+                            "Vertical Bar Chart": box,
+                            "Horizontal Bar Chart": scatter,
+                            "Scatter Plot": line,
+                            "Line of Best Fit Scatter Plot": heatmap,
+                        }.items() if selected
+                    ],
+                }
 
-            st.markdown('</div>', unsafe_allow_html=True)
-
-            st.session_state.analysis_runs.append(run)
-            st.rerun()
+                st.session_state.analysis_runs.append(run)
+                st.experimental_rerun()
 
 # Analysis Result Tabs
 for i, tab in enumerate(tabs[1:]):
@@ -534,6 +605,15 @@ for i, tab in enumerate(tabs[1:]):
         st.markdown("### Methods Applied")
         for m in run["methods"]:
             st.write("•", m)
+
+        # Visualization Methods
+        st.markdown("### Visualizations Applied")
+        # Check which visualizations were selected for this run
+        viz_methods = []
+        if run.get("visualizations"):  # we will save this in the run dict
+            viz_methods = run["visualizations"]
+        for v in viz_methods:
+            st.write("•", v)
 
         st.markdown("### Selected Cell Data")
         st.dataframe(run["data"], use_container_width=True)
@@ -548,79 +628,22 @@ for i, tab in enumerate(tabs[1:]):
 # Modal Dialog using streamlit_modal
 if error_modal.is_open():
     with error_modal.container():
-        st.markdown(
-            f"""
-            <style>
-            /* Modal content styling */
-            div[data-baseweb="modal"] > div:first-child {{
-                background-color: #262730 !important;
-                border: 2px solid #e4781d !important;
-                border-radius: 12px !important;
-                padding: 0.5rem 1rem !important;
-                max-width: 500px !important;
-                width: 90% !important;
-            }}
-
-            /* Modal header */
-            div[data-baseweb="modal"] h3 {{
-                color: #e4781d;
-                margin-top: 0.5rem;
-                margin-bottom: 0.5rem;
-                font-size: 1.5rem;
-                text-align: center;
-            }}
-
-            /* Modal message text */
-            div[data-baseweb="modal"] p {{
-                color: #ffffff;
-                white-space: pre-wrap;
-                line-height: 1.6;
-                margin: 0.3rem 0 !important;
-                font-size: 1rem;
-                text-align: center;
-            }}
-            
-            /* Reduce spacing around images */
-            div[data-baseweb="modal"] img {{
-                margin: 0 !important;
-                padding: 0 !important;
-            }}
-
-            /* Close button styling */
-            button[aria-label="Close"] {{
-                background-color: #262730 !important;
-                color: #e4781d !important;
-                border: 1px solid #e4781d !important;
-                border-radius: 6px !important;
-                font-weight: bold;
-                font-size: 1rem;
-            }}
-
-            button[aria-label="Close"]:hover {{
-                background-color: #e4781d !important;
-                color: #ffffff !important;
-            }}
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
-        
-        # Display warning squirrel image centered and larger
+        # Display warning squirrel image
         try:
-            img_base64 = image_to_base64("warningSquirrel.PNG")
+            img_base64 = image_to_base64("pages/assets/warningSquirrel.PNG")
             st.markdown(
-                f"""
-                <div style="display:flex; justify-content:center; margin: 0; padding: 0;">
-                    <img 
-                        src="data:image/png;base64,{img_base64}" 
-                        style="width:100%; max-width:400px; pointer-events:none; margin: 0; padding: 0;"
-                    />
-                </div>
-                """,
+                f"<div style='text-align:center;'><img src='data:image/png;base64,{img_base64}' style='max-width:300px;'></div>",
                 unsafe_allow_html=True
             )
         except:
-            st.markdown("### ⚠")
-        
+            st.markdown("⚠")
+
+        # Display the modal message
         st.write(st.session_state.modal_message)
 
+        if st.session_state.show_invalid_modal:
+            error_modal.open()
+            with error_modal.container():
+                st.write(st.session_state.modal_message)
+                # your image code here
+            st.session_state.show_invalid_modal = False
