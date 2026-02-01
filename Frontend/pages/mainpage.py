@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import uuid
 import base64
+import html
 from PIL import Image
 from streamlit_modal import Modal
 
@@ -9,6 +10,28 @@ from streamlit_modal import Modal
 def image_to_base64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
+
+# Function to render modal content with fixed height
+def render_modal_content(img_path, message):
+    # Create centered layout for image only
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        try:
+            img = Image.open(img_path)
+            st.image(img, width=300)
+        except:
+            pass
+    
+    st.markdown("---")
+    
+    # Display message with proper line spacing, left-aligned
+    lines = message.split('\n')
+    for line in lines:
+        if line.strip():
+            st.markdown(line)
+        else:
+            st.write("")
 
 # Session state
 if "analysis_runs" not in st.session_state:
@@ -25,6 +48,9 @@ if "checkbox_key" not in st.session_state:
 
 if "show_invalid_modal" not in st.session_state:
     st.session_state.show_invalid_modal = False
+
+if "show_success_modal" not in st.session_state:
+    st.session_state.show_success_modal = False
     
 # Page config
 st.set_page_config(
@@ -32,12 +58,15 @@ st.set_page_config(
     layout="wide",
 )
 
-# Create modal instance
+# Create modal instances
 error_modal = Modal(
     "Invalid Analysis",
     key="error_modal",
-    padding=20,
-    max_width=500
+)
+
+success_modal = Modal(
+    "Success!",
+    key="success_modal",
 )
 
 # Styling
@@ -131,31 +160,22 @@ div[data-testid="stMultiSelect"] * {
 </style>
 """, unsafe_allow_html=True)
 
-# Selectbox styling
+# Modal close button fix
 st.markdown("""
 <style>
-div[data-baseweb="select"] svg {
-    fill: #e4781d !important;
+/* Prevent close button clipping */
+div[data-baseweb="modal"] header {
+    padding-top: 24px !important;
+    padding-right: 24px !important;
+}
+
+div[data-baseweb="modal"] button[aria-label="Close"] {
+    position: relative !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# Error message
-st.markdown("""
-<style>
-/* Center the modal on screen */
-div[data-baseweb="modal"] > div:first-child {
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    max-width: 500px !important;
-    width: 90% !important;
-    z-index: 9999 !important;
-}
-</style>""", unsafe_allow_html=True)
-
-# Column styling
+# Selectbox styling
 st.markdown("""
 <style>
 
@@ -341,9 +361,37 @@ div[data-testid="stFileUploader"] button:active {
 </style>
 """, unsafe_allow_html=True)
 
+# Remove markdown header anchor links
+st.markdown("""
+<style>
+/* Remove anchor link + hover icon from ALL markdown headers */
+div[data-testid="stMarkdownContainer"] h1 a,
+div[data-testid="stMarkdownContainer"] h2 a,
+div[data-testid="stMarkdownContainer"] h3 a,
+div[data-testid="stMarkdownContainer"] h4 a,
+div[data-testid="stMarkdownContainer"] h5 a,
+div[data-testid="stMarkdownContainer"] h6 a {
+    display: none !important;
+}
+
+/* Also prevent pointer cursor / hover highlight */
+div[data-testid="stMarkdownContainer"] h1,
+div[data-testid="stMarkdownContainer"] h2,
+div[data-testid="stMarkdownContainer"] h3,
+div[data-testid="stMarkdownContainer"] h4,
+div[data-testid="stMarkdownContainer"] h5,
+div[data-testid="stMarkdownContainer"] h6 {
+    cursor: default !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Function to delete an analysis run
 def delete_run(index):
     st.session_state.analysis_runs.pop(index)
+
+# Function to save the analysis run
+    
 
 # Build tabs
 tab_labels = ["Main Workspace"]
@@ -593,7 +641,10 @@ with tabs[0]:
                 }
 
                 st.session_state.analysis_runs.append(run)
-                st.experimental_rerun()
+                st.session_state.modal_message = f"Analysis tab '{run['name']}' has been successfully created!"
+                st.session_state.show_success_modal = True
+                success_modal.open()
+
 
 # Analysis Result Tabs
 for i, tab in enumerate(tabs[1:]):
@@ -602,7 +653,7 @@ for i, tab in enumerate(tabs[1:]):
 
         st.header(f"Analysis Results — {run['name']}", anchor=False)
 
-        st.markdown("### Methods Applied")
+        st.markdown("### Methods Applied", )
         for m in run["methods"]:
             st.write("•", m)
 
@@ -621,29 +672,26 @@ for i, tab in enumerate(tabs[1:]):
 
         st.markdown("---")
 
-        if st.button("Delete This Run", key=f"delete_{i}"):
-            st.session_state.analysis_runs.pop(i)
-            st.rerun()
+        col1, col2, col3 = st.columns([1, 1, 6], gap="small")
+        with col1:
+            if st.button("Delete This Run", key=f"delete_{i}", use_container_width=True):
+                st.session_state.analysis_runs.pop(i)
+                st.rerun()
+        with col2:
+            st.button("Save This Run", key=f"save_{i}", use_container_width=True)
 
 # Modal Dialog using streamlit_modal
 if error_modal.is_open():
     with error_modal.container():
-        # Display warning squirrel image
-        try:
-            img_base64 = image_to_base64("pages/assets/warningSquirrel.PNG")
-            st.markdown(
-                f"<div style='text-align:center;'><img src='data:image/png;base64,{img_base64}' style='max-width:300px;'></div>",
-                unsafe_allow_html=True
-            )
-        except:
-            st.markdown("⚠")
+        render_modal_content(
+            "assets/warningSquirrel.PNG",
+            st.session_state.modal_message
+        )
 
-        # Display the modal message
-        st.write(st.session_state.modal_message)
-
-        if st.session_state.show_invalid_modal:
-            error_modal.open()
-            with error_modal.container():
-                st.write(st.session_state.modal_message)
-                # your image code here
-            st.session_state.show_invalid_modal = False
+# Success Modal Dialog
+if success_modal.is_open():
+    with success_modal.container():
+        render_modal_content(
+            "assets/huzzahAhSquirrel.PNG",
+            st.session_state.modal_message
+        )
