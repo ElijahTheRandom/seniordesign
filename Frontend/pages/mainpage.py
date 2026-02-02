@@ -78,28 +78,59 @@ div[data-testid="stModal"] h3 > a {
 </style>
 """, unsafe_allow_html=True)
 
+# Header and container spacing adjustments - CONSOLIDATED
 st.markdown("""
 <style>
-header[data-testid="stHeader"] { display: none; }
-.block-container {
+/* Remove Streamlit header */
+header[data-testid="stHeader"] {
+    display: none !important;
+}
+
+/* Zero top padding on all main containers */
+.block-container,
+div[data-testid="stMainBlockContainer"],
+div[data-testid="stAppViewBlockContainer"],
+section[data-testid="stAppViewContainer"] > div:first-child {
     padding-top: 0rem !important;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    margin-top: -3rem !important;
-    margin-bottom: -3rem !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    margin-top: 0rem !important;
 }
+
+/* Remove spacing from vertical blocks */
+div[data-testid="stVerticalBlock"],
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    gap: 0rem !important;
+    margin-top: 0rem !important;
+    padding-top: 0rem !important;
+}
+
+/* Specifically target the block containing tabs */
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stTabs"]) {
+    margin-top: 0rem !important;
+    padding-top: 0rem !important;
+    min-height: 0rem !important;
+}
+
+/* Tabs container itself */
 div[data-testid="stTabs"] {
-    margin-top: -3.5rem !important;
-    margin-bottom: -3.5rem !important;
+    margin-top: 0rem !important;
+    padding-top: 0rem !important;
 }
-            
-/* Remove anchor beside the modal title */
+
+/* Tab content panels */
+div[data-testid="stTabs"] div[role="tabpanel"] {
+    padding-top: 1rem !important;
+    padding-left: 0.25rem !important;
+    padding-right: 0.25rem !important;
+}
+
+/* Remove anchor beside modal titles */
 div[data-baseweb="stMarkdownContainer"] h3 a {
     display: none !important;
 }
 </style>
 """, unsafe_allow_html=True)
-
 # Checkbox and column selection styling
 st.markdown("""
 <style>
