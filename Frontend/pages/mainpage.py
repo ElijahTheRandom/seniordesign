@@ -813,4 +813,3 @@ if success_modal.is_open():
             os.path.join(BASE_DIR, "assets", "huzzahAhSquirrel.png"),
             st.session_state.modal_message
         )
-
