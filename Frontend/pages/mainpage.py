@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import uuid
 import base64
-import html
 from PIL import Image
 from streamlit_modal import Modal
 
