@@ -2,35 +2,35 @@ import streamlit as st
 import pandas as pd
 import uuid
 import base64
+import html
+import os
+import io
+
+BASE_DIR = os.path.dirname(__file__)
+
 from PIL import Image
 from streamlit_modal import Modal
+
 
 # Function to convert image to base64
 def image_to_base64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
-# Function to render modal content with fixed height
 def render_modal_content(img_path, message):
-    # Create centered layout for image only
     col1, col2, col3 = st.columns([1, 2, 1])
-    
+
     with col2:
-        try:
+        if os.path.exists(img_path):
             img = Image.open(img_path)
             st.image(img, width=300)
-        except:
-            pass
-    
-    st.markdown("---")
-    
-    # Display message with proper line spacing, left-aligned
-    lines = message.split('\n')
-    for line in lines:
-        if line.strip():
-            st.markdown(line)
         else:
-            st.write("")
+            st.error(f"Image not found: {img_path}")
+
+    st.markdown("---")
+
+    for line in message.split("\n"):
+        st.markdown(line if line.strip() else "")
 
 # Session state
 if "analysis_runs" not in st.session_state:
@@ -360,6 +360,53 @@ div[data-testid="stFileUploader"] button:active {
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* Force the download button container and link to match primary buttons */
+div[data-testid="stDownloadButton"] {
+    width: 100% !important;
+    display: block !important;
+}
+
+div[data-testid="stDownloadButton"] a {
+    display: inline-flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;           /* full width */
+    min-height: 38px !important;      /* match st.button height */
+    padding: 8px 16px !important;
+    background-color: #d66b1d !important;  /* orange primary color */
+    color: #ffffff !important;
+    border: 1px solid #d66b1d !important;
+    border-radius: 6px !important;
+    font-weight: 400;
+    text-decoration: none !important;
+    cursor: pointer !important;
+    box-sizing: border-box !important;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Hover */
+div[data-testid="stDownloadButton"] a:hover {
+    background-color: #e4781d !important;
+    border-color: #e4781d !important;
+    box-shadow: 0 0 0 3px rgba(214,107,29,0.35) !important;
+}
+
+/* Focus */
+div[data-testid="stDownloadButton"] a:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(214,107,29,0.5) !important;
+}
+
+/* Active */
+div[data-testid="stDownloadButton"] a:active {
+    background-color: #b85b18 !important;
+    border-color: #b85b18 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Remove markdown header anchor links
 st.markdown("""
 <style>
@@ -385,12 +432,38 @@ div[data-testid="stMarkdownContainer"] h6 {
 </style>
 """, unsafe_allow_html=True)
 
+# Pop Up Styling
+st.markdown("""
+<style>
+/* ---- FINAL KILL FOR THE ARROW SCROLLBAR ---- */
+
+/* This is the actual Streamlit content container inside the modal */
+div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
+    overflow: hidden !important;
+}
+
+/* Kill WebKit scrollbar + arrows inside that container */
+div[data-testid="stModal"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar {
+    width: 0px !important;
+    height: 0px !important;
+}
+
+div[data-testid="stModal"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar-button {
+    display: none !important;
+}
+
+/* Firefox fallback */
+div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
+    scrollbar-width: none !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Function to delete an analysis run
 def delete_run(index):
     st.session_state.analysis_runs.pop(index)
 
 # Function to save the analysis run
-    
 
 # Build tabs
 tab_labels = ["Main Workspace"]
@@ -518,6 +591,13 @@ with tabs[0]:
 
             disable_viz = not computation_selected  # True if no computation is selected
 
+            if disable_viz:
+                st.session_state["viz_hist"] = False
+                st.session_state["viz_box"] = False
+                st.session_state["viz_scatter"] = False
+                st.session_state["viz_line"] = False
+                st.session_state["viz_heatmap"] = False
+
             # Visualization Options
             v1, v2 = st.columns(2)
 
@@ -554,48 +634,56 @@ with tabs[0]:
 
         st.markdown('<div class="run-analysis-anchor">', unsafe_allow_html=True)
 
+        # Make a copy with shifted index for row selection
+        edited_table_for_loc = edited_table.copy()
+        edited_table_for_loc.index = edited_table_for_loc.index + 1
+
         if col1 and col2:
-            parsedData = edited_table.loc[col2, col1].copy()
+            parsedData = edited_table_for_loc.loc[col2, col1].copy()
         elif col1:
-            parsedData = edited_table[col1].copy()
+            parsedData = edited_table_for_loc[col1].copy()
         elif col2:
-            parsedData = edited_table.loc[col2].copy()
+            parsedData = edited_table_for_loc.loc[col2].copy()
         else:
-            parsedData = edited_table.copy()
+            parsedData = edited_table_for_loc.copy()
 
         run_clicked = st.button(
             "Run Analysis",
             key="run_analysis",
             use_container_width=True,
-            disabled=not data_ready
+            disabled=not (data_ready and computation_selected)
         )
 
         if run_clicked:
             non_numeric_cols = []
-            numeric_required = mean or median or mode or std_dev or variance or pearson or spearman or regression or percentiles or variation or scatter or line or box or hist or heatmap
+            numeric_required = any([
+                mean, median, mode, std_dev, variance, pearson, spearman, regression, percentiles, variation,
+                st.session_state.get("viz_hist", False),
+                st.session_state.get("viz_box", False),
+                st.session_state.get("viz_scatter", False),
+                st.session_state.get("viz_line", False),
+                st.session_state.get("viz_heatmap", False)
+            ])
 
             if numeric_required:
                 for col in parsedData.columns:
                     coerced = pd.to_numeric(parsedData[col], errors='coerce')
-                    for row_idx in parsedData.index:
-                        original_value = parsedData.at[row_idx, col]
-                        coerced_value = coerced.at[row_idx]
-                        if pd.notna(original_value) and pd.isna(coerced_value):
-                            if col not in non_numeric_cols:
-                                non_numeric_cols.append({
-                                    "row": row_idx,
-                                    "column": col,
-                                    "value": original_value
-                                })
+                    non_numeric_rows = parsedData[coerced.isna() & parsedData[col].notna()]
+                    for row_idx, val in non_numeric_rows[col].items():
+                        non_numeric_cols.append({
+                            "row": row_idx,
+                            "column": col,
+                            "value": val
+                        })
 
             if non_numeric_cols:
                 # Prepare message
-                preview = non_numeric_cols[:3]
+                preview = non_numeric_cols[:2]
                 message = "The following non-numeric data was found:\n"
                 for cell in preview:
                     message += f" - Row: {cell['row']}, Column: {cell['column']}, Value: '{cell['value']}'\n"
-                if len(non_numeric_cols) > 3:
-                    message += f" ...and {len(non_numeric_cols) - 3} more entries.\n"
+                if len(non_numeric_cols) > 2:
+                    message += f" ...and {len(non_numeric_cols) - 2} more entries.\n"
 
                 # Save message to session state
                 st.session_state.modal_message = message
@@ -656,14 +744,18 @@ for i, tab in enumerate(tabs[1:]):
         for m in run["methods"]:
             st.write("•", m)
 
+        st.markdown("---")
+
         # Visualization Methods
-        st.markdown("### Visualizations Applied")
-        # Check which visualizations were selected for this run
-        viz_methods = []
-        if run.get("visualizations"):  # we will save this in the run dict
-            viz_methods = run["visualizations"]
-        for v in viz_methods:
-            st.write("•", v)
+        # Visualization Methods — only show if something was selected
+        viz_methods = run.get("visualizations", [])
+
+        if viz_methods:   # <-- key line
+            st.markdown("### Visualizations Applied")
+            for v in viz_methods:
+                st.write("•", v)
+
+            st.markdown("---")
 
         st.markdown("### Selected Cell Data")
         st.dataframe(run["data"], use_container_width=True)
@@ -671,26 +763,54 @@ for i, tab in enumerate(tabs[1:]):
 
         st.markdown("---")
 
-        col1, col2, col3 = st.columns([1, 1, 6], gap="small")
+        col1, col2, col3, col4 = st.columns([1, 1, 1, 1], gap="small")
         with col1:
-            if st.button("Delete This Run", key=f"delete_{i}", use_container_width=True):
+            st.button("Update Run Name", key=f"name_{i}", use_container_width=True)
+        with col2:
+            st.button("Save Run Locally", key=f"save_{i}", use_container_width=True)
+        with col3:
+            # Create the text content for export
+            export_text = f"Analysis Results — {run['name']}\n\n"
+
+            if run["methods"]:
+                export_text += "Methods Applied:\n"
+                for method in run["methods"]:
+                    export_text += f"- {method}\n"
+                export_text += "\n"
+
+            if run.get("visualizations"):
+                export_text += "Visualizations Applied:\n"
+                for viz in run["visualizations"]:
+                    export_text += f"- {viz}\n"
+                export_text += "\n"
+
+            export_text += "Selected Cell Data:\n"
+            export_text += run["data"].to_csv(sep="\t", index=True)
+
+            st.download_button(
+                label="Export Run",
+                data=export_text,
+                file_name=f"{run['name']}.txt",
+                mime="text/plain",
+                use_container_width=True,
+                key=f"export_{i}",
+            )
+        with col4:
+            if st.button("Delete Run", key=f"delete_{i}", use_container_width=True):
                 st.session_state.analysis_runs.pop(i)
                 st.rerun()
-        with col2:
-            st.button("Save This Run", key=f"save_{i}", use_container_width=True)
 
-# Modal Dialog using streamlit_modal
 if error_modal.is_open():
     with error_modal.container():
         render_modal_content(
-            "assets/warningSquirrel.PNG",
+            os.path.join(BASE_DIR, "assets", "warningSquirrel.PNG"),
             st.session_state.modal_message
         )
 
-# Success Modal Dialog
 if success_modal.is_open():
     with success_modal.container():
         render_modal_content(
-            "assets/huzzahAhSquirrel.PNG",
+            os.path.join(BASE_DIR, "assets", "huzzahAhSquirrel.png"),
             st.session_state.modal_message
         )
+
