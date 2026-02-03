@@ -25,7 +25,7 @@ def render_modal_content(img_path, message):
     with col2:
         if os.path.exists(img_path):
             img = Image.open(img_path)
-            st.image(img, width=300)
+            st.image(img)
         else:
             st.error(f"Image not found: {img_path}")
 
@@ -210,7 +210,10 @@ div[data-baseweb="modal"] button[aria-label="Close"] {
 # Selectbox styling
 st.markdown("""
 <style>
-
+/* Add spacing between file uploader and data editor */
+div[data-testid="stFileUploader"] {
+    margin-bottom: 1.5rem !important;
+}
 
 /* Kill Streamlit's default red outline anywhere inside the selectbox */
 div[data-testid="stSelectbox"] * {
