@@ -11,9 +11,6 @@ BASE_DIR = os.path.dirname(__file__)
 from PIL import Image
 from streamlit_modal import Modal
 
-# DELETE THIS IF YOU SEE IT
-
-
 # Function to convert image to base64
 def image_to_base64(path):
     with open(path, "rb") as f:
