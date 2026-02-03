@@ -1,23 +1,10 @@
 import numpy as np
 from scipy.stats import chisquare
 
-"""
-# Backend results
-    "results": [ #1.10, but also should be compiled on front end
-        {
-            "id": "std_dev",
-            "ok": True, # 4.10, 5.6
-            "value": 2.58, # 1.6
-            "error": None, # 4.10, 5.6
-            "loss_of_precision": False, #4.10
-            "params_used": 100, # parameters used for the computation
-        },
-    ],
-    """
-class MethodName:
+class ChiSquared:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
-        self.stat_id = "method_name"
+        self.stat_id = "chi_squared"
         self.data = data
         self.metadata = metadata
         self.params = params or {}
