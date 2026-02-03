@@ -15,6 +15,55 @@ from streamlit_modal import Modal
 def image_to_base64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
+    
+def strip_index(df):
+    return pd.DataFrame(df.values, columns=df.columns)
+
+def df_to_ascii_table(df):
+    # Convert everything to strings
+    df_str = df.astype(str)
+
+    # Get column widths
+    col_widths = {
+        col: max(df_str[col].map(len).max(), len(col))
+        for col in df_str.columns
+    }
+
+    # Build top border
+    top = "+"
+    for col in df_str.columns:
+        top += "-" * (col_widths[col] + 2) + "+"
+    top += "\n"
+
+    # Build header row
+    header = "|"
+    for col in df_str.columns:
+        header += " " + col.ljust(col_widths[col]) + " |"
+    header += "\n"
+
+    # Build separator under header
+    mid = "+"
+    for col in df_str.columns:
+        mid += "-" * (col_widths[col] + 2) + "+"
+    mid += "\n"
+
+    # Build data rows
+    # Build data rows
+    rows = ""
+    for _, row in df_str.iterrows():
+        rows += "|"
+        for col in df_str.columns:
+            rows += " " + str(row[col]).ljust(col_widths[col]) + " |"
+        rows += "\n"
+        
+        # Add row separator
+        rows += "+"
+        for col in df_str.columns:
+            rows += "-" * (col_widths[col] + 2) + "+"
+        rows += "\n"
+
+    return top + header + mid + rows
+
 
 def render_modal_content(img_path, message):
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -673,7 +722,6 @@ with tabs[0]:
 
         # Make a copy with shifted index for row selection
         edited_table_for_loc = edited_table.copy()
-        edited_table_for_loc.index = edited_table_for_loc.index + 1
 
         if col1 and col2:
             parsedData = edited_table_for_loc.loc[col2, col1].copy()
@@ -734,7 +782,7 @@ with tabs[0]:
                     "id": str(uuid.uuid4()),
                     "name": f"Run {len(st.session_state.analysis_runs) + 1}",
                     "table": edited_table,
-                    "data": parsedData,
+                    "data": parsedData.reset_index(drop=True),
                     "columns": col1,
                     "rows": col2,
                     "methods": [
@@ -777,26 +825,34 @@ for i, tab in enumerate(tabs[1:]):
 
         st.header(f"Analysis Results — {run['name']}", anchor=False)
 
-        st.markdown("### Methods Applied", )
+        st.markdown("### Methods Applied")
         for m in run["methods"]:
-            st.write("•", m)
+            st.write("-", m)
 
         st.markdown("---")
 
         # Visualization Methods
-        # Visualization Methods — only show if something was selected
         viz_methods = run.get("visualizations", [])
 
         if viz_methods:   # <-- key line
             st.markdown("### Visualizations Applied")
             for v in viz_methods:
-                st.write("•", v)
+                st.write("-", v)
 
             st.markdown("---")
 
         st.markdown("### Selected Cell Data")
-        st.dataframe(run["data"], use_container_width=True)
+        st.dataframe(
+            strip_index(run["data"]),
+            use_container_width=True,
+            hide_index=True
+        )
         st.caption(f"Rows: {run['rows']}, Columns: {run['columns']}")
+
+        st.markdown("---")
+
+        st.markdown("### Calculation Results")
+        # Fill in later with backend
 
         st.markdown("---")
 
@@ -822,7 +878,9 @@ for i, tab in enumerate(tabs[1:]):
                 export_text += "\n"
 
             export_text += "Selected Cell Data:\n"
-            export_text += run["data"].to_csv(sep="\t", index=True)
+            export_text += df_to_ascii_table(run["data"]) + "\n\n"
+
+            export_text += "Calculation Results:\n"
 
             st.download_button(
                 label="Export Run",
