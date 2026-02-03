@@ -22,7 +22,7 @@ def render_modal_content(img_path, message):
     with col2:
         if os.path.exists(img_path):
             img = Image.open(img_path)
-            st.image(img, width=300)
+            st.image(img)
         else:
             st.error(f"Image not found: {img_path}")
 
@@ -207,7 +207,10 @@ div[data-baseweb="modal"] button[aria-label="Close"] {
 # Selectbox styling
 st.markdown("""
 <style>
-
+/* Add spacing between file uploader and data editor */
+div[data-testid="stFileUploader"] {
+    margin-bottom: 1.5rem !important;
+}
 
 /* Kill Streamlit's default red outline anywhere inside the selectbox */
 div[data-testid="stSelectbox"] * {
@@ -398,25 +401,27 @@ div[data-testid="stDownloadButton"] {
     display: block !important;
 }
 
+div[data-testid="stDownloadButton"] button,
 div[data-testid="stDownloadButton"] a {
     display: inline-flex !important;
     justify-content: center !important;
     align-items: center !important;
-    width: 100% !important;           /* full width */
-    min-height: 38px !important;      /* match st.button height */
+    width: 100% !important;
+    min-height: 38px !important;
     padding: 8px 16px !important;
-    background-color: #d66b1d !important;  /* orange primary color */
+    background-color: #d66b1d !important;
     color: #ffffff !important;
     border: 1px solid #d66b1d !important;
     border-radius: 6px !important;
-    font-weight: 400;
+    font-weight: 400 !important;
     text-decoration: none !important;
     cursor: pointer !important;
     box-sizing: border-box !important;
-    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease !important;
 }
 
 /* Hover */
+div[data-testid="stDownloadButton"] button:hover,
 div[data-testid="stDownloadButton"] a:hover {
     background-color: #e4781d !important;
     border-color: #e4781d !important;
@@ -424,12 +429,14 @@ div[data-testid="stDownloadButton"] a:hover {
 }
 
 /* Focus */
+div[data-testid="stDownloadButton"] button:focus-visible,
 div[data-testid="stDownloadButton"] a:focus-visible {
     outline: none !important;
     box-shadow: 0 0 0 3px rgba(214,107,29,0.5) !important;
 }
 
 /* Active */
+div[data-testid="stDownloadButton"] button:active,
 div[data-testid="stDownloadButton"] a:active {
     background-color: #b85b18 !important;
     border-color: #b85b18 !important;
