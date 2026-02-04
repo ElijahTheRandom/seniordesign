@@ -609,6 +609,9 @@ with tabs[0]:
 
         if uploaded_files:
             df = pd.read_csv(uploaded_files[-1])
+            # Reset index to avoid MultiIndex issues
+            if isinstance(df.index, pd.MultiIndex):
+                df = df.reset_index(drop=True)
             table = df.copy()
         else:
             table = pd.DataFrame(columns=["Enter your data..."])
@@ -627,17 +630,25 @@ with tabs[0]:
     # Analysis Options
     with right_col:
         st.header("Analysis Configuration", anchor=False)
+        
+        st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
 
         col1 = []
         col2 = []
 
         if len(edited_table.columns) > 0 and len(edited_table) > 0:
             col1 = st.multiselect("Columns", edited_table.columns)
+            
+            st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
+
             col2 = st.multiselect("Rows", edited_table.index)
         else:
             col1 = []
             col2 = []
             st.multiselect("Columns", [], disabled=True)
+            
+            st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
+
             st.multiselect("Rows", [], disabled=True)
 
         # Determine how many columns/rows are selected
@@ -647,6 +658,8 @@ with tabs[0]:
         disable_two_cols = num_cols_selected < 2
         disable_one_col = num_cols_selected < 1
         disable_one_row = num_rows_selected < 1
+
+        st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
 
         # Computation Options
         st.subheader("Computation Options", anchor=False)
@@ -825,7 +838,7 @@ for i, tab in enumerate(tabs[1:]):
 
         st.header(f"Analysis Results — {run['name']}", anchor=False)
 
-        st.markdown("### Methods Applied")
+        st.markdown("### Methods and Results")
         for m in run["methods"]:
             st.write("-", m)
 
@@ -841,7 +854,7 @@ for i, tab in enumerate(tabs[1:]):
 
             st.markdown("---")
 
-        st.markdown("### Selected Cell Data")
+        st.markdown("### Selected Data")
         st.dataframe(
             strip_index(run["data"]),
             use_container_width=True,
@@ -851,16 +864,11 @@ for i, tab in enumerate(tabs[1:]):
 
         st.markdown("---")
 
-        st.markdown("### Calculation Results")
-        # Fill in later with backend
-
-        st.markdown("---")
-
         col1, col2, col3, col4 = st.columns([1, 1, 1, 1], gap="small")
         with col1:
             st.button("Update Run Name", key=f"name_{i}", use_container_width=True)
         with col2:
-            st.button("Save Run Locally", key=f"save_{i}", use_container_width=True)
+            st.button("Save Run", key=f"save_{i}", use_container_width=True)
         with col3:
             # Create the text content for export
             export_text = f"Analysis Results — {run['name']}\n\n"
@@ -877,10 +885,8 @@ for i, tab in enumerate(tabs[1:]):
                     export_text += f"- {viz}\n"
                 export_text += "\n"
 
-            export_text += "Selected Cell Data:\n"
+            export_text += "Selected Data:\n"
             export_text += df_to_ascii_table(run["data"]) + "\n\n"
-
-            export_text += "Calculation Results:\n"
 
             st.download_button(
                 label="Export Run",
