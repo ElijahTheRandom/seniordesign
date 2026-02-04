@@ -1,6 +1,6 @@
 import numpy as np
     
-class MethodName:
+class Variance:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
         self.stat_id = "variance"
