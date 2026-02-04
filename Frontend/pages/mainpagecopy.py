@@ -102,6 +102,12 @@ if "show_success_modal" not in st.session_state:
 if "active_run_id" not in st.session_state:
     st.session_state.active_run_id = None
 
+if "saved_table" not in st.session_state:
+    st.session_state.saved_table = None
+
+if "saved_uploaded_file" not in st.session_state:
+    st.session_state.saved_uploaded_file = None
+
 
 # Page config
 st.set_page_config(
@@ -112,45 +118,25 @@ st.set_page_config(
 
 with st.sidebar:
     st.header("Navigation")
-    
-    # Home button to go back to main page
-    if st.button("🏠 Home", use_container_width=True):
+
+    run_labels = ["Home"] + [run["name"] for run in st.session_state.analysis_runs]
+
+    selected = st.radio(
+        "Analysis Runs",
+        run_labels,
+        key="run_selector"
+    )
+
+    if selected == "🏠 Home":
         st.session_state.active_run_id = None
-        st.rerun()
-    
-    st.markdown("---")
-    st.subheader("Analysis Runs")
-
-    if st.session_state.analysis_runs:
-        run_labels = [run["name"] for run in st.session_state.analysis_runs]
-        
-        # Find the index of the currently active run
-        default_index = None
-        if st.session_state.active_run_id:
-            for idx, run in enumerate(st.session_state.analysis_runs):
-                if run["id"] == st.session_state.active_run_id:
-                    default_index = idx
-                    break
-
-        selected_name = st.radio(
-            "Select a run",
-            run_labels,
-            key="run_selector",
-            index=default_index
-        )
-
-        # Map selected name → run ID
-        if selected_name:
-            for run in st.session_state.analysis_runs:
-                if run["name"] == selected_name:
-                    st.session_state.active_run_id = run["id"]
-                    break
-        else:
-            # If no selection, clear active_run_id
-            st.session_state.active_run_id = None
     else:
-        st.info("No analysis runs yet. Create one using the form.")
-        st.session_state.active_run_id = None
+        run = next(
+            (r for r in st.session_state.analysis_runs if r["name"] == selected),
+            None
+        )
+        if run:
+            st.session_state.active_run_id = run["id"]
+
 
 # Create modal instances
 error_modal = Modal(
@@ -638,9 +624,14 @@ else:
         elif uploaded_files:
             st.session_state.has_file = True
 
+        # Determine which table to use
         if uploaded_files:
             df = pd.read_csv(uploaded_files[-1])
             table = df.copy()
+            st.session_state.saved_uploaded_file = uploaded_files[-1].name
+        elif st.session_state.saved_table is not None:
+            # Restore previously edited table
+            table = st.session_state.saved_table.copy()
         else:
             table = pd.DataFrame(columns=["Enter your data..."])
 
@@ -650,8 +641,12 @@ else:
             use_container_width=True,
             height=754,
             hide_index=True,
+            key="main_data_editor"
         )
         edited_table.index = edited_table.index + 1
+        
+        # Save the edited table to session state
+        st.session_state.saved_table = edited_table.copy()
 
         data_ready = len(edited_table.columns) > 0 and len(edited_table) > 0
 
@@ -867,16 +862,10 @@ else:
                 }
 
                 st.session_state.analysis_runs.append(run)
-                st.session_state.active_run_id = run["id"]   # ← auto-select new run
                 st.session_state.modal_message = f"Analysis '{run['name']}' has been successfully created!"
                 success_modal.open()
 
-if st.session_state.analysis_runs and st.session_state.active_run_id is None:
-    last = st.session_state.analysis_runs[-1]
-    st.session_state.active_run_id = last["id"]
-
-
-
+# Render modals
 if error_modal.is_open():
     with error_modal.container():
         render_modal_content(
