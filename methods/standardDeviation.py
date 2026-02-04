@@ -4,7 +4,7 @@ from class_templates import message_structure
 class StandardDeviation:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
-        self.stat_id = "standard deviation"
+        self.stat_id = "std"
         self.data = data
         self.metadata = metadata
         self.params = params or {}
@@ -48,11 +48,11 @@ class StandardDeviation:
         # Main Computation Logic
         try:
             data_array = np.asarray(self.data, dtype = float)
-            standardDeviation_value = float(np.std(data_array))
+            std_value = float(np.std(data_array))
         except Exception as e:
             return self._generate_return_structure_error(str(e))
         
-        return self._generate_return_structure(standardDeviation_value)
+        return self._generate_return_structure(std_value)
 
 
     def create_graphic(self, results):
