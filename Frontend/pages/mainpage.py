@@ -655,7 +655,6 @@ with tabs[0]:
             # Save for next interaction
             st.session_state.last_cols_selected = col1
 
-
             col2 = st.multiselect("Rows", edited_table.index)
         else:
             col1 = []

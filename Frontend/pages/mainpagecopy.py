@@ -664,6 +664,18 @@ else:
 
         if len(edited_table.columns) > 0 and len(edited_table) > 0:
             col1 = st.multiselect("Columns", edited_table.columns)
+            st.session_state["current_cols"] = col1  
+
+            # --- RESET CHECKBOXES ONLY IF USER JUST CLEARED COLUMNS ---
+            if "last_cols_selected" not in st.session_state:
+                st.session_state.last_cols_selected = []
+
+            if len(st.session_state.last_cols_selected) > 0 and len(col1) == 0:
+                st.session_state.checkbox_key += 1
+
+            # Save for next interaction
+            st.session_state.last_cols_selected = col1
+
             col2 = st.multiselect("Rows", edited_table.index)
         else:
             col1 = []
@@ -674,6 +686,17 @@ else:
         # Determine how many columns/rows are selected
         num_cols_selected = len(col1)
         num_rows_selected = len(col2)
+
+        # ---- NEW: detect transition from 2+ columns → 1 column ----
+        if "last_num_cols" not in st.session_state:
+            st.session_state.last_num_cols = 0
+
+        # If user DROPPED from 2+ columns to 1 column → reset dependent checkboxes
+        if st.session_state.last_num_cols >= 2 and num_cols_selected == 1:
+            st.session_state.checkbox_key += 1   # force re-render of checkboxes
+
+        # Save current count for next interaction
+        st.session_state.last_num_cols = num_cols_selected
 
         disable_two_cols = num_cols_selected < 2
         disable_one_col = num_cols_selected < 1
