@@ -313,20 +313,128 @@ div[data-testid="stDataEditor"] thead {
     font-weight: 600 !important;
 }
 
-/* Modern Typography */
-h1, h2, h3 {
+/* Modern Typography - Enhanced */
+h1, h2, h3, h4 {
     font-weight: 600 !important;
-    letter-spacing: -0.02em !important;
+    letter-spacing: -0.025em !important;
+    background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.85) 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    position: relative !important;
+}
+
+h1 {
+    font-size: 2.2rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 1.8rem !important;
+    letter-spacing: -0.03em !important;
 }
 
 h2 {
-    font-size: 1.5rem !important;
+    font-size: 1.6rem !important;
     margin-bottom: 1.5rem !important;
+    font-weight: 600 !important;
 }
 
-p, label {
-    line-height: 1.6 !important;
-    color: rgba(255, 255, 255, 0.87) !important;
+h3 {
+    font-size: 1.25rem !important;
+    margin-bottom: 1.2rem !important;
+    font-weight: 600 !important;
+}
+
+/* Body text and labels */
+p, label, div[data-testid="stMarkdownContainer"] {
+    line-height: 1.65 !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.01em !important;
+}
+
+/* Labels specifically */
+label {
+    font-weight: 500 !important;
+    color: rgba(255, 255, 255, 0.95) !important;
+    font-size: 0.95rem !important;
+    text-transform: none !important;
+}
+
+/* Captions with subtle style */
+div[data-testid="stCaptionContainer"] {
+    color: rgba(255, 255, 255, 0.6) !important;
+    font-size: 0.875rem !important;
+    font-style: italic !important;
+    letter-spacing: 0.02em !important;
+}
+
+/* List items */
+li {
+    color: rgba(255, 255, 255, 0.85) !important;
+    line-height: 1.7 !important;
+    margin: 0.4rem 0 !important;
+}
+
+/* Add subtle glow to emphasized text */
+strong, b {
+    font-weight: 600 !important;
+    color: rgba(255, 255, 255, 0.98) !important;
+    text-shadow: 0 0 10px rgba(228, 120, 29, 0.2) !important;
+}
+
+/* Subtle text shimmer animation for headers */
+@keyframes textShimmer {
+    0% {
+        background-position: -100% center;
+    }
+    100% {
+        background-position: 200% center;
+    }
+}
+
+h1, h2, h3 {
+    background-size: 200% auto !important;
+}
+
+/* Add animated gradient underline to section headers */
+h2::after, h3::after {
+    content: '' !important;
+    display: block !important;
+    width: 60px !important;
+    height: 3px !important;
+    background: linear-gradient(90deg, #e4781d 0%, rgba(228, 120, 29, 0.5) 70%, transparent 100%) !important;
+    margin-top: 12px !important;
+    border-radius: 2px !important;
+    animation: slideIn 0.6s ease-out !important;
+}
+
+@keyframes slideIn {
+    from {
+        width: 0;
+        opacity: 0;
+    }
+    to {
+        width: 60px;
+        opacity: 1;
+    }
+}
+
+/* Add subtle hover effect to headers */
+h1:hover, h2:hover, h3:hover {
+    animation: textShimmer 3s ease-in-out infinite !important;
+}
+
+/* Improve readability with text rendering */
+* {
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+}
+
+/* Enhance button text */
+button {
+    font-weight: 500 !important;
+    letter-spacing: 0.015em !important;
 }
 
 /* Section Dividers with Gradient */
@@ -538,9 +646,9 @@ st.markdown("""
 
 /* 1) Toggle when sidebar is CLOSED (lives in the top header) */
 header[data-testid="stHeader"] button {
-    color: #e4781d !important;
-    background: rgba(228, 120, 29, 0.12) !important;
-    border: 1px solid rgba(228, 120, 29, 0.4) !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    background: transparent !important;
+    border: none !important;
     border-radius: 6px !important;
 }
 
@@ -548,9 +656,9 @@ header[data-testid="stHeader"] button {
 section[data-testid="stSidebar"] 
   div[data-testid="stSidebarCollapseButton"] 
   button {
-    color: #e4781d !important;
-    background: rgba(228, 120, 29, 0.12) !important;
-    border: 1px solid rgba(228, 120, 29, 0.4) !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    background: transparent !important;
+    border: none !important;
     border-radius: 6px !important;
 }
 
@@ -559,17 +667,17 @@ header[data-testid="stHeader"] button:hover,
 section[data-testid="stSidebar"] 
   div[data-testid="stSidebarCollapseButton"] 
   button:hover {
-    background: rgba(228, 120, 29, 0.22) !important;
-    border-color: rgba(228, 120, 29, 0.7) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
 }
 
-/* Focus — remove gray ring, add orange */
+/* Focus — remove all rings */
 header[data-testid="stHeader"] button:focus-visible,
 section[data-testid="stSidebar"] 
   div[data-testid="stSidebarCollapseButton"] 
   button:focus-visible {
     outline: none !important;
-    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.4) !important;
+    box-shadow: none !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -652,20 +760,40 @@ div[data-testid="stMultiSelect"] div[role="combobox"] {
     background: linear-gradient(145deg, #1e1e28, #262730) !important;
     border: 1.5px solid rgba(228, 120, 29, 0.4) !important;
     border-radius: 10px !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 
-                0 0 0 1px rgba(228, 120, 29, 0.1) inset !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), 
+                0 4px 16px rgba(0, 0, 0, 0.15),
+                0 0 0 1px rgba(228, 120, 29, 0.1) inset,
+                0 1px 2px rgba(255, 255, 255, 0.05) inset !important;
     padding: 8px 12px !important;
+    margin: 4px 0 !important;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
     min-height: 42px !important;
+    position: relative !important;
+    overflow: visible !important;
 }
 
-/* Hover state with glow effect */
+/* Add subtle shine effect at the top */
+div[data-testid="stMultiSelect"] div[role="combobox"]::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 30% !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%) !important;
+    border-radius: 10px 10px 0 0 !important;
+    pointer-events: none !important;
+}
+
+/* Hover state with enhanced glow effect */
 div[data-testid="stMultiSelect"] div[role="combobox"]:hover {
     border-color: rgba(228, 120, 29, 0.6) !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 
-                0 0 20px rgba(228, 120, 29, 0.15),
-                0 0 0 1px rgba(228, 120, 29, 0.2) inset !important;
-    transform: translateY(-1px) !important;
+                0 6px 20px rgba(0, 0, 0, 0.2),
+                0 0 25px rgba(228, 120, 29, 0.15),
+                0 0 0 1px rgba(228, 120, 29, 0.2) inset,
+                0 1px 3px rgba(255, 255, 255, 0.08) inset !important;
+    transform: translateY(-2px) !important;
 }
 
 /* Focus / active / open with prominent glow */
@@ -674,10 +802,11 @@ div[data-testid="stMultiSelect"] div[role="combobox"]:focus,
 div[data-testid="stMultiSelect"] div[role="combobox"]:focus-visible {
     outline: none !important;
     border-color: #e4781d !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3),
-                0 0 30px rgba(228, 120, 29, 0.25),
-                0 0 0 3px rgba(228, 120, 29, 0.3) !important;
-    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35),
+                0 8px 28px rgba(0, 0, 0, 0.25),
+                0 0 35px rgba(228, 120, 29, 0.3),
+                0 0 0 3px rgba(228, 120, 29, 0.35) !important;
+    transform: translateY(-2px) scale(1.005) !important;
 }
 
 /* Dropdown menu styling */
@@ -1217,7 +1346,7 @@ if st.session_state.active_run_id:
         btn1, btn2, btn3 = st.columns(3)
 
         with btn1:
-            st.button("Save This Run")
+            st.button("Save This Run", use_container_width=True)
 
         with btn2:
             export_text = f"Analysis Results — {run['name']}\n\n"
@@ -1246,14 +1375,14 @@ if st.session_state.active_run_id:
             )
 
         with btn3:
-            if st.button("Delete This Run"):
+            if st.button("Delete This Run", use_container_width=True):
                 st.session_state.analysis_runs = [r for r in st.session_state.analysis_runs if r["id"] != run["id"]]
                 st.session_state.active_run_id = None
                 st.rerun()
 else:
     # Show homepage with data input and configuration
     # Add spacing at the top so sidebar toggle isn't covered
-    st.markdown("<div style='margin-top: 2.5rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown("<hr style='margin: 0; border: none; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />", unsafe_allow_html=True)
     
     left_col, right_col = st.columns([3, 2], gap="medium")
