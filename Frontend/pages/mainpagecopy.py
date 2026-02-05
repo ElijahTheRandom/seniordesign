@@ -337,19 +337,30 @@ hr {
     margin: 2rem 0 !important;
 }
 
-/* Pill-Style Tags for Selected Items */
+/* Pill-Style Tags for Selected Items - ENHANCED */
 div[data-testid="stMultiSelect"] span[data-baseweb="tag"] {
-    background: rgba(228, 120, 29, 0.15) !important;
-    border: 1px solid rgba(228, 120, 29, 0.3) !important;
+    background: linear-gradient(135deg, rgba(228, 120, 29, 0.2), rgba(228, 120, 29, 0.15)) !important;
+    border: 1.5px solid rgba(228, 120, 29, 0.5) !important;
     border-radius: 20px !important;
-    padding: 4px 12px !important;
-    transition: all 0.2s ease !important;
+    padding: 4px 10px 4px 12px !important;
+    margin: 2px 4px !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2),
+                0 0 8px rgba(228, 120, 29, 0.1) !important;
 }
 
 div[data-testid="stMultiSelect"] span[data-baseweb="tag"]:hover {
-    background: rgba(228, 120, 29, 0.25) !important;
-    border-color: rgba(228, 120, 29, 0.5) !important;
-    transform: scale(1.05) !important;
+    background: linear-gradient(135deg, rgba(228, 120, 29, 0.3), rgba(228, 120, 29, 0.25)) !important;
+    border-color: rgba(228, 120, 29, 0.7) !important;
+    transform: scale(1.05) translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3),
+                0 0 16px rgba(228, 120, 29, 0.2) !important;
 }
 
 /* Ambient Glow Effect for Sidebar Active Elements Only */
@@ -521,8 +532,12 @@ st.markdown("""
 <style>
 /* Keep header visible for sidebar toggle but minimize it */
 header[data-testid="stHeader"] {
-    background-color: transparent !important;
+    background-color: #0e1117 !important;
     height: 2.5rem !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    border-bottom: none !important;
+    z-index: 999 !important;
 }
 
 /* Hide everything in header except sidebar toggle */
@@ -530,12 +545,12 @@ header[data-testid="stHeader"] > div:not(:first-child) {
     display: none !important;
 }
 
-/* Zero top padding on all main containers */
+/* Minimal top padding on all main containers to accommodate header */
 .block-container,
 div[data-testid="stMainBlockContainer"],
 div[data-testid="stAppViewBlockContainer"],
 section[data-testid="stAppViewContainer"] > div:first-child {
-    padding-top: 0rem !important;
+    padding-top: 0.5rem !important;
     padding-left: 1rem !important;
     padding-right: 1rem !important;
     margin-top: 0rem !important;
@@ -581,36 +596,131 @@ div[data-baseweb="select"] > div > div > div > div {
 </style>
 """, unsafe_allow_html=True)
 
-# Multiselect box styling
+# Multiselect box styling - ENHANCED MODERN VERSION
 st.markdown("""
 <style>
-/* MULTISELECT — base state */
+/* MULTISELECT — Modern base state with gradient border effect */
 div[data-testid="stMultiSelect"] div[role="combobox"] {
-    background-color: #262730 !important;
-    border: 1px solid #e4781d !important;
-    border-radius: 6px !important;
-    box-shadow: none !important;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    background: linear-gradient(145deg, #1e1e28, #262730) !important;
+    border: 1.5px solid rgba(228, 120, 29, 0.4) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 
+                0 0 0 1px rgba(228, 120, 29, 0.1) inset !important;
+    padding: 8px 12px !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    min-height: 42px !important;
 }
 
-/* Hover */
+/* Hover state with glow effect */
 div[data-testid="stMultiSelect"] div[role="combobox"]:hover {
-    border-color: #d66b1d !important;
-    box-shadow: 0 0 0 2px rgba(214, 107, 29, 0.35) !important;
+    border-color: rgba(228, 120, 29, 0.6) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 
+                0 0 20px rgba(228, 120, 29, 0.15),
+                0 0 0 1px rgba(228, 120, 29, 0.2) inset !important;
+    transform: translateY(-1px) !important;
 }
 
-/* Focus / active / open */
+/* Focus / active / open with prominent glow */
 div[data-testid="stMultiSelect"] div[role="combobox"][aria-expanded="true"],
 div[data-testid="stMultiSelect"] div[role="combobox"]:focus,
 div[data-testid="stMultiSelect"] div[role="combobox"]:focus-visible {
     outline: none !important;
     border-color: #e4781d !important;
-    box-shadow: 0 0 0 3px rgba(228, 120, 29, 0.5) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3),
+                0 0 30px rgba(228, 120, 29, 0.25),
+                0 0 0 3px rgba(228, 120, 29, 0.3) !important;
+    transform: translateY(-1px) !important;
 }
 
-/* Remove Streamlit's red internal borders */
+/* Dropdown menu styling */
+div[data-testid="stMultiSelect"] ul[role="listbox"] {
+    background: linear-gradient(145deg, #1e1e28, #262730) !important;
+    border: 1.5px solid rgba(228, 120, 29, 0.4) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4),
+                0 0 40px rgba(228, 120, 29, 0.15) !important;
+    padding: 8px !important;
+    margin-top: 4px !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+/* Dropdown options */
+div[data-testid="stMultiSelect"] li[role="option"] {
+    border-radius: 6px !important;
+    padding: 10px 12px !important;
+    margin: 2px 0 !important;
+    transition: all 0.2s ease !important;
+    color: rgba(255, 255, 255, 0.87) !important;
+}
+
+/* Dropdown option hover */
+div[data-testid="stMultiSelect"] li[role="option"]:hover {
+    background: rgba(228, 120, 29, 0.15) !important;
+    transform: translateX(4px) !important;
+    box-shadow: 0 2px 8px rgba(228, 120, 29, 0.2) !important;
+}
+
+/* Selected dropdown option */
+div[data-testid="stMultiSelect"] li[role="option"][aria-selected="true"] {
+    background: rgba(228, 120, 29, 0.2) !important;
+    border-left: 3px solid #e4781d !important;
+    font-weight: 500 !important;
+}
+
+/* Input field inside multiselect */
+div[data-testid="stMultiSelect"] input {
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-size: 14px !important;
+}
+
+/* Arrow icon */
+div[data-testid="stMultiSelect"] svg {
+    fill: rgba(228, 120, 29, 0.8) !important;
+    transition: transform 0.3s ease !important;
+}
+
+/* Rotate arrow when open */
+div[data-testid="stMultiSelect"] div[role="combobox"][aria-expanded="true"] svg {
+    transform: rotate(180deg) !important;
+}
+
+/* Remove Streamlit's default red borders */
 div[data-testid="stMultiSelect"] * {
-    border-color: #e4781d !important;
+    border-color: rgba(228, 120, 29, 0.4) !important;
+}
+
+/* Label styling for multiselects */
+div[data-testid="stMultiSelect"] label {
+    color: rgba(255, 255, 255, 0.95) !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    margin-bottom: 8px !important;
+    letter-spacing: 0.02em !important;
+}
+
+/* Disabled multiselect state */
+div[data-testid="stMultiSelect"]:has(div[role="combobox"][aria-disabled="true"]) div[role="combobox"] {
+    background: linear-gradient(145deg, #1a1a1a, #1e1e1e) !important;
+    border-color: rgba(100, 100, 100, 0.3) !important;
+    box-shadow: none !important;
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+div[data-testid="stMultiSelect"]:has(div[role="combobox"][aria-disabled="true"]) label {
+    color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Placeholder text styling */
+div[data-testid="stMultiSelect"] input::placeholder {
+    color: rgba(255, 255, 255, 0.4) !important;
+    font-style: italic !important;
+}
+
+/* Empty state text */
+div[data-testid="stMultiSelect"] div[role="combobox"] > div:first-child {
+    color: rgba(255, 255, 255, 0.6) !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -693,16 +803,43 @@ div[data-testid="stSelectbox"] svg {
 
 st.markdown("""
 <style>
-/* HARD override for the X inside multiselect pills */
+/* Enhanced X button inside multiselect pills */
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"] button {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 50% !important;
+    width: 14px !important;
+    height: 14px !important;
+    min-width: 14px !important;
+    min-height: 14px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease !important;
+    flex-shrink: 0 !important;
+}
+
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"] button:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    transform: scale(1.1) !important;
+}
+
+/* X icon styling */
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"] svg {
+    width: 9px !important;
+    height: 9px !important;
+}
+
 div[data-testid="stMultiSelect"] span[data-baseweb="tag"] svg path {
-    stroke: white !important;
+    stroke: rgba(255, 255, 255, 0.9) !important;
     stroke-width: 2px !important;
 }
 
-/* Prevent Streamlit from recoloring it on hover/focus */
+/* Prevent Streamlit from recoloring on hover */
 div[data-testid="stMultiSelect"] span[data-baseweb="tag"]:hover svg path,
 div[data-testid="stMultiSelect"] span[data-baseweb="tag"] button:hover svg path {
-    stroke: white !important;
+    stroke: #ffffff !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -999,6 +1136,10 @@ if st.session_state.active_run_id:
             st.button("Save This Run")
 else:
     # Show homepage with data input and configuration
+    # Add spacing at the top so sidebar toggle isn't covered
+    st.markdown("<div style='margin-top: 2.5rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin: 0; border: none; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />", unsafe_allow_html=True)
+    
     left_col, right_col = st.columns([3, 2], gap="medium")
 
     # Data Input
