@@ -119,23 +119,68 @@ st.set_page_config(
 with st.sidebar:
     st.header("Navigation")
 
-    run_labels = ["Home"] + [run["name"] for run in st.session_state.analysis_runs]
-
-    selected = st.radio(
-        "Analysis Runs",
-        run_labels,
-        key="run_selector"
-    )
-
-    if selected == "🏠 Home":
+    # --- Home button ---
+    is_home_active = st.session_state.active_run_id is None
+    if st.button(
+        "Home",
+        key="nav_home",
+        use_container_width=True,
+        type="primary" if is_home_active else "secondary"
+    ):
         st.session_state.active_run_id = None
-    else:
-        run = next(
-            (r for r in st.session_state.analysis_runs if r["name"] == selected),
-            None
-        )
-        if run:
-            st.session_state.active_run_id = run["id"]
+        st.rerun()
+
+    st.markdown("---")
+
+    # --- Analysis Runs ---
+    st.subheader("Analysis Runs")
+
+    for i, run in enumerate(st.session_state.analysis_runs):
+        is_active = run["id"] == st.session_state.active_run_id
+
+        cols = st.columns([6, 1])
+
+        # Clickable run name (acts like a tab)
+        with cols[0]:
+            if st.button(
+                run["name"],
+                key=f"nav_run_{run['id']}",
+                use_container_width=True,
+                type="primary" if is_active else "secondary"
+            ):
+                st.session_state.active_run_id = run["id"]
+                st.rerun()
+
+        # Rename icon
+        with cols[1]:
+            if st.button(
+                "✏️",
+                key=f"rename_btn_{run['id']}",
+                help="Rename run"
+            ):
+                st.session_state["renaming_run_id"] = run["id"]
+
+        # Inline rename input
+        if st.session_state.get("renaming_run_id") == run["id"]:
+            new_name = st.text_input(
+                "Rename run",
+                value=run["name"],
+                key=f"rename_input_{run['id']}",
+                label_visibility="collapsed"
+            )
+
+            rename_cols = st.columns(2)
+            with rename_cols[0]:
+                if st.button("Save", key=f"save_rename_{run['id']}"):
+                    run["name"] = new_name.strip() or run["name"]
+                    st.session_state["renaming_run_id"] = None
+                    st.rerun()
+
+            with rename_cols[1]:
+                if st.button("Cancel", key=f"cancel_rename_{run['id']}"):
+                    st.session_state["renaming_run_id"] = None
+                    st.rerun()
+
 
 
 # Create modal instances
@@ -158,6 +203,67 @@ div[data-testid="stModal"] h3 > a {
 }
 </style>
 """, unsafe_allow_html=True)
+
+# Sidebar button alignment and active run emphasis
+st.markdown("""
+<style>
+
+/* Target ONLY sidebar buttons - Base styling */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button {
+    background-color: transparent !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    border: none !important;
+    border-left: 3px solid transparent !important;
+    border-radius: 6px !important;
+    padding: 10px 12px !important;
+    box-shadow: none !important;
+    font-weight: 400 !important;
+    text-align: left !important;
+    transition: all 0.15s ease !important;
+}
+
+/* Secondary (inactive) buttons hover */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="secondary"]:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+
+/* Primary (active) buttons - Modern accent bar style */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"] {
+    background-color: rgba(228, 120, 29, 0.12) !important;
+    border-left: 3px solid #e4781d !important;
+    color: #ffffff !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+}
+
+/* Focus — no big orange ring */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Active run — left accent only */
+section[data-testid="stSidebar"] button:has(span:contains("➡️")) {
+    background-color: rgba(228, 120, 29, 0.12) !important;
+    color: #ffffff !important;
+    border-left: 3px solid #e4781d !important;
+}
+
+/* Rename icon button — extra subtle */
+section[data-testid="stSidebar"] button:has(span:contains("✏️")) {
+    padding: 4px !important;
+    opacity: 0.75;
+}
+
+section[data-testid="stSidebar"] button:has(span:contains("✏️")):hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 # Header and container spacing adjustments - CONSOLIDATED
 st.markdown("""
@@ -198,6 +304,7 @@ div[data-baseweb="stMarkdownContainer"] h3 a {
 }
 </style>
 """, unsafe_allow_html=True)
+
 # Checkbox and column selection styling
 st.markdown("""
 <style>
@@ -325,6 +432,11 @@ div[data-testid="stSelectbox"] svg {
     fill: #e4781d !important;
 }
 
+/* Style st-ep class with orange color */
+.st-ep {
+    background-color: #d66b1d !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -412,17 +524,8 @@ div[data-testid="stCheckbox"] > label > input:checked + div:first-child {
 </style>
 """, unsafe_allow_html=True)
 
-# Multiselect styling
-st.markdown("""
-<style>
-.st-c1 {
-    background-color: #e4781d !important;
-    color: white !important;
-}
-</style>
-""", unsafe_allow_html=True)
 
-# Button styling
+
 st.markdown("""
 <style>
 /* Base button styling */
