@@ -264,6 +264,257 @@ section[data-testid="stSidebar"] button:has(span:contains("✏️")):hover {
 </style>
 """, unsafe_allow_html=True)
 
+# Modern enhancements - Glass morphism, cards, scrollbar, animations
+st.markdown("""
+<style>
+/* Glass Morphism Sidebar */
+section[data-testid="stSidebar"] {
+    background: rgba(30, 30, 30, 0.8) !important;
+    backdrop-filter: blur(10px) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Custom Modern Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(228, 120, 29, 0.5);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(228, 120, 29, 0.7);
+}
+
+/* Enhanced Data Editor */
+div[data-testid="stDataEditor"] {
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+div[data-testid="stDataEditor"] table tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+div[data-testid="stDataEditor"] thead {
+    background: rgba(228, 120, 29, 0.1) !important;
+    font-weight: 600 !important;
+}
+
+/* Modern Typography */
+h1, h2, h3 {
+    font-weight: 600 !important;
+    letter-spacing: -0.02em !important;
+}
+
+h2 {
+    font-size: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+}
+
+p, label {
+    line-height: 1.6 !important;
+    color: rgba(255, 255, 255, 0.87) !important;
+}
+
+/* Section Dividers with Gradient */
+hr {
+    border: none !important;
+    height: 1px !important;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(228, 120, 29, 0.5) 50%, 
+        transparent 100%) !important;
+    margin: 2rem 0 !important;
+}
+
+/* Pill-Style Tags for Selected Items */
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"] {
+    background: rgba(228, 120, 29, 0.15) !important;
+    border: 1px solid rgba(228, 120, 29, 0.3) !important;
+    border-radius: 20px !important;
+    padding: 4px 12px !important;
+    transition: all 0.2s ease !important;
+}
+
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"]:hover {
+    background: rgba(228, 120, 29, 0.25) !important;
+    border-color: rgba(228, 120, 29, 0.5) !important;
+    transform: scale(1.05) !important;
+}
+
+/* Ambient Glow Effect for Sidebar Active Elements Only */
+section[data-testid="stSidebar"] button[kind="primary"]:not(:disabled) {
+    box-shadow: 0 0 20px rgba(228, 120, 29, 0.15) !important;
+    animation: pulse-glow 3s ease-in-out infinite !important;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(228, 120, 29, 0.15) !important;
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(228, 120, 29, 0.25) !important;
+    }
+}
+
+/* Smooth Micro-Animations for All Interactive Elements */
+button, input, select, textarea, div[data-testid="stCheckbox"], 
+div[data-testid="stMultiSelect"], div[data-testid="stSelectbox"] {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+button:active {
+    transform: scale(0.98) !important;
+}
+
+/* Hover effects for all buttons */
+button:hover:not(:disabled) {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Input field animations */
+div[data-testid="stMultiSelect"] div[role="combobox"]:focus-within {
+    animation: input-focus 0.3s ease !important;
+}
+
+@keyframes input-focus {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.01);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Checkbox animation */
+div[data-testid="stCheckbox"] input:checked + div:first-child {
+    animation: checkbox-check 0.3s ease !important;
+}
+
+@keyframes checkbox-check {
+    0% {
+        transform: scale(0.8);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Data editor hover effect */
+div[data-testid="stDataEditor"] tbody tr {
+    transition: background-color 0.2s ease !important;
+}
+
+div[data-testid="stDataEditor"] tbody tr:hover {
+    background-color: rgba(228, 120, 29, 0.05) !important;
+}
+
+/* Fade in animation - only for specific elements */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInModal {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Apply fade in to file uploader */
+div[data-testid="stFileUploader"] {
+    animation: fadeIn 0.4s ease-out !important;
+}
+
+/* Apply fade in to modals - target the backdrop and content */
+div[data-testid="stModal"] {
+    animation: fadeInModal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+div[data-testid="stModal"] * {
+    animation: fadeInModal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+/* Apply fade in to main data editor container (not individual rows) */
+div[data-testid="stDataEditor"] {
+    animation: fadeIn 0.5s ease-out !important;
+}
+
+/* Apply fade in to entire main content block when switching between homepage and runs */
+.main .block-container {
+    animation: fadeIn 0.6s ease-out !important;
+}
+
+/* Ensure all top-level children in main also animate */
+.main .block-container > div {
+    animation: fadeIn 0.6s ease-out !important;
+}
+
+/* Sidebar navigation hover animation */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
+    animation: button-hover 0.3s ease !important;
+}
+
+@keyframes button-hover {
+    0% {
+        transform: translateX(0);
+    }
+    50% {
+        transform: translateX(3px);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+/* Card-Style Containers with Depth */
+div[data-testid="column"] {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Status Badge Styling for Subheaders */
+.stSubheader {
+    display: inline-block;
+    padding: 8px 16px;
+    background: rgba(228, 120, 29, 0.1);
+    border-left: 3px solid #e4781d;
+    border-radius: 4px;
+    margin-bottom: 1rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 # Header and container spacing adjustments - CONSOLIDATED
 st.markdown("""
@@ -494,6 +745,25 @@ div[data-testid="stDataEditor"] label[data-baseweb="checkbox"] span {
 div[data-testid="stDataEditor"] label[data-baseweb="checkbox"] svg {
     stroke: #e4781d !important;
 }
+
+/* Disabled checkbox styling - gray out */
+div[data-testid="stCheckbox"]:has(input:disabled) {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+}
+
+div[data-testid="stCheckbox"]:has(input:disabled) label {
+    cursor: not-allowed !important;
+}
+
+div[data-testid="stCheckbox"]:has(input:disabled) > label > div:first-child {
+    background-color: #1a1a1a !important;
+    border-color: #555555 !important;
+}
+
+div[data-testid="stCheckbox"]:has(input:disabled) span {
+    color: #666666 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -528,45 +798,62 @@ div[data-testid="stCheckbox"] > label > input:checked + div:first-child {
 
 st.markdown("""
 <style>
-/* Base button styling */
-div[data-testid="stButton"] button,
-div[data-testid="stFileUploader"] button {
-    background-color: #d66b1d !important;
-    color: #ffffff !important;
-    border: 1px solid #d66b1d !important;
+/* GLOBAL faded-orange button style (NON-SIDEBAR) - Targets ALL buttons in main content */
+.main div[data-testid="stButton"] > button {
+    background-color: rgba(228, 120, 29, 0.12) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(228, 120, 29, 0.3) !important;
     border-radius: 6px !important;
-    font-weight: 400;
-    padding: 8px 16px;
-    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    font-weight: 400 !important;
+    padding: 10px 16px !important;
+    box-shadow: none !important;
+    transition: all 0.15s ease !important;
 }
 
 /* Hover */
-div[data-testid="stButton"] button:hover,
-div[data-testid="stFileUploader"] button:hover {
-    background-color: #e4781d !important;
-    border-color: #e4781d !important;
-    box-shadow: 0 0 0 3px rgba(214, 107, 29, 0.35);
+.main div[data-testid="stButton"] > button:hover:not(:disabled) {
+    background-color: rgba(228, 120, 29, 0.2) !important;
+    border-color: rgba(228, 120, 29, 0.5) !important;
+    color: #ffffff !important;
 }
 
-/* Focus Visible */
-div[data-testid="stButton"] button:focus-visible,
-div[data-testid="stFileUploader"] button:focus-visible {
-    outline: none !important;
-    box-shadow: 0 0 0 3px rgba(214, 107, 29, 0.5);
+/* Active */
+.main div[data-testid="stButton"] > button:active {
+    background-color: rgba(228, 120, 29, 0.25) !important;
+    border-color: rgba(228, 120, 29, 0.6) !important;
 }
 
-/* Active */ 
-div[data-testid="stButton"] button:active,
-div[data-testid="stFileUploader"] button:active {
-    background-color: #b85b18 !important;
-    border-color: #b85b18 !important;
+/* Disabled */
+.main div[data-testid="stButton"] > button:disabled {
+    background-color: rgba(100, 100, 100, 0.1) !important;
+    border-color: rgba(100, 100, 100, 0.2) !important;
+    color: rgba(255, 255, 255, 0.3) !important;
+    cursor: not-allowed !important;
+}
+
+/* File uploader buttons */
+div[data-testid="stFileUploader"] button {
+    background-color: rgba(228, 120, 29, 0.12) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(228, 120, 29, 0.3) !important;
+    border-radius: 6px !important;
+    font-weight: 400 !important;
+    padding: 10px 16px !important;
+    box-shadow: none !important;
+    transition: all 0.15s ease !important;
+}
+
+div[data-testid="stFileUploader"] button:hover:not(:disabled) {
+    background-color: rgba(228, 120, 29, 0.2) !important;
+    border-color: rgba(228, 120, 29, 0.5) !important;
+    color: #ffffff !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown("""
 <style>
-/* Force the download button container and link to match primary buttons */
+/* Force the download button container and link to match faded orange style */
 div[data-testid="stDownloadButton"] {
     width: 100% !important;
     display: block !important;
@@ -579,38 +866,40 @@ div[data-testid="stDownloadButton"] a {
     align-items: center !important;
     width: 100% !important;
     min-height: 38px !important;
-    padding: 8px 16px !important;
-    background-color: #d66b1d !important;
-    color: #ffffff !important;
-    border: 1px solid #d66b1d !important;
+    padding: 10px 16px !important;
+    background-color: rgba(228, 120, 29, 0.12) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(228, 120, 29, 0.3) !important;
     border-radius: 6px !important;
     font-weight: 400 !important;
     text-decoration: none !important;
     cursor: pointer !important;
     box-sizing: border-box !important;
-    transition: background-color 0.15s ease, box-shadow 0.15s ease !important;
+    box-shadow: none !important;
+    transition: all 0.15s ease !important;
 }
 
 /* Hover */
 div[data-testid="stDownloadButton"] button:hover,
 div[data-testid="stDownloadButton"] a:hover {
-    background-color: #e4781d !important;
-    border-color: #e4781d !important;
-    box-shadow: 0 0 0 3px rgba(214,107,29,0.35) !important;
+    background-color: rgba(228, 120, 29, 0.2) !important;
+    border-color: rgba(228, 120, 29, 0.5) !important;
+    color: #ffffff !important;
 }
 
 /* Focus */
 div[data-testid="stDownloadButton"] button:focus-visible,
 div[data-testid="stDownloadButton"] a:focus-visible {
     outline: none !important;
-    box-shadow: 0 0 0 3px rgba(214,107,29,0.5) !important;
+    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.4) !important;
 }
 
 /* Active */
 div[data-testid="stDownloadButton"] button:active,
 div[data-testid="stDownloadButton"] a:active {
-    background-color: #b85b18 !important;
-    border-color: #b85b18 !important;
+    background-color: rgba(228, 120, 29, 0.25) !important;
+    border-color: rgba(228, 120, 29, 0.6) !important;
+}
 }
 </style>
 """, unsafe_allow_html=True)
@@ -686,9 +975,11 @@ if st.session_state.active_run_id:
         for m in run["methods"]:
             st.write("•", m)
 
-        st.markdown("### Visualizations Applied")
-        for v in run.get("visualizations", []):
-            st.write("•", v)
+        # Only show visualizations section if any were selected
+        if run.get("visualizations") and len(run["visualizations"]) > 0:
+            st.markdown("### Visualizations Applied")
+            for v in run["visualizations"]:
+                st.write("•", v)
 
         st.markdown("### Selected Cell Data")
         st.dataframe(run["data"], use_container_width=True)
@@ -967,6 +1258,58 @@ else:
                 st.session_state.analysis_runs.append(run)
                 st.session_state.modal_message = f"Analysis '{run['name']}' has been successfully created!"
                 success_modal.open()
+
+# 🚨 FINAL OVERRIDE — Force transparent orange buttons with maximum specificity
+st.markdown("""
+<style>
+/* Target BaseWeb buttons directly to override gray background - ALL MAIN CONTENT BUTTONS */
+.main div[data-testid="stButton"] > button[data-baseweb="button"],
+.main div[data-testid="stButton"] button[kind="primary"],
+.main div[data-testid="stButton"] button[kind="secondary"] {
+    background: linear-gradient(
+        180deg,
+        rgba(228, 120, 29, 0.18),
+        rgba(228, 120, 29, 0.08)
+    ) !important;
+    background-image: linear-gradient(
+        180deg,
+        rgba(228, 120, 29, 0.18),
+        rgba(228, 120, 29, 0.08)
+    ) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(228, 120, 29, 0.6) !important;
+    border-radius: 10px !important;
+    backdrop-filter: blur(6px) !important;
+    box-shadow: none !important;
+}
+
+/* Hover - ALL MAIN CONTENT BUTTONS */
+.main div[data-testid="stButton"] > button[data-baseweb="button"]:hover:not(:disabled),
+.main div[data-testid="stButton"] button[kind="primary"]:hover:not(:disabled),
+.main div[data-testid="stButton"] button[kind="secondary"]:hover:not(:disabled) {
+    background: rgba(228, 120, 29, 0.25) !important;
+    box-shadow: 0 0 0 3px rgba(228, 120, 29, 0.35) !important;
+}
+
+/* Active - ALL MAIN CONTENT BUTTONS */
+.main div[data-testid="stButton"] > button[data-baseweb="button"]:active,
+.main div[data-testid="stButton"] button[kind="primary"]:active,
+.main div[data-testid="stButton"] button[kind="secondary"]:active {
+    background: rgba(228, 120, 29, 0.35) !important;
+    transform: translateY(1px) !important;
+}
+
+/* Disabled - ALL MAIN CONTENT BUTTONS */
+.main div[data-testid="stButton"] > button[data-baseweb="button"]:disabled,
+.main div[data-testid="stButton"] button[kind="primary"]:disabled,
+.main div[data-testid="stButton"] button[kind="secondary"]:disabled {
+    background: rgba(100, 100, 100, 0.12) !important;
+    background-image: none !important;
+    border-color: rgba(100, 100, 100, 0.25) !important;
+    color: rgba(255, 255, 255, 0.35) !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # Render modals
 if error_modal.is_open():
