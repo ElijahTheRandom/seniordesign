@@ -19,6 +19,17 @@ statistical_methods = {
 }
 
 class BackendHandler:
+    """
+    Handle backend requests for statistical computations.
+
+    The BackendHandler class processes incoming requests encapsulated in Message objects,
+    extracts the requested statistical methods along with the associated data and metadata,
+    and computes the results using the appropriate statistical classes. Each computation
+    is performed in its own thread to optimize performance, with a limit on the maximum
+    number of concurrent threads. Finally, the results are packaged back into the Message
+    structure and returned to the caller.
+    """
+
     def __init__(self):
         pass
 
