@@ -1,10 +1,10 @@
 import numpy as np
 from class_templates import message_structure
 
-class Median:
+class StandardDeviation:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
-        self.stat_id = "median"
+        self.stat_id = "std"
         self.data = data
         self.metadata = metadata
         self.params = params or {}
@@ -48,14 +48,14 @@ class Median:
         # Main Computation Logic
         try:
             data_array = np.asarray(self.data, dtype = float)
-            median_value = float(np.median(data_array))
+            std_value = float(np.std(data_array))
         except Exception as e:
             return self._generate_return_structure_error(str(e))
         
-        return self._generate_return_structure(median_value)
+        return self._generate_return_structure(std_value)
 
 
     def create_graphic(self, results):
         # Generate a chart or visualization object for the computed results
-        # No graph generated for the median calculation
+        # No graph generated for the standard deviation calculation
         pass
