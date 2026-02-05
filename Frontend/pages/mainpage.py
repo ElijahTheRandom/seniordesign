@@ -116,6 +116,11 @@ success_modal = Modal(
     key="success_modal",
 )
 
+rename_modal = Modal(
+    "Rename Run?",
+    key="rename_modal",
+)
+
 # Styling
 st.markdown("""
 <style>
@@ -638,8 +643,17 @@ with tabs[0]:
 
         if len(edited_table.columns) > 0 and len(edited_table) > 0:
             col1 = st.multiselect("Columns", edited_table.columns)
-            
-            st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
+            st.session_state["current_cols"] = col1  
+
+            # --- RESET CHECKBOXES ONLY IF USER JUST CLEARED COLUMNS ---
+            if "last_cols_selected" not in st.session_state:
+                st.session_state.last_cols_selected = []
+
+            if len(st.session_state.last_cols_selected) > 0 and len(col1) == 0:
+                st.session_state.checkbox_key += 1
+
+            # Save for next interaction
+            st.session_state.last_cols_selected = col1
 
             col2 = st.multiselect("Rows", edited_table.index)
         else:
@@ -654,6 +668,17 @@ with tabs[0]:
         # Determine how many columns/rows are selected
         num_cols_selected = len(col1)
         num_rows_selected = len(col2)
+
+        # ---- NEW: detect transition from 2+ columns → 1 column ----
+        if "last_num_cols" not in st.session_state:
+            st.session_state.last_num_cols = 0
+
+        # If user DROPPED from 2+ columns to 1 column → reset dependent checkboxes
+        if st.session_state.last_num_cols >= 2 and num_cols_selected == 1:
+            st.session_state.checkbox_key += 1   # force re-render of checkboxes
+
+        # Save current count for next interaction
+        st.session_state.last_num_cols = num_cols_selected
 
         disable_two_cols = num_cols_selected < 2
         disable_one_col = num_cols_selected < 1
@@ -864,12 +889,15 @@ for i, tab in enumerate(tabs[1:]):
 
         st.markdown("---")
 
-        col1, col2, col3, col4 = st.columns([1, 1, 1, 1], gap="small")
+        st.markdown("### Calculation Results")
+        # Fill in later with backend
+
+        st.markdown("---")
+
+        col1, col2, col3 = st.columns([1, 1, 1], gap="small")
         with col1:
-            st.button("Update Run Name", key=f"name_{i}", use_container_width=True)
+            st.button("Save Run Locally", key=f"save_{i}", use_container_width=True)
         with col2:
-            st.button("Save Run", key=f"save_{i}", use_container_width=True)
-        with col3:
             # Create the text content for export
             export_text = f"Analysis Results — {run['name']}\n\n"
 
@@ -896,7 +924,7 @@ for i, tab in enumerate(tabs[1:]):
                 use_container_width=True,
                 key=f"export_{i}",
             )
-        with col4:
+        with col3:
             if st.button("Delete Run", key=f"delete_{i}", use_container_width=True):
                 st.session_state.analysis_runs.pop(i)
                 st.rerun()
