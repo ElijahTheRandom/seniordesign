@@ -32,6 +32,7 @@ class Binomial:
             "id": self.stat_id,
             "ok": False,
             "value": None,
+            "error": error_message,
             "loss_of_precision": False,
             "params_used": self.params
         }
