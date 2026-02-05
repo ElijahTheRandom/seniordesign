@@ -90,8 +90,11 @@ if "modal_message" not in st.session_state:
 if "has_file" not in st.session_state:
     st.session_state.has_file = False
 
-if "checkbox_key" not in st.session_state:
-    st.session_state.checkbox_key = 0
+if "checkbox_key_onecol" not in st.session_state:
+    st.session_state.checkbox_key_onecol = 0   # Mean, Median, etc.
+
+if "checkbox_key_twocol" not in st.session_state:
+    st.session_state.checkbox_key_twocol = 0   # Pearson, Spearman, Regression
 
 if "show_invalid_modal" not in st.session_state:
     st.session_state.show_invalid_modal = False
@@ -156,7 +159,7 @@ with st.sidebar:
             if st.button(
                 "✏️",
                 key=f"rename_btn_{run['id']}",
-                help="Rename run"
+                help="Rename Run"
             ):
                 st.session_state["renaming_run_id"] = run["id"]
 
@@ -526,6 +529,50 @@ div[data-testid="column"] {
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* ===============================
+   SIDEBAR TOGGLE – BOTH STATES
+   (OPEN AND CLOSED)
+   =============================== */
+
+/* 1) Toggle when sidebar is CLOSED (lives in the top header) */
+header[data-testid="stHeader"] button {
+    color: #e4781d !important;
+    background: rgba(228, 120, 29, 0.12) !important;
+    border: 1px solid rgba(228, 120, 29, 0.4) !important;
+    border-radius: 6px !important;
+}
+
+/* 2) Toggle when sidebar is OPEN — HARD TARGET */
+section[data-testid="stSidebar"] 
+  div[data-testid="stSidebarCollapseButton"] 
+  button {
+    color: #e4781d !important;
+    background: rgba(228, 120, 29, 0.12) !important;
+    border: 1px solid rgba(228, 120, 29, 0.4) !important;
+    border-radius: 6px !important;
+}
+
+/* Hover — both states */
+header[data-testid="stHeader"] button:hover,
+section[data-testid="stSidebar"] 
+  div[data-testid="stSidebarCollapseButton"] 
+  button:hover {
+    background: rgba(228, 120, 29, 0.22) !important;
+    border-color: rgba(228, 120, 29, 0.7) !important;
+}
+
+/* Focus — remove gray ring, add orange */
+header[data-testid="stHeader"] button:focus-visible,
+section[data-testid="stSidebar"] 
+  div[data-testid="stSidebarCollapseButton"] 
+  button:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.4) !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # Header and container spacing adjustments - CONSOLIDATED
 st.markdown("""
@@ -546,14 +593,15 @@ header[data-testid="stHeader"] > div:not(:first-child) {
 }
 
 /* Minimal top padding on all main containers to accommodate header */
+/* KEEP left/right spacing but ADD space for sidebar toggle */
 .block-container,
 div[data-testid="stMainBlockContainer"],
 div[data-testid="stAppViewBlockContainer"],
 section[data-testid="stAppViewContainer"] > div:first-child {
     padding-top: 0.5rem !important;
+    padding-top: 2.8rem !important;   /* <-- THIS is the key line */
     padding-left: 1rem !important;
     padding-right: 1rem !important;
-    margin-top: 0rem !important;
 }
 
 /* Remove spacing from vertical blocks */
@@ -931,8 +979,6 @@ div[data-testid="stCheckbox"] > label > input:checked + div:first-child {
 </style>
 """, unsafe_allow_html=True)
 
-
-
 st.markdown("""
 <style>
 /* GLOBAL faded-orange button style (NON-SIDEBAR) - Targets ALL buttons in main content */
@@ -1093,6 +1139,44 @@ div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
 </style>
 """, unsafe_allow_html=True)
 
+# Scooting the screen downward for the side bar button
+st.markdown("""
+<style>
+/* Push ALL main content down so sidebar toggle doesn't overlap it */
+.main .block-container {
+    padding-top: 3rem !important;   /* <-- adjust this if you want more/less space */
+}
+
+/* Also make sure your first header isn't hidden */
+.main h1:first-of-type,
+.main h2:first-of-type,
+.main h3:first-of-type {
+    margin-top: 1rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Hiding the streamlit default top right corner buttons
+st.markdown("""
+<style>
+/* Hide the top-right hamburger menu (three dots) */
+#MainMenu { 
+    visibility: hidden !important; 
+}
+
+/* Hide the "Deploy" button if running on Streamlit Cloud */
+footer > div:has(span:contains("Deploy")) {
+    display: none !important;
+}
+
+/* Optional: hide the footer entirely */
+footer {
+    visibility: hidden !important;
+    height: 0px !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Function to delete an analysis run
 def delete_run(index):
     st.session_state.analysis_runs.pop(index)
@@ -1106,17 +1190,23 @@ if st.session_state.active_run_id:
     )
 
     if run:
-        st.header(f"Analysis Results — {run['name']}", anchor=False)
+        st.subheader(f"Analysis Results — {run['name']}", anchor=False)
+
+        st.markdown("---")
 
         st.markdown("### Methods Applied")
         for m in run["methods"]:
             st.write("•", m)
+
+        st.markdown("---")
 
         # Only show visualizations section if any were selected
         if run.get("visualizations") and len(run["visualizations"]) > 0:
             st.markdown("### Visualizations Applied")
             for v in run["visualizations"]:
                 st.write("•", v)
+            
+            st.markdown("---")
 
         st.markdown("### Selected Cell Data")
         st.dataframe(run["data"], use_container_width=True)
@@ -1124,16 +1214,42 @@ if st.session_state.active_run_id:
 
         st.markdown("---")
 
-        btn1, btn2 = st.columns(2)
+        btn1, btn2, btn3 = st.columns(3)
 
         with btn1:
+            st.button("Save This Run")
+
+        with btn2:
+            export_text = f"Analysis Results — {run['name']}\n\n"
+
+            if run["methods"]:
+                export_text += "Methods Applied:\n"
+                for m in run["methods"]:
+                    export_text += f"- {m}\n"
+                export_text += "\n"
+
+            if run.get("visualizations"):
+                export_text += "Visualizations Applied:\n"
+                for v in run["visualizations"]:
+                    export_text += f"- {v}\n"
+                export_text += "\n"
+
+            export_text += "Selected Data:\n"
+            export_text += df_to_ascii_table(run["data"]) + "\n\n"
+
+            st.download_button(
+                label="Export This Run",
+                data=export_text,
+                file_name=f"{run['name']}.txt",
+                mime="text/plain",
+                use_container_width=True,
+            )
+
+        with btn3:
             if st.button("Delete This Run"):
                 st.session_state.analysis_runs = [r for r in st.session_state.analysis_runs if r["id"] != run["id"]]
                 st.session_state.active_run_id = None
                 st.rerun()
-
-        with btn2:
-            st.button("Save This Run")
 else:
     # Show homepage with data input and configuration
     # Add spacing at the top so sidebar toggle isn't covered
@@ -1144,7 +1260,7 @@ else:
 
     # Data Input
     with left_col:
-        st.header("Data Input & Table", anchor=False)
+        st.subheader("Data Input & Table", anchor=False)
 
         uploaded_files = st.file_uploader(
             "Upload CSV Files",
@@ -1153,10 +1269,15 @@ else:
         )
 
         # Detect when file is closed and reset checkboxes
-        if not uploaded_files and st.session_state.has_file:
-            st.session_state.checkbox_key += 1
-            st.session_state.has_file = False
-        elif uploaded_files:
+        if uploaded_files is None or len(uploaded_files) == 0:
+            if st.session_state.has_file:
+                # User just removed their file → reset BOTH checkbox groups
+                st.session_state.checkbox_key_onecol += 1
+                st.session_state.checkbox_key_twocol += 1
+                st.session_state.has_file = False
+
+        else:
+            # A file is present
             st.session_state.has_file = True
 
         # Determine which table to use
@@ -1187,7 +1308,7 @@ else:
 
     # Analysis Options
     with right_col:
-        st.header("Analysis Configuration", anchor=False)
+        st.subheader("Analysis Configuration", anchor=False)
 
         col1 = []
         col2 = []
@@ -1201,7 +1322,7 @@ else:
                 st.session_state.last_cols_selected = []
 
             if len(st.session_state.last_cols_selected) > 0 and len(col1) == 0:
-                st.session_state.checkbox_key += 1
+                st.session_state.checkbox_key_onecol += 1
 
             # Save for next interaction
             st.session_state.last_cols_selected = col1
@@ -1223,7 +1344,7 @@ else:
 
         # If user DROPPED from 2+ columns to 1 column → reset dependent checkboxes
         if st.session_state.last_num_cols >= 2 and num_cols_selected == 1:
-            st.session_state.checkbox_key += 1   # force re-render of checkboxes
+            st.session_state.checkbox_key_twocol += 1
 
         # Save current count for next interaction
         st.session_state.last_num_cols = num_cols_selected
@@ -1233,28 +1354,28 @@ else:
         disable_one_row = num_rows_selected < 1
 
         # Computation Options
-        st.subheader("Computation Options", anchor=False)
+        st.header("Computation Options", anchor=False)
         c1, c2 = st.columns(2)
 
         with c1:
-            mean = st.checkbox("Mean", disabled=not data_ready or disable_one_col, key=f"mean_c1_{st.session_state.checkbox_key}")
-            median = st.checkbox("Median", disabled=not data_ready or disable_one_col, key=f"median_c1_{st.session_state.checkbox_key}")
-            mode = st.checkbox("Mode", disabled=not data_ready or disable_one_col, key=f"mode_c1_{st.session_state.checkbox_key}")
-            variance = st.checkbox("Variance", disabled=not data_ready or disable_one_col, key=f"variance_c1_{st.session_state.checkbox_key}")
-            std_dev = st.checkbox("Standard Deviation", disabled=not data_ready or disable_one_col, key=f"std_dev_c1_{st.session_state.checkbox_key}")
-            percentiles = st.checkbox("Percentiles", disabled=not data_ready or disable_one_col, key=f"percentiles_c1_{st.session_state.checkbox_key}")
+            mean = st.checkbox("Mean", disabled=not data_ready or disable_one_col, key=f"mean_c1_{st.session_state.checkbox_key_onecol}")
+            median = st.checkbox("Median", disabled=not data_ready or disable_one_col, key=f"median_c1_{st.session_state.checkbox_key_onecol}")
+            mode = st.checkbox("Mode", disabled=not data_ready or disable_one_col, key=f"mode_c1_{st.session_state.checkbox_key_onecol}")
+            variance = st.checkbox("Variance", disabled=not data_ready or disable_one_col, key=f"variance_c1_{st.session_state.checkbox_key_onecol}")
+            std_dev = st.checkbox("Standard Deviation", disabled=not data_ready or disable_one_col, key=f"std_dev_c1_{st.session_state.checkbox_key_onecol}")
+            percentiles = st.checkbox("Percentiles", disabled=not data_ready or disable_one_col, key=f"percentiles_c1_{st.session_state.checkbox_key_onecol}")
 
         with c2:
-            pearson = st.checkbox("Pearson's Correlation", disabled=not data_ready or disable_two_cols, key=f"pearson_c2_{st.session_state.checkbox_key}")
-            spearman = st.checkbox("Spearman's Rank", disabled=not data_ready or disable_two_cols, key=f"spearman_c2_{st.session_state.checkbox_key}")
-            regression = st.checkbox("Least Squares Regression", disabled=not data_ready or disable_two_cols, key=f"regression_c2_{st.session_state.checkbox_key}")
-            chi_square = st.checkbox("Chi-Square Test", disabled=not data_ready or disable_one_col, key=f"chi_square_c2_{st.session_state.checkbox_key}")
-            binomial = st.checkbox("Binomial Distribution", disabled=not data_ready or disable_one_col, key=f"binomial_c2_{st.session_state.checkbox_key}")
-            variation = st.checkbox("Coefficient of Variation", disabled=not data_ready or disable_one_col, key=f"variation_c2_{st.session_state.checkbox_key}")
+            pearson = st.checkbox("Pearson's Correlation", disabled=not data_ready or disable_two_cols, key=f"pearson_c2_{st.session_state.checkbox_key_twocol}")
+            spearman = st.checkbox("Spearman's Rank", disabled=not data_ready or disable_two_cols, key=f"spearman_c2_{st.session_state.checkbox_key_twocol}")
+            regression = st.checkbox("Least Squares Regression", disabled=not data_ready or disable_two_cols, key=f"regression_c2_{st.session_state.checkbox_key_twocol}")
+            chi_square = st.checkbox("Chi-Square Test", disabled=not data_ready or disable_one_col, key=f"chi_square_c2_{st.session_state.checkbox_key_onecol}")
+            binomial = st.checkbox("Binomial Distribution", disabled=not data_ready or disable_one_col, key=f"binomial_c2_{st.session_state.checkbox_key_onecol}")
+            variation = st.checkbox("Coefficient of Variation", disabled=not data_ready or disable_one_col, key=f"variation_c2_{st.session_state.checkbox_key_onecol}")
 
         st.markdown("---")
 
-        st.subheader("Visualization Options", anchor=False)
+        st.header("Visualization Options", anchor=False)
         with st.container():
             # Determine if any computation method is selected
             computation_selected = any([mean, median, mode, variance, std_dev, percentiles, pearson, spearman, regression, chi_square, binomial, variation])
