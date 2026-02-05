@@ -116,6 +116,11 @@ success_modal = Modal(
     key="success_modal",
 )
 
+rename_modal = Modal(
+    "Rename Run?",
+    key="rename_modal",
+)
+
 # Styling
 st.markdown("""
 <style>
@@ -609,6 +614,9 @@ with tabs[0]:
 
         if uploaded_files:
             df = pd.read_csv(uploaded_files[-1])
+            # Reset index to avoid MultiIndex issues
+            if isinstance(df.index, pd.MultiIndex):
+                df = df.reset_index(drop=True)
             table = df.copy()
         else:
             table = pd.DataFrame(columns=["Enter your data..."])
@@ -627,26 +635,56 @@ with tabs[0]:
     # Analysis Options
     with right_col:
         st.header("Analysis Configuration", anchor=False)
+        
+        st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
 
         col1 = []
         col2 = []
 
         if len(edited_table.columns) > 0 and len(edited_table) > 0:
             col1 = st.multiselect("Columns", edited_table.columns)
+            st.session_state["current_cols"] = col1  
+
+            # --- RESET CHECKBOXES ONLY IF USER JUST CLEARED COLUMNS ---
+            if "last_cols_selected" not in st.session_state:
+                st.session_state.last_cols_selected = []
+
+            if len(st.session_state.last_cols_selected) > 0 and len(col1) == 0:
+                st.session_state.checkbox_key += 1
+
+            # Save for next interaction
+            st.session_state.last_cols_selected = col1
+
             col2 = st.multiselect("Rows", edited_table.index)
         else:
             col1 = []
             col2 = []
             st.multiselect("Columns", [], disabled=True)
+            
+            st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
+
             st.multiselect("Rows", [], disabled=True)
 
         # Determine how many columns/rows are selected
         num_cols_selected = len(col1)
         num_rows_selected = len(col2)
 
+        # ---- NEW: detect transition from 2+ columns → 1 column ----
+        if "last_num_cols" not in st.session_state:
+            st.session_state.last_num_cols = 0
+
+        # If user DROPPED from 2+ columns to 1 column → reset dependent checkboxes
+        if st.session_state.last_num_cols >= 2 and num_cols_selected == 1:
+            st.session_state.checkbox_key += 1   # force re-render of checkboxes
+
+        # Save current count for next interaction
+        st.session_state.last_num_cols = num_cols_selected
+
         disable_two_cols = num_cols_selected < 2
         disable_one_col = num_cols_selected < 1
         disable_one_row = num_rows_selected < 1
+
+        st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
 
         # Computation Options
         st.subheader("Computation Options", anchor=False)
@@ -825,7 +863,7 @@ for i, tab in enumerate(tabs[1:]):
 
         st.header(f"Analysis Results — {run['name']}", anchor=False)
 
-        st.markdown("### Methods Applied")
+        st.markdown("### Methods and Results")
         for m in run["methods"]:
             st.write("-", m)
 
@@ -841,7 +879,7 @@ for i, tab in enumerate(tabs[1:]):
 
             st.markdown("---")
 
-        st.markdown("### Selected Cell Data")
+        st.markdown("### Selected Data")
         st.dataframe(
             strip_index(run["data"]),
             use_container_width=True,
@@ -856,12 +894,10 @@ for i, tab in enumerate(tabs[1:]):
 
         st.markdown("---")
 
-        col1, col2, col3, col4 = st.columns([1, 1, 1, 1], gap="small")
+        col1, col2, col3 = st.columns([1, 1, 1], gap="small")
         with col1:
-            st.button("Update Run Name", key=f"name_{i}", use_container_width=True)
-        with col2:
             st.button("Save Run Locally", key=f"save_{i}", use_container_width=True)
-        with col3:
+        with col2:
             # Create the text content for export
             export_text = f"Analysis Results — {run['name']}\n\n"
 
@@ -877,10 +913,8 @@ for i, tab in enumerate(tabs[1:]):
                     export_text += f"- {viz}\n"
                 export_text += "\n"
 
-            export_text += "Selected Cell Data:\n"
+            export_text += "Selected Data:\n"
             export_text += df_to_ascii_table(run["data"]) + "\n\n"
-
-            export_text += "Calculation Results:\n"
 
             st.download_button(
                 label="Export Run",
@@ -890,7 +924,7 @@ for i, tab in enumerate(tabs[1:]):
                 use_container_width=True,
                 key=f"export_{i}",
             )
-        with col4:
+        with col3:
             if st.button("Delete Run", key=f"delete_{i}", use_container_width=True):
                 st.session_state.analysis_runs.pop(i)
                 st.rerun()

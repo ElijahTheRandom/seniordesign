@@ -316,7 +316,7 @@ clicked = st.button(
 
 # Redirect to mainpage.py on click 
 if clicked: 
-  st.switch_page("pages/mainpage.py")
+  st.switch_page("pages/mainpagecopy.py")
 
 # HTML and CSS for the homepage all fake charts, layout, and movement, etc.
 components.html(
