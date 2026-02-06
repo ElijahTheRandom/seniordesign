@@ -5,11 +5,13 @@ import base64
 import html
 import os
 import io
+import pprint
 
 BASE_DIR = os.path.dirname(__file__)
 
 from PIL import Image
 from streamlit_modal import Modal
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
 # Function to convert image to base64
 def image_to_base64(path):
@@ -247,13 +249,6 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button:focus-visibl
     box-shadow: none !important;
 }
 
-/* Active run — left accent only */
-section[data-testid="stSidebar"] button:has(span:contains("➡️")) {
-    background-color: rgba(228, 120, 29, 0.12) !important;
-    color: #ffffff !important;
-    border-left: 3px solid #e4781d !important;
-}
-
 /* Rename icon button — extra subtle */
 section[data-testid="stSidebar"] button:has(span:contains("✏️")) {
     padding: 4px !important;
@@ -267,14 +262,66 @@ section[data-testid="stSidebar"] button:has(span:contains("✏️")):hover {
 </style>
 """, unsafe_allow_html=True)
 
+# Modern Glossy Black Background
+st.markdown("""
+<style>
+/* Main app background - sophisticated black with depth */
+.stApp,
+[data-testid="stAppViewContainer"],
+section[data-testid="stMain"] {
+    background: radial-gradient(ellipse at top, #1a1a1a 0%, #0f0f0f 50%, #000000 100%) !important;
+    position: relative !important;
+}
+
+/* Add subtle texture overlay for depth */
+.stApp::before {
+    content: '' !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background-image: 
+        radial-gradient(circle at 20% 30%, rgba(228, 120, 29, 0.02) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(228, 120, 29, 0.015) 0%, transparent 50%),
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.025'/%3E%3C/svg%3E") !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+    mix-blend-mode: overlay !important;
+}
+
+/* Ensure content stays above background */
+.stApp > div,
+[data-testid="stAppViewContainer"] > div {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* Add subtle shine effect on top */
+.stApp::after {
+    content: '' !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 300px !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.01) 0%, transparent 100%) !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Modern enhancements - Glass morphism, cards, scrollbar, animations
 st.markdown("""
 <style>
-/* Glass Morphism Sidebar */
+/* Glass Morphism Sidebar - Enhanced Black */
 section[data-testid="stSidebar"] {
-    background: rgba(30, 30, 30, 0.8) !important;
-    backdrop-filter: blur(10px) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: linear-gradient(180deg, rgba(20, 20, 20, 0.95) 0%, rgba(10, 10, 10, 0.98) 100%) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    border-right: 1px solid rgba(228, 120, 29, 0.15) !important;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5),
+                inset -1px 0 0 rgba(255, 255, 255, 0.05) !important;
 }
 
 /* Custom Modern Scrollbar */
@@ -297,20 +344,30 @@ section[data-testid="stSidebar"] {
     background: rgba(228, 120, 29, 0.7);
 }
 
-/* Enhanced Data Editor */
+/* Enhanced Data Editor - Modern Glossy Black */
 div[data-testid="stDataEditor"] {
-    border-radius: 8px !important;
+    border-radius: 12px !important;
     overflow: hidden !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5),
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    background: linear-gradient(145deg, rgba(22, 22, 22, 0.4), rgba(12, 12, 12, 0.3)) !important;
+    backdrop-filter: blur(10px) !important;
 }
 
 div[data-testid="stDataEditor"] table tbody tr:nth-child(even) {
-    background-color: rgba(255, 255, 255, 0.02) !important;
+    background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+div[data-testid="stDataEditor"] table tbody tr:nth-child(odd) {
+    background-color: rgba(0, 0, 0, 0.15) !important;
 }
 
 div[data-testid="stDataEditor"] thead {
-    background: rgba(228, 120, 29, 0.1) !important;
+    background: linear-gradient(135deg, rgba(228, 120, 29, 0.15), rgba(228, 120, 29, 0.08)) !important;
     font-weight: 600 !important;
+    box-shadow: 0 2px 8px rgba(228, 120, 29, 0.1) !important;
 }
 
 /* Modern Typography - Enhanced */
@@ -617,22 +674,38 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
     }
 }
 
-/* Card-Style Containers with Depth */
+/* Card-Style Containers with Depth - Modern Glossy Black */
 div[data-testid="column"] {
-    background: rgba(255, 255, 255, 0.02);
-    border-radius: 12px;
-    padding: 1.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: linear-gradient(145deg, rgba(25, 25, 25, 0.6), rgba(15, 15, 15, 0.4)) !important;
+    border-radius: 16px !important;
+    padding: 1.5rem !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05),
+                0 0 0 1px rgba(255, 255, 255, 0.02) inset !important;
+    backdrop-filter: blur(10px) !important;
+    transition: all 0.3s ease !important;
 }
 
-/* Status Badge Styling for Subheaders */
+div[data-testid="column"]:hover {
+    border-color: rgba(228, 120, 29, 0.2) !important;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                0 0 20px rgba(228, 120, 29, 0.08) !important;
+    transform: translateY(-2px) !important;
+}
+
+/* Status Badge Styling for Subheaders - Modern Glossy */
 .stSubheader {
-    display: inline-block;
-    padding: 8px 16px;
-    background: rgba(228, 120, 29, 0.1);
-    border-left: 3px solid #e4781d;
-    border-radius: 4px;
+    display: inline-block !important;
+    padding: 8px 16px !important;
+    background: linear-gradient(135deg, rgba(228, 120, 29, 0.15), rgba(228, 120, 29, 0.08)) !important;
+    border-left: 3px solid #e4781d !important;
+    border-radius: 8px !important;
     margin-bottom: 1rem !important;
+    box-shadow: 0 4px 12px rgba(228, 120, 29, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(8px) !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -687,7 +760,7 @@ st.markdown("""
 <style>
 /* Keep header visible for sidebar toggle but minimize it */
 header[data-testid="stHeader"] {
-    background-color: #0e1117 !important;
+    background: radial-gradient(ellipse at bottom, #1a1a1a 0%, #0f0f0f 50%, #000000 100%) !important;
     height: 2.5rem !important;
     backdrop-filter: none !important;
     box-shadow: none !important;
@@ -752,7 +825,7 @@ div[data-baseweb="select"] > div > div > div > div {
 </style>
 """, unsafe_allow_html=True)
 
-# Multiselect box styling - ENHANCED MODERN VERSION
+# Multiselect box styling
 st.markdown("""
 <style>
 /* MULTISELECT — Modern base state with gradient border effect */
@@ -980,7 +1053,7 @@ div[data-testid="stSelectbox"] svg {
 
 st.markdown("""
 <style>
-/* Enhanced X button inside multiselect pills */
+/*X button inside multiselect pills */
 div[data-testid="stMultiSelect"] span[data-baseweb="tag"] button {
     background: rgba(255, 255, 255, 0.1) !important;
     border-radius: 50% !important;
@@ -1108,113 +1181,6 @@ div[data-testid="stCheckbox"] > label > input:checked + div:first-child {
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<style>
-/* GLOBAL faded-orange button style (NON-SIDEBAR) - Targets ALL buttons in main content */
-.main div[data-testid="stButton"] > button {
-    background-color: rgba(228, 120, 29, 0.12) !important;
-    color: rgba(255, 255, 255, 0.9) !important;
-    border: 1px solid rgba(228, 120, 29, 0.3) !important;
-    border-radius: 6px !important;
-    font-weight: 400 !important;
-    padding: 10px 16px !important;
-    box-shadow: none !important;
-    transition: all 0.15s ease !important;
-}
-
-/* Hover */
-.main div[data-testid="stButton"] > button:hover:not(:disabled) {
-    background-color: rgba(228, 120, 29, 0.2) !important;
-    border-color: rgba(228, 120, 29, 0.5) !important;
-    color: #ffffff !important;
-}
-
-/* Active */
-.main div[data-testid="stButton"] > button:active {
-    background-color: rgba(228, 120, 29, 0.25) !important;
-    border-color: rgba(228, 120, 29, 0.6) !important;
-}
-
-/* Disabled */
-.main div[data-testid="stButton"] > button:disabled {
-    background-color: rgba(100, 100, 100, 0.1) !important;
-    border-color: rgba(100, 100, 100, 0.2) !important;
-    color: rgba(255, 255, 255, 0.3) !important;
-    cursor: not-allowed !important;
-}
-
-/* File uploader buttons */
-div[data-testid="stFileUploader"] button {
-    background-color: rgba(228, 120, 29, 0.12) !important;
-    color: rgba(255, 255, 255, 0.9) !important;
-    border: 1px solid rgba(228, 120, 29, 0.3) !important;
-    border-radius: 6px !important;
-    font-weight: 400 !important;
-    padding: 10px 16px !important;
-    box-shadow: none !important;
-    transition: all 0.15s ease !important;
-}
-
-div[data-testid="stFileUploader"] button:hover:not(:disabled) {
-    background-color: rgba(228, 120, 29, 0.2) !important;
-    border-color: rgba(228, 120, 29, 0.5) !important;
-    color: #ffffff !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-/* Force the download button container and link to match faded orange style */
-div[data-testid="stDownloadButton"] {
-    width: 100% !important;
-    display: block !important;
-}
-
-div[data-testid="stDownloadButton"] button,
-div[data-testid="stDownloadButton"] a {
-    display: inline-flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    width: 100% !important;
-    min-height: 38px !important;
-    padding: 10px 16px !important;
-    background-color: rgba(228, 120, 29, 0.12) !important;
-    color: rgba(255, 255, 255, 0.9) !important;
-    border: 1px solid rgba(228, 120, 29, 0.3) !important;
-    border-radius: 6px !important;
-    font-weight: 400 !important;
-    text-decoration: none !important;
-    cursor: pointer !important;
-    box-sizing: border-box !important;
-    box-shadow: none !important;
-    transition: all 0.15s ease !important;
-}
-
-/* Hover */
-div[data-testid="stDownloadButton"] button:hover,
-div[data-testid="stDownloadButton"] a:hover {
-    background-color: rgba(228, 120, 29, 0.2) !important;
-    border-color: rgba(228, 120, 29, 0.5) !important;
-    color: #ffffff !important;
-}
-
-/* Focus */
-div[data-testid="stDownloadButton"] button:focus-visible,
-div[data-testid="stDownloadButton"] a:focus-visible {
-    outline: none !important;
-    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.4) !important;
-}
-
-/* Active */
-div[data-testid="stDownloadButton"] button:active,
-div[data-testid="stDownloadButton"] a:active {
-    background-color: rgba(228, 120, 29, 0.25) !important;
-    border-color: rgba(228, 120, 29, 0.6) !important;
-}
-}
-</style>
-""", unsafe_allow_html=True)
 
 # Remove markdown header anchor links
 st.markdown("""
@@ -1281,6 +1247,244 @@ st.markdown("""
 .main h2:first-of-type,
 .main h3:first-of-type {
     margin-top: 1rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Modern Faded Orange Button Styling for Main Content
+st.markdown("""
+<style>
+/* Target main content buttons - Faded orange style like sidebar */
+.main button {
+    background-color: rgba(228, 120, 29, 0.12) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(228, 120, 29, 0.3) !important;
+    border-radius: 8px !important;
+    padding: 10px 20px !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    letter-spacing: 0.02em !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    backdrop-filter: blur(8px) !important;
+}
+
+/* Hover state - subtle glow */
+.main button:hover:not(:disabled) {
+    background-color: rgba(228, 120, 29, 0.2) !important;
+    border-color: rgba(228, 120, 29, 0.5) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 16px rgba(228, 120, 29, 0.25),
+                0 2px 8px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Active/pressed state */
+.main button:active:not(:disabled) {
+    background-color: rgba(228, 120, 29, 0.25) !important;
+    border-color: rgba(228, 120, 29, 0.6) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3),
+                inset 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    transform: translateY(0px) !important;
+}
+
+/* Focus state */
+.main button:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(228, 120, 29, 0.4),
+                0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Disabled state */
+.main button:disabled {
+    background-color: rgba(100, 100, 100, 0.1) !important;
+    border-color: rgba(100, 100, 100, 0.2) !important;
+    color: rgba(255, 255, 255, 0.3) !important;
+    box-shadow: none !important;
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+/* Target st-emotion-cache button classes directly - AGGRESSIVE */
+button.st-emotion-cache-1anq8dj,
+button[class*="st-emotion-cache-"] {
+    background-color: rgba(228, 120, 29, 0.12) !important;
+    border-width: 1px !important;
+    border-style: solid !important;
+    border-color: rgba(228, 120, 29, 0.3) !important;
+    border-radius: 0.5rem !important;
+}
+
+button.st-emotion-cache-1anq8dj:hover:not(:disabled),
+button[class*="st-emotion-cache-"]:hover:not(:disabled) {
+    background-color: rgba(228, 120, 29, 0.2) !important;
+    border-color: rgba(228, 120, 29, 0.5) !important;
+}
+
+/* Download button - subtle green variant */
+div[data-testid="stDownloadButton"] button {
+    background-color: rgba(228, 120, 29, 0.12) !important;
+    border-color: rgba(228, 120, 29, 0.3) !important;
+}
+
+div[data-testid="stDownloadButton"] button:hover:not(:disabled) {
+    background-color: rgba(228, 120, 29, 0.2) !important;
+    border-color: rgba(228, 120, 29, 0.5) !important;
+    box-shadow: 0 4px 16px rgba(228, 120, 29, 0.25),
+                0 2px 8px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+div[data-testid="stDownloadButton"] button:active:not(:disabled) {
+    background-color: rgba(228, 120, 29, 0.25) !important;
+    border-color: rgba(228, 120, 29, 0.6) !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Modern AG Grid Styling
+st.markdown("""
+<style>
+/* AG Grid Container - Modern Glossy Black */
+.ag-theme-streamlit {
+    background: linear-gradient(145deg, rgba(25, 25, 25, 0.7), rgba(15, 15, 15, 0.5)) !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(228, 120, 29, 0.2) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6),
+                0 4px 16px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05),
+                0 0 0 1px rgba(255, 255, 255, 0.02) inset !important;
+    backdrop-filter: blur(10px) !important;
+    overflow: hidden !important;
+}
+
+/* AG Grid Header - Orange accent */
+.ag-theme-streamlit .ag-header {
+    background: linear-gradient(135deg, rgba(228, 120, 29, 0.2), rgba(228, 120, 29, 0.1)) !important;
+    border-bottom: 2px solid rgba(228, 120, 29, 0.4) !important;
+    font-weight: 600 !important;
+    color: rgba(255, 255, 255, 0.95) !important;
+    box-shadow: 0 2px 8px rgba(228, 120, 29, 0.15) !important;
+}
+
+.ag-theme-streamlit .ag-header-cell {
+    color: rgba(255, 255, 255, 0.95) !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    letter-spacing: 0.02em !important;
+    padding: 12px !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.ag-theme-streamlit .ag-header-cell:hover {
+    background: rgba(228, 120, 29, 0.15) !important;
+}
+
+/* AG Grid Rows */
+.ag-theme-streamlit .ag-row {
+    background: rgba(20, 20, 20, 0.4) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    transition: all 0.2s ease !important;
+}
+
+.ag-theme-streamlit .ag-row-even {
+    background: rgba(25, 25, 25, 0.4) !important;
+}
+
+.ag-theme-streamlit .ag-row:hover {
+    background: rgba(228, 120, 29, 0.08) !important;
+    transform: translateX(2px) !important;
+    box-shadow: inset 3px 0 0 rgba(228, 120, 29, 0.6) !important;
+}
+
+/* AG Grid Cells */
+.ag-theme-streamlit .ag-cell {
+    color: rgba(255, 255, 255, 0.9) !important;
+    padding: 10px 12px !important;
+    font-size: 13px !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Selected rows */
+.ag-theme-streamlit .ag-row-selected {
+    background: rgba(228, 120, 29, 0.15) !important;
+    border-left: 3px solid rgba(228, 120, 29, 0.8) !important;
+}
+
+.ag-theme-streamlit .ag-row-selected:hover {
+    background: rgba(228, 120, 29, 0.2) !important;
+}
+
+/* Checkboxes in AG Grid */
+.ag-theme-streamlit .ag-checkbox-input-wrapper {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 2px solid rgba(228, 120, 29, 0.6) !important;
+    border-radius: 4px !important;
+    transition: all 0.2s ease !important;
+}
+
+.ag-theme-streamlit .ag-checkbox-input-wrapper.ag-checked {
+    background: linear-gradient(135deg, rgba(228, 120, 29, 0.8), rgba(228, 120, 29, 0.6)) !important;
+    border-color: rgba(228, 120, 29, 0.9) !important;
+}
+
+.ag-theme-streamlit .ag-checkbox-input-wrapper:hover {
+    background: rgba(228, 120, 29, 0.15) !important;
+    box-shadow: 0 0 8px rgba(228, 120, 29, 0.3) !important;
+}
+
+/* Cell editing */
+.ag-theme-streamlit .ag-cell-inline-editing {
+    background: rgba(228, 120, 29, 0.1) !important;
+    border: 2px solid rgba(228, 120, 29, 0.6) !important;
+    box-shadow: 0 0 12px rgba(228, 120, 29, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Range selection */
+.ag-theme-streamlit .ag-cell-range-selected:not(.ag-cell-focus) {
+    background: rgba(228, 120, 29, 0.15) !important;
+    border: 1px solid rgba(228, 120, 29, 0.4) !important;
+}
+
+/* Scrollbar for AG Grid */
+.ag-theme-streamlit .ag-body-horizontal-scroll,
+.ag-theme-streamlit .ag-body-vertical-scroll {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(228, 120, 29, 0.5) rgba(255, 255, 255, 0.05) !important;
+}
+
+.ag-theme-streamlit ::-webkit-scrollbar {
+    width: 10px !important;
+    height: 10px !important;
+}
+
+.ag-theme-streamlit ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 5px !important;
+}
+
+.ag-theme-streamlit ::-webkit-scrollbar-thumb {
+    background: rgba(228, 120, 29, 0.5) !important;
+    border-radius: 5px !important;
+}
+
+.ag-theme-streamlit ::-webkit-scrollbar-thumb:hover {
+    background: rgba(228, 120, 29, 0.7) !important;
+}
+
+/* Sort indicators */
+.ag-theme-streamlit .ag-icon-asc,
+.ag-theme-streamlit .ag-icon-desc {
+    color: rgba(228, 120, 29, 0.9) !important;
+}
+
+/* Filter icon */
+.ag-theme-streamlit .ag-icon-filter {
+    color: rgba(228, 120, 29, 0.8) !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1390,50 +1594,274 @@ else:
     # Data Input
     with left_col:
         st.subheader("Data Input & Table", anchor=False)
-
-        uploaded_files = st.file_uploader(
-            "Upload CSV Files",
-            accept_multiple_files=True,
-            type="csv",
-        )
-
-        # Detect when file is closed and reset checkboxes
-        if uploaded_files is None or len(uploaded_files) == 0:
-            if st.session_state.has_file:
-                # User just removed their file → reset BOTH checkbox groups
-                st.session_state.checkbox_key_onecol += 1
-                st.session_state.checkbox_key_twocol += 1
-                st.session_state.has_file = False
-
+        if "uploaded_file" not in st.session_state:
+            uploaded_file = st.file_uploader(
+                "Upload CSV File",
+                type="csv",
+                key="uploaded_csv"
+            )
+            if uploaded_file is not None:
+                st.session_state.uploaded_file = uploaded_file
+                st.session_state.has_file = True
+                st.rerun()
+            # Add spacing after uploader
+            st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
         else:
-            # A file is present
+            uploaded_file = st.session_state.uploaded_file
+            
+            # Make button smaller by using columns
+            col_remove = st.columns([1, 3])
+            with col_remove[0]:
+                if st.button("Remove file", key="remove_file_btn"):
+                    del st.session_state.uploaded_file
+                    st.session_state.has_file = False
+                    st.session_state.saved_table = None
+                    st.session_state.edited_data_cache = {}
+                    st.session_state.checkbox_key_onecol += 1
+                    st.session_state.checkbox_key_twocol += 1
+                    st.rerun()
+
+            # Add spacing after remove button
+            st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
+
+        # Step 2: Persist the uploaded file object itself
+        if uploaded_file is not None:
+            st.session_state["uploaded_file"] = uploaded_file
             st.session_state.has_file = True
+        
+        # Use fallback from session state
+        uploaded_file = st.session_state.get("uploaded_file")
 
-        # Determine which table to use
-        if uploaded_files:
-            df = pd.read_csv(uploaded_files[-1])
-            table = df.copy()
-            st.session_state.saved_uploaded_file = uploaded_files[-1].name
-        elif st.session_state.saved_table is not None:
-            # Restore previously edited table
-            table = st.session_state.saved_table.copy()
+        # Step 3: Only clear when user explicitly removes it
+        if uploaded_file is None and "uploaded_file" in st.session_state:
+            # User clicked X
+            del st.session_state["uploaded_file"]
+            st.session_state.checkbox_key_onecol += 1
+            st.session_state.checkbox_key_twocol += 1
+            st.session_state.has_file = False
+            st.session_state.saved_table = None
+            st.session_state.edited_data_cache = {}
+            st.rerun()
+
+        # Determine which table to use  
+        edited_table = None
+        
+        if uploaded_file is not None:
+            try:
+                file_key = f"{uploaded_file.name}_{str(uploaded_file.size)}"
+                
+                # Initialize cache if needed
+                if "edited_data_cache" not in st.session_state:
+                    st.session_state.edited_data_cache = {}
+                
+                # Use cached edited data if available, otherwise read fresh data
+                if file_key in st.session_state.edited_data_cache:
+                    df = st.session_state.edited_data_cache[file_key].copy()
+                else:
+                    # Reset file pointer to beginning before reading
+                    uploaded_file.seek(0)
+                    df = pd.read_csv(uploaded_file)
+                    st.session_state.edited_data_cache[file_key] = df.copy()
+                
+                # Configure AG Grid options
+                gb = GridOptionsBuilder.from_dataframe(df)
+                gb.configure_default_column(
+                    editable=True,
+                    groupable=False,
+                    resizable=True,
+                    filterable=True,
+                    sortable=True
+                )
+                gb.configure_selection(
+                    selection_mode='multiple',
+                    use_checkbox=True,
+                    rowMultiSelectWithClick=True,
+                    suppressRowDeselection=False,
+                    header_checkbox=True
+                )
+                gb.configure_grid_options(
+                    enableRangeSelection=True,
+                    enableRangeHandle=True,
+                    enableFillHandle=True,
+                    rowSelection='multiple',
+                    suppressRowClickSelection=False,
+                    singleClickEdit=False,
+                    stopEditingWhenCellsLoseFocus=True
+                )
+                grid_options = gb.build()
+                
+                # Display AG Grid
+                grid_response = AgGrid(
+                    df,
+                    gridOptions=grid_options,
+                    height=500,
+                    width='100%',
+                    update_mode=GridUpdateMode.NO_UPDATE,
+                    fit_columns_on_grid_load=True,
+                    allow_unsafe_jscode=True,
+                    enable_enterprise_modules=False,
+                    theme='streamlit',
+                    reload_data=False,
+                    key=f"aggrid_{file_key}",
+                    data_return_mode='AS_INPUT'
+                )
+                
+                # Get the edited data from grid response
+                edited_data = grid_response['data'] if grid_response and 'data' in grid_response else df
+                edited_table = pd.DataFrame(edited_data)
+                
+                # Cache the edited data for this file (without index modification)
+                st.session_state.edited_data_cache[file_key] = edited_table.copy()
+                
+                # Show edit info and download option with improved layout
+                st.markdown("")  # Add spacing
+                col_a, col_b, col_c = st.columns([3, 1, 1])
+                with col_a:
+                    st.caption("💡 **Tip:** Double-click cells to edit. Check boxes to select rows. Click column headers to sort/filter.")
+                with col_b:
+                    if st.button("Refresh", use_container_width=True, key="refresh_grid"):
+                        st.rerun()
+                with col_c:
+                    # Download edited data
+                    csv_data = edited_table.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="Download",
+                        data=csv_data,
+                        file_name=f"edited_{uploaded_file.name}",
+                        mime="text/csv",
+                        use_container_width=True,
+                        key="download_edited"
+                    )
+                
+                # Display selection output
+                selected_rows = grid_response.get('selected_rows', []) if grid_response else []
+                if selected_rows is not None and len(selected_rows) > 0:
+                    st.markdown("---")
+                    st.markdown("**Selection Output**")
+                    
+                    selected_df = pd.DataFrame(selected_rows)
+                    
+                    print("\n--- Selected Rows ---")
+                    pprint.pprint(selected_rows)
+                    print("-----------------------")
+                    
+                    with st.expander("Selected Rows Metadata", expanded=False):
+                        # Convert to JSON-serializable format
+                        import json
+                        serializable_data = json.loads(selected_df.to_json(orient='records'))
+                        st.json(serializable_data)
+                    
+                    st.markdown("**Selected Data:**")
+                    st.dataframe(selected_df, use_container_width=True)
+                else:
+                    st.info("Select cells/rows in the grid to see details here.")
+                
+            except Exception as e:
+                st.error(f"Error processing file: {e}")
+                edited_table = pd.DataFrame(columns=["Enter your data..."])
+        elif st.session_state.get("saved_table") is not None:
+            # Restore previously edited table and display it in AG Grid
+            try:
+                df = st.session_state.saved_table.copy()
+                
+                # Configure AG Grid options
+                gb = GridOptionsBuilder.from_dataframe(df)
+                gb.configure_default_column(
+                    editable=True,
+                    groupable=False,
+                    resizable=True,
+                    filterable=True,
+                    sortable=True
+                )
+                gb.configure_selection(
+                    selection_mode='multiple',
+                    use_checkbox=True,
+                    rowMultiSelectWithClick=True,
+                    suppressRowDeselection=False,
+                    header_checkbox=True
+                )
+                gb.configure_grid_options(
+                    enableRangeSelection=True,
+                    enableRangeHandle=True,
+                    enableFillHandle=True,
+                    rowSelection='multiple',
+                    suppressRowClickSelection=False,
+                    singleClickEdit=False,
+                    stopEditingWhenCellsLoseFocus=True
+                )
+                grid_options = gb.build()
+                
+                # Display AG Grid
+                grid_response = AgGrid(
+                    df,
+                    gridOptions=grid_options,
+                    height=500,
+                    width='100%',
+                    update_mode=GridUpdateMode.NO_UPDATE,
+                    fit_columns_on_grid_load=True,
+                    allow_unsafe_jscode=True,
+                    enable_enterprise_modules=False,
+                    theme='streamlit',
+                    reload_data=False,
+                    key="aggrid_cached",
+                    data_return_mode='AS_INPUT'
+                )
+                
+                # Get the edited data from grid response
+                edited_data = grid_response['data'] if grid_response and 'data' in grid_response else df
+                edited_table = pd.DataFrame(edited_data)
+                
+                # Show edit info and download option with improved layout
+                st.markdown("")  # Add spacing
+                col_a, col_b, col_c = st.columns([3, 1, 1])
+                with col_a:
+                    st.caption("💡 **Tip:** Double-click cells to edit. Check boxes to select rows. Click column headers to sort/filter.")
+                with col_b:
+                    if st.button("🔄 Refresh", use_container_width=True, key="refresh_cached"):
+                        st.rerun()
+                with col_c:
+                    # Download edited data
+                    csv_data = edited_table.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="📥 Download",
+                        data=csv_data,
+                        file_name="edited_data.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                        key="download_cached"
+                    )
+                
+                # Display selection output
+                selected_rows = grid_response.get('selected_rows', []) if grid_response else []
+                if selected_rows is not None and len(selected_rows) > 0:
+                    st.markdown("---")
+                    st.markdown("**Selection Output**")
+                    
+                    selected_df = pd.DataFrame(selected_rows)
+                    
+                    with st.expander("Selected Rows Metadata", expanded=False):
+                        # Convert to JSON-serializable format
+                        import json
+                        serializable_data = json.loads(selected_df.to_json(orient='records'))
+                        st.json(serializable_data)
+                    
+                    st.markdown("**Selected Data:**")
+                    st.dataframe(selected_df, use_container_width=True)
+                else:
+                    st.info("Select cells/rows in the grid to see details here.")
+                    
+            except Exception as e:
+                st.error(f"Error displaying cached table: {e}")
+                edited_table = st.session_state.saved_table.copy()
         else:
-            table = pd.DataFrame(columns=["Enter your data..."])
-
-        edited_table = st.data_editor(
-            table,
-            num_rows="dynamic",
-            use_container_width=True,
-            height=754,
-            hide_index=True,
-            key="main_data_editor"
-        )
-        edited_table.index = edited_table.index + 1
+            edited_table = pd.DataFrame(columns=["Enter your data..."])
+            st.info("Upload a CSV file to view it in the interactive grid.")
         
         # Save the edited table to session state
-        st.session_state.saved_table = edited_table.copy()
+        if edited_table is not None:
+            st.session_state.saved_table = edited_table.copy()
 
-        data_ready = len(edited_table.columns) > 0 and len(edited_table) > 0
+        data_ready = edited_table is not None and len(edited_table.columns) > 0 and len(edited_table) > 0
 
     # Analysis Options
     with right_col:
@@ -1442,7 +1870,7 @@ else:
         col1 = []
         col2 = []
 
-        if len(edited_table.columns) > 0 and len(edited_table) > 0:
+        if edited_table is not None and len(edited_table.columns) > 0 and len(edited_table) > 0:
             col1 = st.multiselect("Columns", edited_table.columns)
             st.session_state["current_cols"] = col1  
 
