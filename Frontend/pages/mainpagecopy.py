@@ -1,3 +1,4 @@
+# streamlit_hidden_page = True
 import streamlit as st
 import pandas as pd
 import uuid
@@ -138,7 +139,7 @@ with st.sidebar:
     st.markdown("---")
 
     # --- Analysis Runs ---
-    st.subheader("Analysis Runs")
+    st.header("Analysis Runs")
 
     for i, run in enumerate(st.session_state.analysis_runs):
         is_active = run["id"] == st.session_state.active_run_id
@@ -271,6 +272,42 @@ st.markdown("""
 section[data-testid="stMain"] {
     background: radial-gradient(ellipse at top, #1a1a1a 0%, #0f0f0f 50%, #000000 100%) !important;
     position: relative !important;
+}
+            
+/* Make all Streamlit alert/info boxes orange themed */
+div[data-testid="stAlert"] {
+    background: linear-gradient(135deg, rgba(228, 120, 29, 0.18), rgba(228, 120, 29, 0.10)) !important;
+    border: 1.5px solid rgba(228, 120, 29, 0.55) !important;
+    border-radius: 10px !important;
+    padding: 1rem 1.25rem !important;
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.35),
+        0 0 18px rgba(228, 120, 29, 0.25),
+        inset 0 1px 2px rgba(255, 255, 255, 0.05) !important;
+}
+            
+div[data-testid="stAlert"] { 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 
+    0 0 12px rgba(228, 120, 29, 0.25) !important; 
+}
+
+/* Make the text inside alerts white */
+div[data-testid="stAlert"] p {
+    color: rgba(255, 255, 255, 0.92) !important;
+    font-weight: 500 !important;
+}
+
+/* Make the icon match the orange theme */
+div[data-testid="stAlert"] svg {
+    fill: #e4781d !important;
+}
+            
+/* Remove the grey inner container inside alerts */
+div[data-testid="stAlert"] > div {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
 }
 
 /* Add subtle texture overlay for depth */
@@ -714,10 +751,23 @@ st.markdown("""
 <style>
 /* ===============================
    SIDEBAR TOGGLE – BOTH STATES
-   (OPEN AND CLOSED)
    =============================== */
 
-/* 1) Toggle when sidebar is CLOSED (lives in the top header) */
+/* ----- Hover when sidebar is OPEN ----- */
+button[kind="secondary"][data-testid="collapsedControl"] {
+    transition: background-color 0.15s ease-in-out !important;
+}
+
+button[kind="secondary"][data-testid="collapsedControl"]:hover {
+    background-color: rgba(228, 120, 29, 0.20) !important;
+    border: 1px solid rgba(228, 120, 29, 0.5) !important;
+}
+
+button[kind="secondary"][data-testid="collapsedControl"]:hover svg {
+    fill: #e4781d !important;
+}
+
+/* ----- Toggle when sidebar is CLOSED (top header button) ----- */
 header[data-testid="stHeader"] button {
     color: rgba(255, 255, 255, 0.7) !important;
     background: transparent !important;
@@ -725,7 +775,7 @@ header[data-testid="stHeader"] button {
     border-radius: 6px !important;
 }
 
-/* 2) Toggle when sidebar is OPEN — HARD TARGET */
+/* ----- Toggle when sidebar is OPEN (inside sidebar) ----- */
 section[data-testid="stSidebar"] 
   div[data-testid="stSidebarCollapseButton"] 
   button {
@@ -740,11 +790,10 @@ header[data-testid="stHeader"] button:hover,
 section[data-testid="stSidebar"] 
   div[data-testid="stSidebarCollapseButton"] 
   button:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
-    color: rgba(255, 255, 255, 0.9) !important;
+    background: rgba(228, 120, 29, 0.12) !important;
 }
 
-/* Focus — remove all rings */
+/* Remove focus rings */
 header[data-testid="stHeader"] button:focus-visible,
 section[data-testid="stSidebar"] 
   div[data-testid="stSidebarCollapseButton"] 
@@ -814,13 +863,69 @@ div[data-testid="stCheckbox"] span {
 # Multiselect selected item styling
 st.markdown("""
 <style>
-/* Highlight selected multiselect items with orange border like checkboxes */
-div[data-baseweb="select"] > div > div > div > div {
-    border: 1px solid #e4781d !important;   /* orange border */
-    border-radius: 4px !important;
-    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.5) !important; /* similar to checkbox hover/focus */
-    background-color: transparent !important; /* keep background transparent */
-    color: #ffffff !important; /* keep text readable */
+/* COLUMN DROPDOWN — Subtle, modern, low‑orange version */
+div[data-baseweb="select"] > div {
+    background: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
+    border: 1.5px solid rgba(255,255,255,0.08) !important;   /* neutral border */
+    border-radius: 10px !important;
+    padding: 6px 10px !important;
+    box-shadow:
+        0 2px 8px rgba(0,0,0,0.35),
+        inset 0 1px 2px rgba(255,255,255,0.05) !important;
+    color: #ffffff !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Hover — just a whisper of orange */
+div[data-baseweb="select"] > div:hover {
+    border-color: rgba(228,120,29,0.35) !important;  /* subtle orange */
+    box-shadow:
+        0 4px 12px rgba(0,0,0,0.45),
+        0 0 10px rgba(228,120,29,0.15),
+        inset 0 1px 2px rgba(255,255,255,0.08) !important;
+    transform: translateY(-1px);
+}
+
+/* Focus / open — slightly stronger but still not loud */
+div[data-baseweb="select"] > div[aria-expanded="true"] {
+    border-color: rgba(228,120,29,0.55) !important;
+    box-shadow:
+        0 6px 20px rgba(0,0,0,0.5),
+        0 0 18px rgba(228,120,29,0.25),
+        inset 0 1px 3px rgba(255,255,255,0.1) !important;
+    transform: translateY(-1px) scale(1.01);
+}
+
+/* Dropdown menu */
+ul[role="listbox"] {
+    background: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
+    border: 1.5px solid rgba(255,255,255,0.08) !important;
+    border-radius: 10px !important;
+    box-shadow:
+        0 8px 24px rgba(0,0,0,0.5),
+        0 0 20px rgba(228,120,29,0.1) !important;
+    padding: 6px !important;
+}
+
+/* Options */
+li[role="option"] {
+    padding: 8px 12px !important;
+    border-radius: 6px !important;
+    color: rgba(255,255,255,0.9) !important;
+    transition: all 0.15s ease !important;
+}
+
+/* Option hover */
+li[role="option"]:hover {
+    background: rgba(255,255,255,0.06) !important;   /* neutral hover */
+    transform: translateX(4px);
+}
+
+/* Selected option */
+li[role="option"][aria-selected="true"] {
+    background: rgba(228,120,29,0.15) !important;    /* subtle orange */
+    border-left: 3px solid #e4781d !important;
+    font-weight: 500 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1348,6 +1453,14 @@ div[data-testid="stDownloadButton"] button:active:not(:disabled) {
 # Modern AG Grid Styling
 st.markdown("""
 <style>
+.ag-theme-streamlit {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+</style>
+            
+<style>
 /* AG Grid Container - Modern Glossy Black */
 .ag-theme-streamlit {
     background: linear-gradient(145deg, rgba(25, 25, 25, 0.7), rgba(15, 15, 15, 0.5)) !important;
@@ -1550,6 +1663,23 @@ st.markdown("""
     background-color: #e4781d !important;
 }
 </style>
+
+<style>
+/* Remove Streamlit’s internal scroll wrapper */
+section[data-testid="stAppViewContainer"] > div:nth-child(1) {
+    overflow: visible !important;
+}
+
+/* Ensure the main content scrolls as ONE unit */
+section[data-testid="stMain"] {
+    overflow: visible !important;
+}
+
+/* Prevent nested scrollbars inside block-container */
+.block-container {
+    overflow: visible !important;
+}
+</style>
 """, unsafe_allow_html=True)
 
 # Hiding the streamlit default top right corner buttons
@@ -1586,11 +1716,13 @@ if st.session_state.active_run_id:
     )
 
     if run:
-        st.subheader(f"Analysis Results — {run['name']}", anchor=False)
+        st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+        st.markdown("<hr style='margin: 0; border: none; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />", unsafe_allow_html=True)
+        st.header(f"Analysis Results — {run['name']}", anchor=False)
 
         st.markdown("---")
 
-        st.markdown("### Methods Applied")
+        st.header("Methods Applied")
         for m in run["methods"]:
             st.write("•", m)
 
@@ -1598,13 +1730,13 @@ if st.session_state.active_run_id:
 
         # Only show visualizations section if any were selected
         if run.get("visualizations") and len(run["visualizations"]) > 0:
-            st.markdown("### Visualizations Applied")
+            st.header("Visualizations Applied")
             for v in run["visualizations"]:
                 st.write("•", v)
             
             st.markdown("---")
 
-        st.markdown("### Selected Cell Data")
+        st.header("Selected Cell Data")
         st.dataframe(run["data"], use_container_width=True)
         st.caption(f"Rows: {run['rows']}, Columns: {run['columns']}")
 
@@ -1656,7 +1788,7 @@ else:
 
     # Data Input
     with left_col:
-        st.subheader("Data Input & Table", anchor=False)
+        st.header("Data Input & Table", anchor=False)
         if "uploaded_file" not in st.session_state:
             uploaded_file = st.file_uploader(
                 "Upload CSV File",
@@ -1798,7 +1930,8 @@ else:
                 st.markdown("")  # Add spacing
                 col_a, col_b, col_c = st.columns([3, 1, 1])
                 with col_a:
-                    st.caption("💡 **Tip:** Double-click cells to edit. Check boxes to select rows. Click column headers to sort/filter.")
+                    st.caption("**Tip:** Double-click cells to edit." \
+                    "\nCheck boxes to select rows. Click column headers to sort/filter.")
                 with col_b:
                     if st.button("Refresh", use_container_width=True, key="refresh_grid"):
                         st.rerun()
@@ -1914,15 +2047,15 @@ else:
                 st.markdown("")  # Add spacing
                 col_a, col_b, col_c = st.columns([3, 1, 1])
                 with col_a:
-                    st.caption("💡 **Tip:** Double-click cells to edit. Check boxes to select rows. Click column headers to sort/filter.")
+                    st.caption("**Tip:** Double-click cells to edit. Check boxes to select rows. Click column headers to sort/filter.")
                 with col_b:
-                    if st.button("🔄 Refresh", use_container_width=True, key="refresh_cached"):
+                    if st.button("Refresh", use_container_width=True, key="refresh_cached"):
                         st.rerun()
                 with col_c:
                     # Download edited data
                     csv_data = edited_table.to_csv(index=False).encode('utf-8')
                     st.download_button(
-                        label="📥 Download",
+                        label="Download",
                         data=csv_data,
                         file_name="edited_data.csv",
                         mime="text/csv",
@@ -1964,7 +2097,7 @@ else:
 
     # Analysis Options
     with right_col:
-        st.subheader("Analysis Configuration", anchor=False)
+        st.header("Analysis Configuration", anchor=False)
 
         col1 = []
         col2 = []
@@ -2008,6 +2141,8 @@ else:
         disable_two_cols = num_cols_selected < 2
         disable_one_col = num_cols_selected < 1
         disable_one_row = num_rows_selected < 1
+
+        st.markdown("---")
 
         # Computation Options
         st.header("Computation Options", anchor=False)
@@ -2174,10 +2309,10 @@ else:
                 }
 
                 st.session_state.analysis_runs.append(run)
-                st.session_state.modal_message = f"Analysis '{run['name']}' has been successfully created!"
+                st.session_state.modal_message = f"Analysis '{run['name']}' has been successfully created!\nPlease see the side bar for your analysis."
                 success_modal.open()
 
-# 🚨 FINAL OVERRIDE — Force transparent orange buttons with maximum specificity
+# FINAL OVERRIDE — Force transparent orange buttons with maximum specificity
 st.markdown("""
 <style>
 /* Target BaseWeb buttons directly to override gray background - ALL MAIN CONTENT BUTTONS */

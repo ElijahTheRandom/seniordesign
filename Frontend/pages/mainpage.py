@@ -1,3 +1,4 @@
+# streamlit_hidden_page = True
 import streamlit as st
 import pandas as pd
 import uuid
