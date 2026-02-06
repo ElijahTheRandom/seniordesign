@@ -1486,6 +1486,69 @@ st.markdown("""
 .ag-theme-streamlit .ag-icon-filter {
     color: rgba(228, 120, 29, 0.8) !important;
 }
+
+/* AG Grid CSS Variables Override - Force Orange Accent */
+.ag-theme-streamlit,
+.ag-theme-streamlit .ag-root-wrapper,
+.ag-theme-streamlit .ag-root {
+    --ag-accent-color: #e4781d !important;
+    --ag-selected-row-background-color: rgba(228, 120, 29, 0.15) !important;
+    --ag-range-selection-background-color: rgba(228, 120, 29, 0.2) !important;
+    --ag-range-selection-border-color: rgba(228, 120, 29, 0.6) !important;
+    --ag-input-focus-border-color: rgba(228, 120, 29, 0.8) !important;
+    --ag-checkbox-checked-color: #e4781d !important;
+    --ag-checkbox-unchecked-color: rgba(228, 120, 29, 0.4) !important;
+    --ag-invalid-color: #e4781d !important;
+    --ag-range-selection-background-color-1: rgba(228, 120, 29, 0.2) !important;
+    --ag-range-selection-background-color-2: rgba(228, 120, 29, 0.25) !important;
+    --ag-range-selection-background-color-3: rgba(228, 120, 29, 0.3) !important;
+    --ag-range-selection-background-color-4: rgba(228, 120, 29, 0.35) !important;
+}
+
+/* Ultra aggressive selection overrides */
+.ag-theme-streamlit .ag-row-selected,
+.ag-theme-streamlit .ag-row.ag-row-selected,
+.ag-theme-streamlit .ag-row-selected:before,
+.ag-theme-streamlit .ag-row-selected:hover,
+.ag-theme-streamlit .ag-row-selected.ag-row-hover {
+    background-color: rgba(228, 120, 29, 0.15) !important;
+    background: rgba(228, 120, 29, 0.15) !important;
+}
+
+/* Cell range selection - all states */
+.ag-theme-streamlit .ag-cell-range-selected,
+.ag-theme-streamlit .ag-cell-range-selected:not(.ag-cell-inline-editing),
+.ag-theme-streamlit .ag-cell.ag-cell-range-selected,
+.ag-theme-streamlit .ag-cell-range-selected-1:not(.ag-cell-inline-editing),
+.ag-theme-streamlit .ag-cell-range-selected-2:not(.ag-cell-inline-editing),
+.ag-theme-streamlit .ag-cell-range-selected-3:not(.ag-cell-inline-editing),
+.ag-theme-streamlit .ag-cell-range-selected-4:not(.ag-cell-inline-editing) {
+    background-color: rgba(228, 120, 29, 0.2) !important;
+    background: rgba(228, 120, 29, 0.2) !important;
+}
+
+/* Cell range borders */
+.ag-theme-streamlit .ag-cell-range-selected:not(.ag-cell-inline-editing),
+.ag-theme-streamlit .ag-cell-range-top,
+.ag-theme-streamlit .ag-cell-range-right,
+.ag-theme-streamlit .ag-cell-range-bottom,
+.ag-theme-streamlit .ag-cell-range-left {
+    border-color: rgba(228, 120, 29, 0.6) !important;
+}
+
+/* Focus cell */
+.ag-theme-streamlit .ag-cell-focus:not(.ag-cell-range-single-cell),
+.ag-theme-streamlit .ag-cell.ag-cell-focus,
+.ag-theme-streamlit .ag-cell-focus {
+    border: 2px solid #e4781d !important;
+    outline: none !important;
+}
+
+/* Range handle (fill handle) */
+.ag-theme-streamlit .ag-fill-handle,
+.ag-theme-streamlit .ag-range-handle {
+    background-color: #e4781d !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1690,6 +1753,24 @@ else:
                 )
                 grid_options = gb.build()
                 
+                # Apply orange theme directly to AG Grid theme class
+                st.markdown("""
+                <style>
+                    .ag-theme-params-1.ag-theme-params-1.ag-theme-params-1 {
+                        --ag-accent-color: #e4781d !important;
+                        --ag-checkbox-checked-border-color: #e4781d !important;
+                        --ag-checkbox-checked-shape-color: #e4781d !important;
+                        --ag-selected-row-background-color: rgba(228, 120, 29, 0.2) !important;
+                        --ag-range-selection-background-color: rgba(228, 120, 29, 0.2) !important;
+                        --ag-range-selection-border-color: #e4781d !important;
+                        --ag-range-selection-highlight-color: rgba(228, 120, 29, 0.5) !important;
+                        --ag-row-hover-color: rgba(228, 120, 29, 0.1) !important;
+                        --ag-cell-editing-border: solid 1px #e4781d !important;
+                        --ag-column-hover-color: rgba(228, 120, 29, 0.05) !important;
+                    }
+                </style>
+                """, unsafe_allow_html=True)
+                
                 # Display AG Grid
                 grid_response = AgGrid(
                     df,
@@ -1790,6 +1871,24 @@ else:
                     stopEditingWhenCellsLoseFocus=True
                 )
                 grid_options = gb.build()
+                
+                # Apply orange theme directly to AG Grid theme class
+                st.markdown("""
+                <style>
+                    .ag-theme-params-1.ag-theme-params-1.ag-theme-params-1 {
+                        --ag-accent-color: #e4781d !important;
+                        --ag-checkbox-checked-border-color: #e4781d !important;
+                        --ag-checkbox-checked-shape-color: #e4781d !important;
+                        --ag-selected-row-background-color: rgba(228, 120, 29, 0.2) !important;
+                        --ag-range-selection-background-color: rgba(228, 120, 29, 0.2) !important;
+                        --ag-range-selection-border-color: #e4781d !important;
+                        --ag-range-selection-highlight-color: rgba(228, 120, 29, 0.5) !important;
+                        --ag-row-hover-color: rgba(228, 120, 29, 0.1) !important;
+                        --ag-cell-editing-border: solid 1px #e4781d !important;
+                        --ag-column-hover-color: rgba(228, 120, 29, 0.05) !important;
+                    }
+                </style>
+                """, unsafe_allow_html=True)
                 
                 # Display AG Grid
                 grid_response = AgGrid(
