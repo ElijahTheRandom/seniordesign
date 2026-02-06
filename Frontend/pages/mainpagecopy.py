@@ -863,13 +863,69 @@ div[data-testid="stCheckbox"] span {
 # Multiselect selected item styling
 st.markdown("""
 <style>
-/* Highlight selected multiselect items with orange border like checkboxes */
-div[data-baseweb="select"] > div > div > div > div {
-    border: 1px solid #e4781d !important;   /* orange border */
-    border-radius: 4px !important;
-    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.5) !important; /* similar to checkbox hover/focus */
-    background-color: transparent !important; /* keep background transparent */
-    color: #ffffff !important; /* keep text readable */
+/* COLUMN DROPDOWN — Subtle, modern, low‑orange version */
+div[data-baseweb="select"] > div {
+    background: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
+    border: 1.5px solid rgba(255,255,255,0.08) !important;   /* neutral border */
+    border-radius: 10px !important;
+    padding: 6px 10px !important;
+    box-shadow:
+        0 2px 8px rgba(0,0,0,0.35),
+        inset 0 1px 2px rgba(255,255,255,0.05) !important;
+    color: #ffffff !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Hover — just a whisper of orange */
+div[data-baseweb="select"] > div:hover {
+    border-color: rgba(228,120,29,0.35) !important;  /* subtle orange */
+    box-shadow:
+        0 4px 12px rgba(0,0,0,0.45),
+        0 0 10px rgba(228,120,29,0.15),
+        inset 0 1px 2px rgba(255,255,255,0.08) !important;
+    transform: translateY(-1px);
+}
+
+/* Focus / open — slightly stronger but still not loud */
+div[data-baseweb="select"] > div[aria-expanded="true"] {
+    border-color: rgba(228,120,29,0.55) !important;
+    box-shadow:
+        0 6px 20px rgba(0,0,0,0.5),
+        0 0 18px rgba(228,120,29,0.25),
+        inset 0 1px 3px rgba(255,255,255,0.1) !important;
+    transform: translateY(-1px) scale(1.01);
+}
+
+/* Dropdown menu */
+ul[role="listbox"] {
+    background: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
+    border: 1.5px solid rgba(255,255,255,0.08) !important;
+    border-radius: 10px !important;
+    box-shadow:
+        0 8px 24px rgba(0,0,0,0.5),
+        0 0 20px rgba(228,120,29,0.1) !important;
+    padding: 6px !important;
+}
+
+/* Options */
+li[role="option"] {
+    padding: 8px 12px !important;
+    border-radius: 6px !important;
+    color: rgba(255,255,255,0.9) !important;
+    transition: all 0.15s ease !important;
+}
+
+/* Option hover */
+li[role="option"]:hover {
+    background: rgba(255,255,255,0.06) !important;   /* neutral hover */
+    transform: translateX(4px);
+}
+
+/* Selected option */
+li[role="option"][aria-selected="true"] {
+    background: rgba(228,120,29,0.15) !important;    /* subtle orange */
+    border-left: 3px solid #e4781d !important;
+    font-weight: 500 !important;
 }
 </style>
 """, unsafe_allow_html=True)
