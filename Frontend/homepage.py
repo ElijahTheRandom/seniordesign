@@ -14,18 +14,8 @@ st.set_page_config(
 st.markdown(
 """
 <style>
-/* FORCE SYSTEM FONTS — NO CUSTOM FONTS ANYWHERE */
-
-/* Streamlit app */
 html, body, .stApp, * {
-    font-family:
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        Roboto,
-        Helvetica,
-        Arial,
-        sans-serif !important;
+    font-family: "Source Sans Pro", sans-serif !important;
 }
 </style>
 """,
@@ -72,15 +62,8 @@ st.markdown(
     }
 
     * {
-    font-family:
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      Roboto,
-      Helvetica,
-      Arial,
-      sans-serif !important;
-    }
+    font-family: "Source Sans Pro", sans-serif !important;
+}
     </style>
     """,
     unsafe_allow_html=True
@@ -220,14 +203,28 @@ st.markdown(
 # Button styling like Run Analysis
 st.markdown("""
 <style>
-div[data-testid="stButton"] button,
-div[data-testid="stFileUploader"] button {
-    background-color: #d66b1d !important;
-    color: #ffffff !important;
-    border: 1px solid #d66b1d !important;
-    border-radius: 6px !important;
-    font-weight: 600;
-    padding: 8px 16px;
+div[data-testid="stButton"] button {
+    background: linear-gradient(135deg, rgba(228,120,29,0.18), rgba(228,120,29,0.10)) !important;
+    border: 1.5px solid rgba(228,120,29,0.55) !important;
+    border-radius: 10px !important;
+    color: rgba(255,255,255,0.92) !important;
+    font-weight: 600 !important;
+    padding: 12px 20px !important;
+    box-shadow:
+        0 4px 12px rgba(0,0,0,0.35),
+        0 0 18px rgba(228,120,29,0.25),
+        inset 0 1px 2px rgba(255,255,255,0.05) !important;
+    transition: all 0.2s ease !important;
+}
+
+div[data-testid="stButton"] button:hover {
+    background: rgba(228,120,29,0.25) !important;
+    border-color: rgba(228,120,29,0.7) !important;
+    transform: translateY(-2px) !important;
+    box-shadow:
+        0 6px 20px rgba(0,0,0,0.45),
+        0 0 25px rgba(228,120,29,0.35) !important;
+}
 
     transition:
         background-color 0.15s ease,
@@ -327,7 +324,14 @@ components.html(
 <head>
 <meta charset="UTF-8">
 
+<!-- LOAD SOURCE SANS PRO FOR THE IFRAME -->
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet">
+
 <style>
+/* APPLY THE FONT TO EVERYTHING INSIDE THE IFRAME */
+* {
+    font-family: "Source Sans Pro", sans-serif !important;
+}
 :root {
   --bg:#ffffff;
   --text:#0f172a;
@@ -341,10 +345,21 @@ components.html(
 }
 * { box-sizing: border-box; }
 
+hr {
+    border: none !important;
+    height: 1px !important;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(228,120,29,0.5) 50%, 
+        transparent 100%) !important;
+    margin: 2rem 0 !important;
+}
+
 body {
   margin:0;
   padding:0;
-  background:transparent !important;
+  background: radial-gradient(ellipse at top, #1a1a1a 0%, #0f0f0f 50%, #000000 100%) !important;
+  color: white !important;
   color:var(--text);
   height:100vh;
   width:100vw;
@@ -360,7 +375,7 @@ body {
 
 .layout {
   display:grid;
-  grid-template-columns:1fr 1fr;
+  grid-template-columns:1fr auto 1fr;
   height: 100vh;
   width: 100vw;
   overflow:hidden;
@@ -373,7 +388,7 @@ body {
   position:relative;
   height:100vh;
   width:100%;
-  background:#262730 !important;
+  background: transparent !important;
   overflow:hidden;
   padding:48px;
   margin:0;
@@ -382,13 +397,30 @@ body {
 
 /* FLOATING PANELS */
 .panel {
-  position:absolute;
-  background:white;
-  border:1px solid var(--border);
-  border-radius:14px;
-  box-shadow:0 20px 40px rgba(0,0,0,0.08);
-  padding:16px;
-  opacity: 0.25;
+  position: absolute;
+  background: rgba(20, 20, 20, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 16px !important;
+  backdrop-filter: blur(18px) saturate(180%) !important;
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    0 0 20px rgba(0,0,0,0.35) !important;
+
+  /* NEW OUTLINE + GLOW */ 
+  border: 1.5px solid rgba(228,120,29,0.45) !important; 
+  box-shadow: 
+    0 0 12px rgba(228,120,29,0.25), 
+    0 0 24px rgba(228,120,29,0.15), 
+    inset 0 0 4px rgba(255,255,255,0.08) !important;
+  padding: 16px;
+  opacity: 1 !important;
+
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 8px;
 
   animation:
     idleFloat 6s ease-in-out infinite,
@@ -397,14 +429,6 @@ body {
 
 body {
   animation: none;
-}
-
-.panel {
-  height: 180px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  gap: 8px;
 }
 
 /* Spotlight order */
@@ -428,6 +452,11 @@ body {
   100% { transform: translateY(-10px); }
 }
 
+@keyframes dividerPulse {
+    0% { box-shadow: 0 0 12px rgba(228,120,29,0.25); }
+    50% { box-shadow: 0 0 20px rgba(228,120,29,0.45); }
+    100% { box-shadow: 0 0 12px rgba(228,120,29,0.25); }
+}
 
 @keyframes spotlight {
   0%   { opacity: 0.25; }
@@ -437,6 +466,36 @@ body {
 }
 
 /* CHARTS */
+.mini-underline {
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, #e4781d 0%, rgba(228,120,29,0.5) 70%, transparent 100%);
+    border-radius: 2px;
+    margin-top: 6px;
+    margin-bottom: 8px;
+}
+.v-divider {
+    width: 2px;
+    height: 100%;
+    background: linear-gradient(
+        180deg,
+        rgba(228,120,29,0) 0%,
+        rgba(228,120,29,0.45) 40%,
+        rgba(228,120,29,0.75) 50%,
+        rgba(228,120,29,0.45) 60%,
+        rgba(228,120,29,0) 100%
+    );
+    border-radius: 2px;
+    animation: dividerPulse 4s ease-in-out infinite;
+    box-shadow:
+        0 0 12px rgba(228,120,29,0.35),
+        0 0 24px rgba(228,120,29,0.15),
+        inset 0 0 4px rgba(255,255,255,0.15);
+}
+
+.bar, .hbar, .dot, .line-point {
+    box-shadow: 0 0 12px rgba(228,120,29,0.35) !important;
+}
 .chart {
   display:flex;
   align-items:flex-end;
@@ -527,6 +586,9 @@ p {
   font-size:18px;
   max-width:480px;
 }
+h1, p, .eyebrow {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
+}
 
 .hbar-chart {
   display: flex;
@@ -582,12 +644,14 @@ p {
 
 .faded-bg {
   background: linear-gradient(
-    180deg,
-    rgba(228,120,29,0.25),
-    rgba(228,120,29,0)
-  );
-  border-radius: 10px;
-  padding: 10px;
+      180deg,
+      rgba(228,120,29,0.25),
+      rgba(228,120,29,0.05)
+  ) !important;
+  border-radius: 10px !important;
+  box-shadow:
+      0 4px 12px rgba(0,0,0,0.35),
+      0 0 12px rgba(228,120,29,0.15) !important;
 }
 
 @media(max-width:900px){
@@ -678,7 +742,7 @@ p {
         <div class="line-point" style="left:95%; top:40%"></div>
         <svg class="line-path">
           <polyline 
-            points="5,75 247,40"
+            points="5,75 270,40"
             stroke="#e4781d"
             stroke-width="3"
             fill="none"
@@ -689,9 +753,12 @@ p {
   </div>
 </section>
 
+<div class="v-divider"></div>
+
 <section class="content">
   <div class="eyebrow">Powered by Group 6</div>
   <h1>PS Analytics<br/></h1>
+  <div class="mini-underline"></div>
   <p>
     Your go-to tool for statistical analytics.
     <br>Import files, edit tables, visualize datasets,

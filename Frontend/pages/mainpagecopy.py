@@ -1397,6 +1397,14 @@ div[data-testid="stDownloadButton"] button:active:not(:disabled) {
 # Modern AG Grid Styling
 st.markdown("""
 <style>
+.ag-theme-streamlit {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+</style>
+            
+<style>
 /* AG Grid Container - Modern Glossy Black */
 .ag-theme-streamlit {
     background: linear-gradient(145deg, rgba(25, 25, 25, 0.7), rgba(15, 15, 15, 0.5)) !important;
@@ -1536,6 +1544,23 @@ st.markdown("""
     color: rgba(228, 120, 29, 0.8) !important;
 }
 </style>
+
+<style>
+/* Remove Streamlit’s internal scroll wrapper */
+section[data-testid="stAppViewContainer"] > div:nth-child(1) {
+    overflow: visible !important;
+}
+
+/* Ensure the main content scrolls as ONE unit */
+section[data-testid="stMain"] {
+    overflow: visible !important;
+}
+
+/* Prevent nested scrollbars inside block-container */
+.block-container {
+    overflow: visible !important;
+}
+</style>
 """, unsafe_allow_html=True)
 
 # Hiding the streamlit default top right corner buttons
@@ -1572,6 +1597,8 @@ if st.session_state.active_run_id:
     )
 
     if run:
+        st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+        st.markdown("<hr style='margin: 0; border: none; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />", unsafe_allow_html=True)
         st.header(f"Analysis Results — {run['name']}", anchor=False)
 
         st.markdown("---")
