@@ -1103,6 +1103,11 @@ div[data-testid="stFileUploader"] {
     margin-bottom: 1.5rem !important;
 }
 
+/* File uploader dropzone background color */
+section[data-testid="stFileUploaderDropzone"] {
+    background-color: rgb(26, 26, 26) !important;
+}
+
 /* Kill Streamlit's default red outline anywhere inside the selectbox */
 div[data-testid="stSelectbox"] * {
     box-shadow: none !important;
@@ -1667,12 +1672,12 @@ st.markdown("""
 <style>
 /* Remove Streamlit’s internal scroll wrapper */
 section[data-testid="stAppViewContainer"] > div:nth-child(1) {
-    overflow: visible !important;
+    overflow-y: auto !important;
 }
 
 /* Ensure the main content scrolls as ONE unit */
 section[data-testid="stMain"] {
-    overflow: visible !important;
+    overflow-y: auto !important;
 }
 
 /* Prevent nested scrollbars inside block-container */
@@ -1804,10 +1809,15 @@ else:
         else:
             uploaded_file = st.session_state.uploaded_file
             
+            # Initialize file key and load data if needed
+            file_key = f"{uploaded_file.name}_{str(uploaded_file.size)}"
+            if "edited_data_cache" not in st.session_state:
+                st.session_state.edited_data_cache = {}
+            
             # Make button smaller by using columns
-            col_remove = st.columns([1, 3])
-            with col_remove[0]:
-                if st.button("Remove file", key="remove_file_btn"):
+            col_remove, col_download, col_spacer = st.columns([1, 1, 3])
+            with col_remove:
+                if st.button("Remove file", key="remove_file_btn", use_container_width=True):
                     del st.session_state.uploaded_file
                     st.session_state.has_file = False
                     st.session_state.saved_table = None
@@ -1815,6 +1825,24 @@ else:
                     st.session_state.checkbox_key_onecol += 1
                     st.session_state.checkbox_key_twocol += 1
                     st.rerun()
+            
+            with col_download:
+                # Load data into cache if not already there
+                if file_key not in st.session_state.edited_data_cache:
+                    uploaded_file.seek(0)
+                    temp_df = pd.read_csv(uploaded_file)
+                    st.session_state.edited_data_cache[file_key] = temp_df.copy()
+                
+                # Show download button
+                csv_data = st.session_state.edited_data_cache[file_key].to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="Download",
+                    data=csv_data,
+                    file_name=f"edited_{uploaded_file.name}",
+                    mime="text/csv",
+                    use_container_width=True,
+                    key="download_edited"
+                )
 
             # Add spacing after remove button
             st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
@@ -1885,35 +1913,38 @@ else:
                 )
                 grid_options = gb.build()
                 
-                # Apply orange theme directly to AG Grid theme class
-                st.markdown("""
-                <style>
-                    .ag-theme-params-1.ag-theme-params-1.ag-theme-params-1 {
-                        --ag-accent-color: #e4781d !important;
-                        --ag-checkbox-checked-border-color: #e4781d !important;
-                        --ag-checkbox-checked-shape-color: #e4781d !important;
-                        --ag-selected-row-background-color: rgba(228, 120, 29, 0.2) !important;
-                        --ag-range-selection-background-color: rgba(228, 120, 29, 0.2) !important;
-                        --ag-range-selection-border-color: #e4781d !important;
-                        --ag-range-selection-highlight-color: rgba(228, 120, 29, 0.5) !important;
-                        --ag-row-hover-color: rgba(228, 120, 29, 0.1) !important;
-                        --ag-cell-editing-border: solid 1px #e4781d !important;
-                        --ag-column-hover-color: rgba(228, 120, 29, 0.05) !important;
+                # Define custom CSS for AG Grid - Override params layer
+                custom_css = {
+                    "[class^='ag-theme-params']": {
+                        "--ag-background-color": "#141414",
+                        "--ag-odd-row-background-color": "#141414",
+                        "--ag-header-background-color": "#1f1f1f",
+                        "--ag-foreground-color": "#e5e7eb",
+                        "--ag-secondary-foreground-color": "#9ca3af",
+                        "--ag-border-color": "rgba(255,255,255,0.08)",
+                        "--ag-row-border-color": "rgba(255,255,255,0.05)",
+                        "--ag-accent-color": "#e4781d",
+                        "--ag-inherited-accent-color": "#e4781d",
+                        "--ag-checkbox-checked-border-color": "#e4781d",
+                        "--ag-checkbox-checked-shape-color": "#e4781d",
+                        "--ag-row-hover-color": "rgba(228,120,29,0.12)",
+                        "--ag-selected-row-background-color": "rgba(228,120,29,0.22)",
+                        "--ag-range-selection-border-color": "#e4781d",
+                        "--ag-range-selection-background-color": "rgba(228,120,29,0.25)",
+                        "--ag-cell-editing-border": "1px solid #e4781d",
+                        "--ag-input-focus-border": "1px solid #e4781d",
+                        "--ag-column-hover-color": "rgba(228,120,29,0.08)",
+                        "--ag-browser-color-scheme": "dark"
                     }
-                </style>
-                """, unsafe_allow_html=True)
+                }
                 
                 # Display AG Grid
                 grid_response = AgGrid(
                     df,
                     gridOptions=grid_options,
+                    theme="streamlit",
+                    custom_css=custom_css,
                     height=500,
-                    width='100%',
-                    update_mode=GridUpdateMode.NO_UPDATE,
-                    fit_columns_on_grid_load=True,
-                    allow_unsafe_jscode=True,
-                    enable_enterprise_modules=False,
-                    theme='streamlit',
                     reload_data=False,
                     key=f"aggrid_{file_key}",
                     data_return_mode='AS_INPUT'
@@ -1926,26 +1957,9 @@ else:
                 # Cache the edited data for this file (without index modification)
                 st.session_state.edited_data_cache[file_key] = edited_table.copy()
                 
-                # Show edit info and download option with improved layout
+                # Show edit info
                 st.markdown("")  # Add spacing
-                col_a, col_b, col_c = st.columns([3, 1, 1])
-                with col_a:
-                    st.caption("**Tip:** Double-click cells to edit." \
-                    "\nCheck boxes to select rows. Click column headers to sort/filter.")
-                with col_b:
-                    if st.button("Refresh", use_container_width=True, key="refresh_grid"):
-                        st.rerun()
-                with col_c:
-                    # Download edited data
-                    csv_data = edited_table.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="Download",
-                        data=csv_data,
-                        file_name=f"edited_{uploaded_file.name}",
-                        mime="text/csv",
-                        use_container_width=True,
-                        key="download_edited"
-                    )
+                st.caption("**Tip:** Double-click cells to edit. Check boxes to select rows. Click column headers to sort/filter.")
                 
                 # Display selection output
                 selected_rows = grid_response.get('selected_rows', []) if grid_response else []
@@ -2005,35 +2019,38 @@ else:
                 )
                 grid_options = gb.build()
                 
-                # Apply orange theme directly to AG Grid theme class
-                st.markdown("""
-                <style>
-                    .ag-theme-params-1.ag-theme-params-1.ag-theme-params-1 {
-                        --ag-accent-color: #e4781d !important;
-                        --ag-checkbox-checked-border-color: #e4781d !important;
-                        --ag-checkbox-checked-shape-color: #e4781d !important;
-                        --ag-selected-row-background-color: rgba(228, 120, 29, 0.2) !important;
-                        --ag-range-selection-background-color: rgba(228, 120, 29, 0.2) !important;
-                        --ag-range-selection-border-color: #e4781d !important;
-                        --ag-range-selection-highlight-color: rgba(228, 120, 29, 0.5) !important;
-                        --ag-row-hover-color: rgba(228, 120, 29, 0.1) !important;
-                        --ag-cell-editing-border: solid 1px #e4781d !important;
-                        --ag-column-hover-color: rgba(228, 120, 29, 0.05) !important;
+                # Define custom CSS for AG Grid - Override params layer
+                custom_css = {
+                    "[class^='ag-theme-params']": {
+                        "--ag-background-color": "#141414",
+                        "--ag-odd-row-background-color": "#141414",
+                        "--ag-header-background-color": "#1f1f1f",
+                        "--ag-foreground-color": "#e5e7eb",
+                        "--ag-secondary-foreground-color": "#9ca3af",
+                        "--ag-border-color": "rgba(255,255,255,0.08)",
+                        "--ag-row-border-color": "rgba(255,255,255,0.05)",
+                        "--ag-accent-color": "#e4781d",
+                        "--ag-inherited-accent-color": "#e4781d",
+                        "--ag-checkbox-checked-border-color": "#e4781d",
+                        "--ag-checkbox-checked-shape-color": "#e4781d",
+                        "--ag-row-hover-color": "rgba(228,120,29,0.12)",
+                        "--ag-selected-row-background-color": "rgba(228,120,29,0.22)",
+                        "--ag-range-selection-border-color": "#e4781d",
+                        "--ag-range-selection-background-color": "rgba(228,120,29,0.25)",
+                        "--ag-cell-editing-border": "1px solid #e4781d",
+                        "--ag-input-focus-border": "1px solid #e4781d",
+                        "--ag-column-hover-color": "rgba(228,120,29,0.08)",
+                        "--ag-browser-color-scheme": "dark"
                     }
-                </style>
-                """, unsafe_allow_html=True)
+                }
                 
                 # Display AG Grid
                 grid_response = AgGrid(
                     df,
                     gridOptions=grid_options,
+                    theme="streamlit",
+                    custom_css=custom_css,
                     height=500,
-                    width='100%',
-                    update_mode=GridUpdateMode.NO_UPDATE,
-                    fit_columns_on_grid_load=True,
-                    allow_unsafe_jscode=True,
-                    enable_enterprise_modules=False,
-                    theme='streamlit',
                     reload_data=False,
                     key="aggrid_cached",
                     data_return_mode='AS_INPUT'
@@ -2043,25 +2060,9 @@ else:
                 edited_data = grid_response['data'] if grid_response and 'data' in grid_response else df
                 edited_table = pd.DataFrame(edited_data)
                 
-                # Show edit info and download option with improved layout
+                # Show edit info
                 st.markdown("")  # Add spacing
-                col_a, col_b, col_c = st.columns([3, 1, 1])
-                with col_a:
-                    st.caption("**Tip:** Double-click cells to edit. Check boxes to select rows. Click column headers to sort/filter.")
-                with col_b:
-                    if st.button("Refresh", use_container_width=True, key="refresh_cached"):
-                        st.rerun()
-                with col_c:
-                    # Download edited data
-                    csv_data = edited_table.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="Download",
-                        data=csv_data,
-                        file_name="edited_data.csv",
-                        mime="text/csv",
-                        use_container_width=True,
-                        key="download_cached"
-                    )
+                st.caption("**Tip:** Double-click cells to edit. Check boxes to select rows. Click column headers to sort/filter.")
                 
                 # Display selection output
                 selected_rows = grid_response.get('selected_rows', []) if grid_response else []
