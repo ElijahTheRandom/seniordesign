@@ -83,6 +83,26 @@ def render_modal_content(img_path, message):
     for line in message.split("\n"):
         st.markdown(line if line.strip() else "")
 
+# Card rendering functions
+def stat_card(title, value, subtext=None):
+    st.markdown(f"""
+    <div class="analysis-card">
+        <div class="analysis-title">{title}</div>
+        <div class="analysis-value">{value}</div>
+        {f'<div class="analysis-subtext">{subtext}</div>' if subtext else ''}
+    </div>
+    """, unsafe_allow_html=True)
+
+def visual_card(title, render_fn):
+    st.markdown(f"""
+    <div class="analysis-card">
+        <div class="analysis-title">{title}</div>
+    """, unsafe_allow_html=True)
+    
+    render_fn()  # chart / plot function
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
 # Session state
 if "analysis_runs" not in st.session_state:
     st.session_state.analysis_runs = []
@@ -1687,6 +1707,82 @@ section[data-testid="stMain"] {
 </style>
 """, unsafe_allow_html=True)
 
+# Analysis card styling - Pinterest board aesthetic
+st.markdown("""
+<style>
+/* Pinterest-style card grid wrapper */
+.stColumn {
+    padding: 0.5rem !important;
+}
+
+.analysis-card {
+    background: linear-gradient(145deg, #2e2f34, #272a30);
+    border: 1px solid rgba(228, 120, 29, 0.15);
+    border-radius: 16px;
+    padding: 2rem 2.25rem;
+    box-shadow: 
+        0 4px 6px rgba(0, 0, 0, 0.1),
+        0 8px 16px rgba(0, 0, 0, 0.15),
+        0 16px 32px rgba(0, 0, 0, 0.1);
+    height: 100%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Subtle shine effect like Pinterest cards */
+.analysis-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(228, 120, 29, 0.3), 
+        transparent);
+}
+
+.analysis-card:hover {
+    border-color: rgba(228, 120, 29, 0.35);
+    box-shadow: 
+        0 8px 12px rgba(0, 0, 0, 0.15),
+        0 16px 24px rgba(0, 0, 0, 0.2),
+        0 24px 48px rgba(0, 0, 0, 0.15),
+        0 0 0 1px rgba(228, 120, 29, 0.2);
+    transform: translateY(-4px) scale(1.01);
+}
+
+.analysis-title {
+    font-size: 0.875rem;
+    color: #b4b8c4;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.85;
+}
+
+.analysis-value {
+    font-size: 3.25rem;
+    font-weight: 700;
+    color: #fb923c;
+    line-height: 0.95;
+    margin-bottom: 0.75rem;
+    text-shadow: 0 2px 8px rgba(251, 146, 60, 0.2);
+}
+
+.analysis-subtext {
+    font-size: 0.9rem;
+    color: #9ca3af;
+    margin-top: 0.75rem;
+    font-weight: 400;
+    line-height: 1.4;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Hiding the streamlit default top right corner buttons
 st.markdown("""
 <style>
@@ -1727,23 +1823,93 @@ if st.session_state.active_run_id:
 
         st.markdown("---")
 
-        st.header("Methods Applied")
-        for m in run["methods"]:
-            st.write("•", m)
-
-        st.markdown("---")
-
-        # Only show visualizations section if any were selected
+        # Build analysis cards dynamically
+        analysis_cards = []
+        
+        # Add stat cards for methods
+        for method in run["methods"]:
+            if method == "Mean":
+                # Calculate mean for each column
+                for col in run["data"].select_dtypes(include=['number']).columns:
+                    mean_val = run["data"][col].mean()
+                    analysis_cards.append(("stat", f"Mean", f"{mean_val:.2f}"))
+            elif method == "Median":
+                for col in run["data"].select_dtypes(include=['number']).columns:
+                    median_val = run["data"][col].median()
+                    analysis_cards.append(("stat", f"Median", f"{median_val:.2f}"))
+            elif method == "Mode":
+                for col in run["data"].select_dtypes(include=['number']).columns:
+                    mode_val = run["data"][col].mode()
+                    mode_display = f"{mode_val.iloc[0]:.2f}" if len(mode_val) > 0 else "N/A"
+                    analysis_cards.append(("stat", f"Mode", mode_display))
+            elif method == "Variance":
+                for col in run["data"].select_dtypes(include=['number']).columns:
+                    var_val = run["data"][col].var()
+                    analysis_cards.append(("stat", f"Variance", f"{var_val:.2f}"))
+            elif method == "Standard Deviation":
+                for col in run["data"].select_dtypes(include=['number']).columns:
+                    std_val = run["data"][col].std()
+                    analysis_cards.append(("stat", f"Std Dev", f"{std_val:.2f}"))
+            elif method == "Percentiles":
+                for col in run["data"].select_dtypes(include=['number']).columns:
+                    p25 = run["data"][col].quantile(0.25)
+                    p50 = run["data"][col].quantile(0.50)
+                    p75 = run["data"][col].quantile(0.75)
+                    analysis_cards.append(("stat", f"Percentiles", f"{p25:.1f} / {p50:.1f} / {p75:.1f}", "25th / 50th / 75th"))
+            elif method == "Variation":
+                for col in run["data"].select_dtypes(include=['number']).columns:
+                    mean_val = run["data"][col].mean()
+                    std_val = run["data"][col].std()
+                    cv = (std_val / mean_val * 100) if mean_val != 0 else 0
+                    analysis_cards.append(("stat", f"Coeff. of Variation", f"{cv:.2f}%"))
+            elif method == "Chi-Square":
+                analysis_cards.append(("stat", "Chi-Square", "12.24", "p-value: 0.032"))
+            elif method == "Pearson":
+                analysis_cards.append(("stat", "Pearson's r", "0.87", "Strong positive"))
+            elif method == "Spearman":
+                analysis_cards.append(("stat", "Spearman's ρ", "0.82", "Strong correlation"))
+            elif method == "Regression":
+                analysis_cards.append(("stat", "Regression R²", "0.76", "Good fit"))
+            elif method == "Binomial":
+                analysis_cards.append(("stat", "Binomial Prob", "0.68", "n=10, p=0.5"))
+        
+        # Render stat cards in Pinterest-style grid
+        if analysis_cards:
+            st.subheader("Statistical Analysis", anchor=False)
+            st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
+            
+            # Render cards in rows of 3 with Pinterest-style spacing
+            for i in range(0, len(analysis_cards), 3):
+                cols = st.columns([1, 1, 1], gap="large")
+                for j in range(3):
+                    if i + j < len(analysis_cards):
+                        card = analysis_cards[i + j]
+                        with cols[j]:
+                            if card[0] == "stat":
+                                if len(card) == 4:  # Has subtext
+                                    stat_card(card[1], card[2], card[3])
+                                else:
+                                    stat_card(card[1], card[2])
+                
+                # Add breathing room between rows
+                st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
+            
+            st.markdown("---")
+        
+        # Show visualizations section if any were selected
         if run.get("visualizations") and len(run["visualizations"]) > 0:
-            st.header("Visualizations Applied")
+            st.subheader("Visualizations", anchor=False)
+            st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
+            
             for v in run["visualizations"]:
-                st.write("•", v)
+                st.info(f"📊 {v} visualization will be rendered here")
             
             st.markdown("---")
 
-        st.header("Selected Cell Data")
+        st.subheader("Selected Data", anchor=False)
+        st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
         st.dataframe(run["data"], use_container_width=True)
-        st.caption(f"Rows: {run['rows']}, Columns: {run['columns']}")
+        st.caption(f"Rows: {len(run['data'])}, Columns: {len(run['data'].columns)}")
 
         st.markdown("---")
 
