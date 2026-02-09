@@ -1,14 +1,17 @@
 # streamlit_hidden_page = True
 import streamlit as st
 import streamlit.components.v1 as components
+import os
 
 # Debug print
 print("Loading homepage.py") 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Set page configuration
 st.set_page_config(
-    page_title="Statistical Analyzer",
-    layout="wide",
+    page_title="PS Analytics",
+    page_icon=os.path.join(BASE_DIR, "pages/assets", "PStheMainMan.png"),
+    layout="wide"
 )
 
 st.markdown(

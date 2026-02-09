@@ -137,7 +137,8 @@ if "saved_uploaded_file" not in st.session_state:
 
 # Page config
 st.set_page_config(
-    page_title="Statistical Analyzer",
+    page_title="PS Analytics",
+    page_icon=os.path.join(BASE_DIR, "assets", "PStheMainMan.png"),
     layout="wide",
     initial_sidebar_state="expanded"
 )
