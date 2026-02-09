@@ -2082,15 +2082,16 @@ else:
                     selection_mode='multiple',
                     use_checkbox=True,
                     rowMultiSelectWithClick=True,
-                    suppressRowDeselection=False,
+                    suppressRowDeselection=True,
                     header_checkbox=True
                 )
                 gb.configure_grid_options(
                     enableRangeSelection=True,
                     enableRangeHandle=True,
                     enableFillHandle=True,
-                    rowSelection='multiple',
                     suppressRowClickSelection=False,
+                    suppressCellSelection=False,
+                    suppressMultiRangeSelection=False,
                     singleClickEdit=False,
                     stopEditingWhenCellsLoseFocus=True
                 )
@@ -2188,15 +2189,16 @@ else:
                     selection_mode='multiple',
                     use_checkbox=True,
                     rowMultiSelectWithClick=True,
-                    suppressRowDeselection=False,
+                    suppressRowDeselection=True,
                     header_checkbox=True
                 )
                 gb.configure_grid_options(
                     enableRangeSelection=True,
                     enableRangeHandle=True,
                     enableFillHandle=True,
-                    rowSelection='multiple',
-                    suppressRowClickSelection=False,
+                    suppressRowClickSelection=True,
+                    suppressCellSelection=False,
+                    suppressMultiRangeSelection=False,
                     singleClickEdit=False,
                     stopEditingWhenCellsLoseFocus=True
                 )
@@ -2227,7 +2229,7 @@ else:
                     }
                 }
 
-                df_display = table.copy()
+                df_display = df.copy()
                 df_display.insert(0, "Row", range(1, len(df_display) + 1))
                 
                 # Display AG Grid
@@ -2276,7 +2278,8 @@ else:
             edited_table = pd.DataFrame(columns=["Enter your data..."])
             st.info("Upload a CSV file to view it in the interactive grid.")
         
-        # Save the edited table to session state
+        # Save the edited table
+        #  to session state
         if edited_table is not None:
             st.session_state.saved_table = edited_table.copy()
 
@@ -2303,7 +2306,7 @@ else:
             # Save for next interaction
             st.session_state.last_cols_selected = col1
 
-            col2 = st.multiselect("Rows", edited_table.index + 1)
+            col2 = st.multiselect("Rows", list(range(1, len(edited_table) + 1)))
         else:
             col1 = []
             col2 = []
