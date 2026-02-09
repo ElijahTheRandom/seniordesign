@@ -848,10 +848,9 @@ header[data-testid="stHeader"] > div:not(:first-child) {
 div[data-testid="stMainBlockContainer"],
 div[data-testid="stAppViewBlockContainer"],
 section[data-testid="stAppViewContainer"] > div:first-child {
-    padding-top: 0.5rem !important;
-    padding-top: 2.8rem !important;   /* <-- THIS is the key line */
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
+    padding-top: 2.8rem; /* remove !important */
+    padding-left: 1rem;
+    padding-right: 1rem;
 }
 
 /* Remove spacing from vertical blocks */
@@ -916,36 +915,35 @@ div[data-baseweb="select"] > div[aria-expanded="true"] {
     transform: translateY(-1px) scale(1.01);
 }
 
-/* Dropdown menu */
-ul[role="listbox"] {
-    background: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
-    border: 1.5px solid rgba(255,255,255,0.08) !important;
-    border-radius: 10px !important;
-    box-shadow:
-        0 8px 24px rgba(0,0,0,0.5),
-        0 0 20px rgba(228,120,29,0.1) !important;
-    padding: 6px !important;
-}
-
 /* Options */
+/* Option hover */
+li[role="option"]:hover {
+    background: rgba(255,255,255,0.06) !important;   /* neutral hover */
+}/* FORCE all dropdown options to use glossy black unless hovered */
 li[role="option"] {
+    background: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
     padding: 8px 12px !important;
     border-radius: 6px !important;
     color: rgba(255,255,255,0.9) !important;
     transition: all 0.15s ease !important;
 }
 
-/* Option hover */
-li[role="option"]:hover {
-    background: rgba(255,255,255,0.06) !important;   /* neutral hover */
-    transform: translateX(4px);
+/* KILL the orange selected-option background */
+li[role="option"][aria-selected="true"] {
+    background: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
+    border-left: 3px solid #e4781d !important; /* keeps your accent bar */
+}
+            
+/* Remove horizontal scrollbar inside dropdown menus */
+div[data-baseweb="menu"] {
+    overflow-x: hidden !important;
 }
 
-/* Selected option */
-li[role="option"][aria-selected="true"] {
-    background: rgba(228,120,29,0.15) !important;    /* subtle orange */
-    border-left: 3px solid #e4781d !important;
-    font-weight: 500 !important;
+div[data-baseweb="popover"],
+div[data-baseweb="layer"],
+div[data-baseweb="layer"] > div,
+div[data-baseweb="popover"] > div {
+    overflow-x: hidden !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1804,6 +1802,24 @@ footer {
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* Fix button shrink inside columns */
+div[data-testid="column"] button {
+    flex: 1 1 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+/* Fix the column wrapper so it can shrink properly */
+div[data-testid="column"] {
+    min-width: 0 !important;   /* CRITICAL */
+    flex: 1 1 0 !important;    /* allow shrinking */
+    overflow: hidden !important; /* prevents weird compression */
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Function to delete an analysis run
 def delete_run(index):
     st.session_state.analysis_runs.pop(index)
@@ -1903,7 +1919,7 @@ if st.session_state.active_run_id:
             st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
             
             for v in run["visualizations"]:
-                st.info(f"📊 {v} visualization will be rendered here")
+                st.info(f"{v} visualization will be rendered here")
             
             st.markdown("---")
 
@@ -1982,9 +1998,9 @@ else:
                 st.session_state.edited_data_cache = {}
             
             # Make button smaller by using columns
-            col_remove, col_download, col_spacer = st.columns([1, 1, 3])
+            col_remove, col_download, col_spacer = st.columns([1, 1, 2])
             with col_remove:
-                if st.button("Remove file", key="remove_file_btn", use_container_width=True):
+                if st.button("Remove", key="remove_file_btn", use_container_width=True):
                     del st.session_state.uploaded_file
                     st.session_state.has_file = False
                     st.session_state.saved_table = None
@@ -2104,7 +2120,7 @@ else:
                         "--ag-browser-color-scheme": "dark"
                     }
                 }
-                
+
                 # Display AG Grid
                 grid_response = AgGrid(
                     df,
@@ -2210,6 +2226,9 @@ else:
                         "--ag-browser-color-scheme": "dark"
                     }
                 }
+
+                df_display = table.copy()
+                df_display.insert(0, "Row", range(1, len(df_display) + 1))
                 
                 # Display AG Grid
                 grid_response = AgGrid(
@@ -2284,7 +2303,7 @@ else:
             # Save for next interaction
             st.session_state.last_cols_selected = col1
 
-            col2 = st.multiselect("Rows", edited_table.index)
+            col2 = st.multiselect("Rows", edited_table.index + 1)
         else:
             col1 = []
             col2 = []
@@ -2528,6 +2547,21 @@ st.markdown("""
     background-image: none !important;
     border-color: rgba(100, 100, 100, 0.25) !important;
     color: rgba(255, 255, 255, 0.35) !important;
+}
+            
+/* FORCE only the outermost container to scroll */
+html, body, [data-testid="stAppViewContainer"] {
+    overflow-y: auto !important;
+}
+
+/* DISABLE scrolling on all nested Streamlit containers */
+[data-testid="stMain"],
+[data-testid="stMainBlockContainer"],
+[data-testid="stAppViewBlockContainer"],
+.block-container {
+    overflow-y: visible !important;
+    height: auto !important;
+    max-height: none !important;
 }
 </style>
 """, unsafe_allow_html=True)
