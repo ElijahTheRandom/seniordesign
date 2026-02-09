@@ -8,14 +8,19 @@ import os
 import io
 import pprint
 
-print("Loading mainpage.py...")
+# Delete this line
+# You delete it
+print("Boooooooo")
 
 # Set up base directory for assets
 BASE_DIR = os.path.dirname(__file__)
+FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
+if FRONTEND_DIR not in sys.path:
+    sys.path.insert(0, FRONTEND_DIR)
 
 from PIL import Image
 from streamlit_modal import Modal
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+from streamlit_aggrid_range import aggrid_range
 
 # Function to convert image to base64
 def image_to_base64(path):
@@ -230,6 +235,22 @@ st.markdown("""
 /* Kill the link icon that sits inside the modal title */
 div[data-testid="stModal"] h3 > a {
     display: none !important;
+}
+
+/* Ensure modal backdrop covers entire page including sidebar */
+div[data-testid="stModal"] {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 999999 !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Make sure sidebar is below modal */
+section[data-testid="stSidebar"] {
+    z-index: 1 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -2049,104 +2070,93 @@ else:
                     df = pd.read_csv(uploaded_file)
                     st.session_state.edited_data_cache[file_key] = df.copy()
                 
-                # Configure AG Grid options
-                gb = GridOptionsBuilder.from_dataframe(df)
-                gb.configure_default_column(
-                    editable=True,
-                    groupable=False,
-                    resizable=True,
-                    filterable=True,
-                    sortable=True
-                )
-                gb.configure_selection(
-                    selection_mode='multiple',
-                    use_checkbox=True,
-                    rowMultiSelectWithClick=True,
-                    suppressRowDeselection=True,
-                    header_checkbox=True
-                )
-                gb.configure_grid_options(
-                    enableRangeSelection=True,
-                    enableRangeHandle=True,
-                    enableFillHandle=True,
-                    suppressRowClickSelection=False,
-                    suppressCellSelection=False,
-                    suppressMultiRangeSelection=False,
-                    singleClickEdit=False,
-                    stopEditingWhenCellsLoseFocus=True
-                )
-                grid_options = gb.build()
+                # Prepare data for AG Grid Range
+                records = df.to_dict("records")
+                columns = [{"field": c} for c in df.columns]
                 
-                # Define custom CSS for AG Grid - Override params layer
-                custom_css = {
-                    "[class^='ag-theme-params']": {
-                        "--ag-background-color": "#141414",
-                        "--ag-odd-row-background-color": "#141414",
-                        "--ag-header-background-color": "#1f1f1f",
-                        "--ag-foreground-color": "#e5e7eb",
-                        "--ag-secondary-foreground-color": "#9ca3af",
-                        "--ag-border-color": "rgba(255,255,255,0.08)",
-                        "--ag-row-border-color": "rgba(255,255,255,0.05)",
-                        "--ag-accent-color": "#e4781d",
-                        "--ag-inherited-accent-color": "#e4781d",
-                        "--ag-checkbox-checked-border-color": "#e4781d",
-                        "--ag-checkbox-checked-shape-color": "#e4781d",
-                        "--ag-row-hover-color": "rgba(228,120,29,0.12)",
-                        "--ag-selected-row-background-color": "rgba(228,120,29,0.22)",
-                        "--ag-range-selection-border-color": "#e4781d",
-                        "--ag-range-selection-background-color": "rgba(228,120,29,0.25)",
-                        "--ag-cell-editing-border": "1px solid #e4781d",
-                        "--ag-input-focus-border": "1px solid #e4781d",
-                        "--ag-column-hover-color": "rgba(228,120,29,0.08)",
-                        "--ag-browser-color-scheme": "dark"
-                    }
+                # Apply custom styling for AG Grid
+                st.markdown("""
+                <style>
+                /* AG Grid custom theme styling */
+                .ag-theme-streamlit {
+                    --ag-background-color: #141414 !important;
+                    --ag-odd-row-background-color: #141414 !important;
+                    --ag-header-background-color: #1f1f1f !important;
+                    --ag-foreground-color: #e5e7eb !important;
+                    --ag-secondary-foreground-color: #9ca3af !important;
+                    --ag-border-color: rgba(255,255,255,0.08) !important;
+                    --ag-row-border-color: rgba(255,255,255,0.05) !important;
+                    --ag-accent-color: #e4781d !important;
+                    --ag-inherited-accent-color: #e4781d !important;
+                    --ag-checkbox-checked-border-color: #e4781d !important;
+                    --ag-checkbox-checked-shape-color: #e4781d !important;
+                    --ag-row-hover-color: rgba(228,120,29,0.12) !important;
+                    --ag-selected-row-background-color: rgba(228,120,29,0.22) !important;
+                    --ag-range-selection-border-color: #e4781d !important;
+                    --ag-range-selection-background-color: rgba(228,120,29,0.25) !important;
+                    --ag-cell-editing-border: 1px solid #e4781d !important;
+                    --ag-input-focus-border: 1px solid #e4781d !important;
+                    --ag-column-hover-color: rgba(228,120,29,0.08) !important;
+                    --ag-browser-color-scheme: dark !important;
                 }
+                </style>
+                """, unsafe_allow_html=True)
 
-                # Display AG Grid
-                grid_response = AgGrid(
-                    df,
-                    gridOptions=grid_options,
-                    theme="streamlit",
-                    custom_css=custom_css,
-                    height=500,
-                    reload_data=False,
-                    key=f"aggrid_{file_key}",
-                    data_return_mode='AS_INPUT'
-                )
+                # Display AG Grid with range selection
+                selection = aggrid_range(records, columns, key=f"grid_{file_key}")
                 
-                # Get the edited data from grid response
-                edited_data = grid_response['data'] if grid_response and 'data' in grid_response else df
-                edited_table = pd.DataFrame(edited_data)
-                
-                # Cache the edited data for this file (without index modification)
+                # Cache the current data
+                edited_table = df.copy()
                 st.session_state.edited_data_cache[file_key] = edited_table.copy()
                 
-                # Show edit info
+                # Show grid info
                 st.markdown("")  # Add spacing
-                st.caption("**Tip:** Double-click cells to edit. Check boxes to select rows. Click column headers to sort/filter.")
+                st.caption("**Tip:** Click and drag to select a range of cells.")
                 
                 # Display selection output
-                selected_rows = grid_response.get('selected_rows', []) if grid_response else []
-                if selected_rows is not None and len(selected_rows) > 0:
+                if selection:
+                    print("\n--- Selected Ranges ---")
+                    pprint.pprint(selection)
+                    print("-----------------------")
+                    
                     st.markdown("---")
                     st.markdown("**Selection Output**")
                     
-                    selected_df = pd.DataFrame(selected_rows)
+                    with st.expander("Selected Ranges Metadata", expanded=False):
+                        st.json(selection)
                     
-                    print("\n--- Selected Rows ---")
-                    pprint.pprint(selected_rows)
-                    print("-----------------------")
-                    
-                    with st.expander("Selected Rows Metadata", expanded=False):
-                        # Convert to JSON-serializable format
-                        import json
-                        serializable_data = json.loads(selected_df.to_json(orient='records'))
-                        st.json(serializable_data)
-                    
-                    st.markdown("**Selected Data:**")
-                    st.dataframe(selected_df, use_container_width=True)
+                    # Process and display the selected data
+                    for idx, rng in enumerate(selection):
+                        st.write(f"**Range {idx + 1} Selection:**")
+                        
+                        # Extract indices and columns
+                        start_row = rng.get("startRow")
+                        end_row = rng.get("endRow")
+                        selected_cols = rng.get("columns", [])
+                        
+                        if start_row is not None and end_row is not None and selected_cols:
+                            # Ensure indices are integers
+                            start = int(start_row)
+                            end = int(end_row)
+                            
+                            # Validate columns exist in current dataframe
+                            valid_cols = [c for c in selected_cols if c in df.columns]
+                            
+                            if valid_cols:
+                                # Slice rows (end is inclusive in AG Grid)
+                                subset = df.iloc[start : end + 1][valid_cols]
+                                
+                                print(f"\n--- Range {idx + 1} Data ---")
+                                print(subset.to_markdown(index=False, tablefmt="grid"))
+                                print("----------------------")
+                                
+                                st.dataframe(subset, use_container_width=True)
+                            else:
+                                st.warning("Selected columns not found in current data.")
+                        else:
+                            st.warning("Invalid selection data received.")
                 else:
-                    st.info("Select cells/rows in the grid to see details here.")
+                    st.info("Select a range of cells in the grid to see details here.")
                 
             except Exception as e:
                 st.error(f"Error processing file: {e}")
@@ -2156,100 +2166,92 @@ else:
             try:
                 df = st.session_state.saved_table.copy()
                 
-                # Configure AG Grid options
-                gb = GridOptionsBuilder.from_dataframe(df)
-                gb.configure_default_column(
-                    editable=True,
-                    groupable=False,
-                    resizable=True,
-                    filterable=True,
-                    sortable=True
-                )
-                gb.configure_selection(
-                    selection_mode='multiple',
-                    use_checkbox=True,
-                    rowMultiSelectWithClick=True,
-                    suppressRowDeselection=True,
-                    header_checkbox=True
-                )
-                gb.configure_grid_options(
-                    enableRangeSelection=True,
-                    enableRangeHandle=True,
-                    enableFillHandle=True,
-                    suppressRowClickSelection=True,
-                    suppressCellSelection=False,
-                    suppressMultiRangeSelection=False,
-                    singleClickEdit=False,
-                    stopEditingWhenCellsLoseFocus=True
-                )
-                grid_options = gb.build()
+                # Prepare data for AG Grid Range
+                records = df.to_dict("records")
+                columns = [{"field": c} for c in df.columns]
                 
-                # Define custom CSS for AG Grid - Override params layer
-                custom_css = {
-                    "[class^='ag-theme-params']": {
-                        "--ag-background-color": "#141414",
-                        "--ag-odd-row-background-color": "#141414",
-                        "--ag-header-background-color": "#1f1f1f",
-                        "--ag-foreground-color": "#e5e7eb",
-                        "--ag-secondary-foreground-color": "#9ca3af",
-                        "--ag-border-color": "rgba(255,255,255,0.08)",
-                        "--ag-row-border-color": "rgba(255,255,255,0.05)",
-                        "--ag-accent-color": "#e4781d",
-                        "--ag-inherited-accent-color": "#e4781d",
-                        "--ag-checkbox-checked-border-color": "#e4781d",
-                        "--ag-checkbox-checked-shape-color": "#e4781d",
-                        "--ag-row-hover-color": "rgba(228,120,29,0.12)",
-                        "--ag-selected-row-background-color": "rgba(228,120,29,0.22)",
-                        "--ag-range-selection-border-color": "#e4781d",
-                        "--ag-range-selection-background-color": "rgba(228,120,29,0.25)",
-                        "--ag-cell-editing-border": "1px solid #e4781d",
-                        "--ag-input-focus-border": "1px solid #e4781d",
-                        "--ag-column-hover-color": "rgba(228,120,29,0.08)",
-                        "--ag-browser-color-scheme": "dark"
-                    }
+                # Apply custom styling for AG Grid
+                st.markdown("""
+                <style>
+                /* AG Grid custom theme styling */
+                .ag-theme-streamlit {
+                    --ag-background-color: #141414 !important;
+                    --ag-odd-row-background-color: #141414 !important;
+                    --ag-header-background-color: #1f1f1f !important;
+                    --ag-foreground-color: #e5e7eb !important;
+                    --ag-secondary-foreground-color: #9ca3af !important;
+                    --ag-border-color: rgba(255,255,255,0.08) !important;
+                    --ag-row-border-color: rgba(255,255,255,0.05) !important;
+                    --ag-accent-color: #e4781d !important;
+                    --ag-inherited-accent-color: #e4781d !important;
+                    --ag-checkbox-checked-border-color: #e4781d !important;
+                    --ag-checkbox-checked-shape-color: #e4781d !important;
+                    --ag-row-hover-color: rgba(228,120,29,0.12) !important;
+                    --ag-selected-row-background-color: rgba(228,120,29,0.22) !important;
+                    --ag-range-selection-border-color: #e4781d !important;
+                    --ag-range-selection-background-color: rgba(228,120,29,0.25) !important;
+                    --ag-cell-editing-border: 1px solid #e4781d !important;
+                    --ag-input-focus-border: 1px solid #e4781d !important;
+                    --ag-column-hover-color: rgba(228,120,29,0.08) !important;
+                    --ag-browser-color-scheme: dark !important;
                 }
+                </style>
+                """, unsafe_allow_html=True)
 
-                df_display = df.copy()
-                df_display.insert(0, "Row", range(1, len(df_display) + 1))
+                # Display AG Grid with range selection
+                selection = aggrid_range(records, columns, key="grid_cached")
                 
-                # Display AG Grid
-                grid_response = AgGrid(
-                    df,
-                    gridOptions=grid_options,
-                    theme="streamlit",
-                    custom_css=custom_css,
-                    height=500,
-                    reload_data=False,
-                    key="aggrid_cached",
-                    data_return_mode='AS_INPUT'
-                )
+                # Cache the current data
+                edited_table = df.copy()
                 
-                # Get the edited data from grid response
-                edited_data = grid_response['data'] if grid_response and 'data' in grid_response else df
-                edited_table = pd.DataFrame(edited_data)
-                
-                # Show edit info
+                # Show grid info
                 st.markdown("")  # Add spacing
-                st.caption("**Tip:** Double-click cells to edit. Check boxes to select rows. Click column headers to sort/filter.")
+                st.caption("**Tip:** Click and drag to select a range of cells.")
                 
                 # Display selection output
-                selected_rows = grid_response.get('selected_rows', []) if grid_response else []
-                if selected_rows is not None and len(selected_rows) > 0:
+                if selection:
+                    print("\n--- Selected Ranges ---")
+                    pprint.pprint(selection)
+                    print("-----------------------")
+                    
                     st.markdown("---")
                     st.markdown("**Selection Output**")
                     
-                    selected_df = pd.DataFrame(selected_rows)
+                    with st.expander("Selected Ranges Metadata", expanded=False):
+                        st.json(selection)
                     
-                    with st.expander("Selected Rows Metadata", expanded=False):
-                        # Convert to JSON-serializable format
-                        import json
-                        serializable_data = json.loads(selected_df.to_json(orient='records'))
-                        st.json(serializable_data)
-                    
-                    st.markdown("**Selected Data:**")
-                    st.dataframe(selected_df, use_container_width=True)
+                    # Process and display the selected data
+                    for idx, rng in enumerate(selection):
+                        st.write(f"**Range {idx + 1} Selection:**")
+                        
+                        # Extract indices and columns
+                        start_row = rng.get("startRow")
+                        end_row = rng.get("endRow")
+                        selected_cols = rng.get("columns", [])
+                        
+                        if start_row is not None and end_row is not None and selected_cols:
+                            # Ensure indices are integers
+                            start = int(start_row)
+                            end = int(end_row)
+                            
+                            # Validate columns exist in current dataframe
+                            valid_cols = [c for c in selected_cols if c in df.columns]
+                            
+                            if valid_cols:
+                                # Slice rows (end is inclusive in AG Grid)
+                                subset = df.iloc[start : end + 1][valid_cols]
+                                
+                                print(f"\n--- Range {idx + 1} Data ---")
+                                print(subset.to_markdown(index=False, tablefmt="grid"))
+                                print("----------------------")
+                                
+                                st.dataframe(subset, use_container_width=True)
+                            else:
+                                st.warning("Selected columns not found in current data.")
+                        else:
+                            st.warning("Invalid selection data received.")
                 else:
-                    st.info("Select cells/rows in the grid to see details here.")
+                    st.info("Select a range of cells in the grid to see details here.")
                     
             except Exception as e:
                 st.error(f"Error displaying cached table: {e}")
