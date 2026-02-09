@@ -8,6 +8,9 @@ import os
 import io
 import pprint
 
+# Delete this line
+
+# Set up base directory for assets
 BASE_DIR = os.path.dirname(__file__)
 
 from PIL import Image
