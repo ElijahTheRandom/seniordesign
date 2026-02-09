@@ -8,9 +8,7 @@ import os
 import io
 import pprint
 
-# Delete this line
-# You delete it
-print("Boooooooo")
+print("Loading mainpage.py...")
 
 # Set up base directory for assets
 BASE_DIR = os.path.dirname(__file__)
@@ -52,10 +50,9 @@ def df_to_ascii_table(df):
     # Build separator under header
     mid = "+"
     for col in df_str.columns:
-        mid += "-" * (col_widths[col] + 2) + "+"
+        mid += "=" * (col_widths[col] + 2) + "+"
     mid += "\n"
 
-    # Build data rows
     # Build data rows
     rows = ""
     for _, row in df_str.iterrows():
@@ -1701,16 +1698,6 @@ st.markdown("""
 </style>
 
 <style>
-/* Remove Streamlit’s internal scroll wrapper */
-section[data-testid="stAppViewContainer"] > div:nth-child(1) {
-    overflow-y: auto !important;
-}
-
-/* Ensure the main content scrolls as ONE unit */
-section[data-testid="stMain"] {
-    overflow-y: auto !important;
-}
-
 /* Prevent nested scrollbars inside block-container */
 .block-container {
     overflow: visible !important;
@@ -1795,26 +1782,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Hiding the streamlit default top right corner buttons
-st.markdown("""
-<style>
-/* Hide the top-right hamburger menu (three dots) */
-#MainMenu { 
-    visibility: hidden !important; 
-}
-
-/* Hide the "Deploy" button if running on Streamlit Cloud */
-footer > div:has(span:contains("Deploy")) {
-    display: none !important;
-}
-
-/* Optional: hide the footer entirely */
-footer {
-    visibility: hidden !important;
-    height: 0px !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
 st.markdown("""
 <style>
 /* Fix button shrink inside columns */
@@ -2564,20 +2531,37 @@ st.markdown("""
     border-color: rgba(100, 100, 100, 0.25) !important;
     color: rgba(255, 255, 255, 0.35) !important;
 }
-            
-/* FORCE only the outermost container to scroll */
-html, body, [data-testid="stAppViewContainer"] {
-    overflow-y: auto !important;
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+/* This is the culprit wrapper */
+section[data-testid="stAppViewContainer"] > div:first-child {
+    overflow-y: hidden !important;
+    height: auto !important;
 }
 
-/* DISABLE scrolling on all nested Streamlit containers */
-[data-testid="stMain"],
-[data-testid="stMainBlockContainer"],
-[data-testid="stAppViewBlockContainer"],
-.block-container {
-    overflow-y: visible !important;
-    height: auto !important;
-    max-height: none !important;
+/* ALSO kill scrolling on its direct child */
+section[data-testid="stAppViewContainer"] > div:first-child > div {
+    overflow-y: hidden !important;
+}
+
+/* Keep ONE outer scrollbar for the whole app */
+html, body, section[data-testid="stAppViewContainer] {
+    overflow-y: auto !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+/* Hide the BROWSER scrollbar but still allow scrolling */
+html {
+  scrollbar-width: none;       /* Firefox */
+}
+html::-webkit-scrollbar {
+  display: none;               /* Chrome/Safari/Edge */
 }
 </style>
 """, unsafe_allow_html=True)
