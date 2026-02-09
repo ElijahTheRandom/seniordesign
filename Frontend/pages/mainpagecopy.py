@@ -143,6 +143,7 @@ st.set_page_config(
 )
 
 with st.sidebar:
+    st.markdown("<hr class='sidebar-top-divider'>", unsafe_allow_html=True)
     st.header("Navigation")
 
     # --- Home button ---
@@ -328,6 +329,12 @@ div[data-testid="stAlert"] > div {
     padding: 0 !important;
     margin: 0 !important;
     border: none !important;
+}
+
+/* Pull the custom sidebar <hr> upward to match main-page lines */
+.sidebar-top-divider {
+    margin-top: 0rem !important;   /* was -0.8rem */
+    margin-bottom: 1.2rem !important;
 }
 
 /* Add subtle texture overlay for depth */
