@@ -1825,53 +1825,54 @@ if st.session_state.active_run_id:
 
         # Build analysis cards dynamically
         analysis_cards = []
-        
+
+        #-----------------------------------------------------------------------------------------------------------------------------------------------
         # Add stat cards for methods
         for method in run["methods"]:
             if method == "Mean":
                 # Calculate mean for each column
                 for col in run["data"].select_dtypes(include=['number']).columns:
                     mean_val = run["data"][col].mean()
-                    analysis_cards.append(("stat", f"Mean", f"{mean_val:.2f}"))
+                    analysis_cards.append(("stat", f"<b>Mean</b>", f"{mean_val:.2f}"))
             elif method == "Median":
                 for col in run["data"].select_dtypes(include=['number']).columns:
                     median_val = run["data"][col].median()
-                    analysis_cards.append(("stat", f"Median", f"{median_val:.2f}"))
+                    analysis_cards.append(("stat", f"<b>Median</b>", f"{median_val:.2f}"))
             elif method == "Mode":
                 for col in run["data"].select_dtypes(include=['number']).columns:
                     mode_val = run["data"][col].mode()
                     mode_display = f"{mode_val.iloc[0]:.2f}" if len(mode_val) > 0 else "N/A"
-                    analysis_cards.append(("stat", f"Mode", mode_display))
+                    analysis_cards.append(("stat", f"<b>Mode</b>", mode_display))
             elif method == "Variance":
                 for col in run["data"].select_dtypes(include=['number']).columns:
                     var_val = run["data"][col].var()
-                    analysis_cards.append(("stat", f"Variance", f"{var_val:.2f}"))
+                    analysis_cards.append(("stat", f"<b>Variance</b>", f"{var_val:.2f}"))
             elif method == "Standard Deviation":
                 for col in run["data"].select_dtypes(include=['number']).columns:
                     std_val = run["data"][col].std()
-                    analysis_cards.append(("stat", f"Std Dev", f"{std_val:.2f}"))
+                    analysis_cards.append(("stat", f"<b>Std Dev</b>", f"{std_val:.2f}"))
             elif method == "Percentiles":
                 for col in run["data"].select_dtypes(include=['number']).columns:
                     p25 = run["data"][col].quantile(0.25)
                     p50 = run["data"][col].quantile(0.50)
                     p75 = run["data"][col].quantile(0.75)
-                    analysis_cards.append(("stat", f"Percentiles", f"{p25:.1f} / {p50:.1f} / {p75:.1f}", "25th / 50th / 75th"))
+                    analysis_cards.append(("stat", f"<b>Percentiles</b>", f"{p25:.1f} / {p50:.1f} / {p75:.1f}", "25th / 50th / 75th"))
             elif method == "Variation":
                 for col in run["data"].select_dtypes(include=['number']).columns:
                     mean_val = run["data"][col].mean()
                     std_val = run["data"][col].std()
                     cv = (std_val / mean_val * 100) if mean_val != 0 else 0
-                    analysis_cards.append(("stat", f"Coeff. of Variation", f"{cv:.2f}%"))
+                    analysis_cards.append(("stat", f"<b>Coeff. of Variation</b>", f"{cv:.2f}%"))
             elif method == "Chi-Square":
-                analysis_cards.append(("stat", "Chi-Square", "12.24", "p-value: 0.032"))
+                analysis_cards.append(("stat", "<b>Chi-Square</b>", "12.24", "p-value: 0.032"))
             elif method == "Pearson":
-                analysis_cards.append(("stat", "Pearson's r", "0.87", "Strong positive"))
+                analysis_cards.append(("stat", "<b>Pearson's Corr.</b>", "0.87", "Strong positive"))
             elif method == "Spearman":
-                analysis_cards.append(("stat", "Spearman's ρ", "0.82", "Strong correlation"))
+                analysis_cards.append(("stat", "<b>Spearman's Rank</b>", "0.82", "Strong correlation"))
             elif method == "Regression":
-                analysis_cards.append(("stat", "Regression R²", "0.76", "Good fit"))
+                analysis_cards.append(("stat", "<b>Regression</b>", "0.76", "Good fit"))
             elif method == "Binomial":
-                analysis_cards.append(("stat", "Binomial Prob", "0.68", "n=10, p=0.5"))
+                analysis_cards.append(("stat", "<b>Binomial Prob</b>", "0.68", "n=10, p=0.5"))
         
         # Render stat cards in Pinterest-style grid
         if analysis_cards:
