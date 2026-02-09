@@ -9,6 +9,8 @@ import io
 import pprint
 
 # Delete this line
+# You delete it
+print("Boooooooo")
 
 # Set up base directory for assets
 BASE_DIR = os.path.dirname(__file__)
