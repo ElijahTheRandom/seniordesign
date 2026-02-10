@@ -135,12 +135,12 @@ const AgGridRange = (props) => {
     // Container style - ensure it has height for grid to render if not autoHeight
     // Using autoHeight often requires DOM layout adjustment, but let's try fixed constraint or full width 
     // with autoHeight for Streamlit smooth embedding.
-    const containerStyle = useMemo(() => ({ width: "100%", height: "100vh" }), []); // Using 100vh to fill iframe usually
+    const containerStyle = useMemo(() => ({ width: "100%", height: "70vh" }), []);
 
     // If we want dynamic height, we can use domLayout='autoHeight' and call setFrameHeight repeatedly.
 
     return (
-        <div className="ag-theme-alpine" style={{ height: 400, width: "100%" }}> {/* Setting explicit height for simplicity first */}
+        <div className="ag-theme-alpine" style={containerStyle}>
             <AgGridReact
                 rowData={rowData}
                 columnDefs={displayColumnDefs}
