@@ -4,7 +4,7 @@ import streamlit.components.v1 as components
 import os
 
 # Debug print
-print("Loading homepage.py") 
+print("Loading homepage.py...") 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Set page configuration
