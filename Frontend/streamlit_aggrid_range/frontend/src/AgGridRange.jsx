@@ -18,6 +18,10 @@ const AgGridRange = (props) => {
     // State for grid api to access later
     const [gridApi, setGridApi] = useState(null)
     const [selectedColId, setSelectedColId] = useState(null)
+    const [containerHeight, setContainerHeight] = useState(() => {
+        if (typeof window === "undefined") return 600
+        return Math.max(500, Math.min(800, Math.round(window.innerHeight * 0.6)))
+    })
 
     // Dynamic column definitions to apply header styling
     const displayColumnDefs = useMemo(() => {
@@ -29,8 +33,18 @@ const AgGridRange = (props) => {
 
     // Auto-resize height on mount and updates
     useEffect(() => {
-        Streamlit.setFrameHeight()
-    })
+        Streamlit.setFrameHeight(containerHeight + 20)
+    }, [containerHeight])
+
+    useEffect(() => {
+        const handleResize = () => {
+            const nextHeight = Math.max(500, Math.min(800, Math.round(window.innerHeight * 0.6)))
+            setContainerHeight(nextHeight)
+        }
+
+        window.addEventListener("resize", handleResize)
+        return () => window.removeEventListener("resize", handleResize)
+    }, [])
 
     const onGridReady = (params) => {
         setGridApi(params.api)
@@ -135,7 +149,7 @@ const AgGridRange = (props) => {
     // Container style - ensure it has height for grid to render if not autoHeight
     // Using autoHeight often requires DOM layout adjustment, but let's try fixed constraint or full width 
     // with autoHeight for Streamlit smooth embedding.
-    const containerStyle = useMemo(() => ({ width: "100%", height: "70vh" }), []);
+    const containerStyle = useMemo(() => ({ width: "100%", height: `${containerHeight}px` }), [containerHeight]);
 
     // If we want dynamic height, we can use domLayout='autoHeight' and call setFrameHeight repeatedly.
 
