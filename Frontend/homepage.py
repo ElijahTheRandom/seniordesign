@@ -191,10 +191,15 @@ iframe {
 st.markdown( 
     """ 
     <style> 
+    :root {
+      --cta-right: clamp(80px, 35vw, 490px);
+      --cta-bottom: clamp(140px, 22vh, 260px);
+    }
     /* FORCE move Streamlit button */ 
     div[data-testid="stButton"] { 
       position: fixed !important; 
-      right: 505px; bottom: 140px; 
+      right: var(--cta-right);
+      bottom: var(--cta-bottom);
       width: 200px; 
       height: 100px; z-index: 9999; 
     } 
@@ -279,8 +284,8 @@ st.markdown(
 /* Streamlit button container */
 div[data-testid="stButton"] {
     position: fixed !important;
-    right: 495px;
-    bottom: 150px;
+  right: var(--cta-right);
+  bottom: var(--cta-bottom);
     width: 200px;
     height: 100px;
     z-index: 9999;
