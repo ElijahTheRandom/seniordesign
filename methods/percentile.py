@@ -4,7 +4,7 @@ import numpy as np
 class Percentile:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
-        self.stat_id = "method_name"
+        self.stat_id = "percentile"
         self.data = data
         self.metadata = metadata
         self.params = params or {}
