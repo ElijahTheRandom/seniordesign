@@ -1,32 +1,32 @@
+FROM node:22.13.1-slim AS aggrid_build
+
+WORKDIR /app
+
+# 1. Build the AG Grid React component
+COPY Frontend/streamlit_aggrid_range/frontend/package.json Frontend/streamlit_aggrid_range/frontend/package-lock.json ./frontend/
+RUN cd frontend \
+    && npm install
+COPY Frontend/streamlit_aggrid_range/frontend ./frontend
+RUN cd frontend \
+    && npm run build
+
+# 2. Verify the build output exists (fail fast if missing)
+RUN test -f /app/frontend/build/index.html \
+    || (echo "ERROR: React build output missing!" && exit 1)
+
 FROM python:3.14-slim
 
 WORKDIR /app
 
-# 1. Install Node 22 (pinned) — must come before npm build
-RUN apt-get update \
-	&& apt-get install -y --no-install-recommends curl ca-certificates xz-utils \
-	&& curl -fsSL https://nodejs.org/dist/v22.13.1/node-v22.13.1-linux-x64.tar.xz \
-	   -o /tmp/node.tar.xz \
-	&& tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
-	&& rm /tmp/node.tar.xz \
-	&& apt-get purge -y --auto-remove curl xz-utils \
-	&& rm -rf /var/lib/apt/lists/*
-
-# 2. Python deps
+# 3. Python deps
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 3. Copy source
+# 4. Copy source
 COPY . .
 
-# 4. Build the AG Grid React component
-RUN cd Frontend/streamlit_aggrid_range/frontend \
-	&& npm install \
-	&& npm run build
-
-# 5. Verify the build output exists (fail fast if missing)
-RUN test -f Frontend/streamlit_aggrid_range/frontend/build/index.html \
-	|| (echo "ERROR: React build output missing!" && exit 1)
+# 5. Copy built React output from temp container
+COPY --from=aggrid_build /app/frontend/build ./Frontend/streamlit_aggrid_range/frontend/build
 
 EXPOSE 8501
 
