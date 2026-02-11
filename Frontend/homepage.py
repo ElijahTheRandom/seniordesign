@@ -274,15 +274,18 @@ st.markdown(
 
 div[data-testid="stButton"] {
   position: fixed !important;
-  right: 480px;      /* ← pulls it left from the edge */
+
+  /* RESPONSIVE POSITION */
+  right: 31vw;        /* moves with screen size */
   top: 65%;
-  width: 220px !important;   /* FORCE real width */
+
+  width: 220px !important;
   max-width: 220px !important;
   min-width: 220px !important;
   z-index: 9999;
 }
 
-/* Stop Streamlit from auto-stretching it */
+/* Keep Streamlit from stretching it */
 div[data-testid="stButton"] > div {
   width: 220px !important;
 }
