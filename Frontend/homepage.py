@@ -192,17 +192,8 @@ st.markdown(
     """ 
     <style> 
     :root {
-      --cta-right: clamp(80px, 35vw, 490px);
-      --cta-bottom: clamp(140px, 22vh, 260px);
+      --cta-width: 200px;
     }
-    /* FORCE move Streamlit button */ 
-    div[data-testid="stButton"] { 
-      position: fixed !important; 
-      right: var(--cta-right);
-      bottom: var(--cta-bottom);
-      width: 200px; 
-      height: 100px; z-index: 9999; 
-    } 
     </style> 
     """, 
     unsafe_allow_html=True 
@@ -281,19 +272,25 @@ st.markdown(
     }
 }
 
-/* Streamlit button container */
 div[data-testid="stButton"] {
-    position: fixed !important;
-  right: var(--cta-right);
-  bottom: var(--cta-bottom);
-    width: 200px;
-    height: 100px;
-    z-index: 9999;
+  position: fixed !important;
+  right: 480px;      /* ← pulls it left from the edge */
+  top: 65%;
+  width: 220px !important;   /* FORCE real width */
+  max-width: 220px !important;
+  min-width: 220px !important;
+  z-index: 9999;
+}
 
-    /* FADE IN */
-    opacity: 0;
-    animation: buttonFadeIn 1s ease-out forwards;
-    animation-delay: 1.2s; /* match your layout fade */
+/* Stop Streamlit from auto-stretching it */
+div[data-testid="stButton"] > div {
+  width: 220px !important;
+}
+
+div[data-testid="stButton"] {
+  opacity: 0;
+  animation: buttonFadeIn 1s ease-out forwards;
+  animation-delay: 1.2s;
 }
 </style>
 """,
