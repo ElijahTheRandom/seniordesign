@@ -396,6 +396,8 @@ body {
 
 /* FLOATING PANELS */
 .panel {
+  opacity: 0.25;
+  will-change: opacity, transform;
   position: absolute;
   background: rgba(20, 20, 20, 0.55) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
@@ -413,30 +415,17 @@ body {
     0 0 24px rgba(228,120,29,0.15), 
     inset 0 0 4px rgba(255,255,255,0.08) !important;
   padding: 16px;
-  opacity: 1 !important;
 
   height: 180px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   gap: 8px;
-
-  animation:
-    idleFloat 6s ease-in-out infinite,
-    spotlight 12s ease-in-out infinite;
 }
 
 body {
   animation: none;
 }
-
-/* Spotlight order */
-.chart-panel  { animation-delay: -1s, 0s; }
-.line-panel   { animation-delay: -3s, 2s; }
-.donut-panel  { animation-delay: -5s, 4s; }
-.spark-panel  { animation-delay: -7s, 6s; }
-.table-panel  { animation-delay: -9s, 8s; }
-.trend-panel  { animation-delay: -11s,10s; }
 
 .chart-body {
   flex: 1;
@@ -449,12 +438,6 @@ body {
   0%   { transform: translateY(-10px); }
   50%  { transform: translateY(-20px); }
   100% { transform: translateY(-10px); }
-}
-
-@keyframes dividerPulse {
-    0% { box-shadow: 0 0 12px rgba(228,120,29,0.25); }
-    50% { box-shadow: 0 0 20px rgba(228,120,29,0.45); }
-    100% { box-shadow: 0 0 12px rgba(228,120,29,0.25); }
 }
 
 @keyframes spotlight {
@@ -485,7 +468,6 @@ body {
         rgba(228,120,29,0) 100%
     );
     border-radius: 2px;
-    animation: dividerPulse 4s ease-in-out infinite;
     box-shadow:
         0 0 12px rgba(228,120,29,0.35),
         0 0 24px rgba(228,120,29,0.15),
@@ -548,6 +530,42 @@ body {
 .donut-panel { top:35%; left:5%; width:40%; }
 .spark-panel { top:35%; left:50%; width:40%; }
 .trend-panel { top:65%; left:50%; width:40%; }
+
+.chart-panel {
+  animation:
+    idleFloat 6s ease-in-out infinite -1s,
+    spotlight 12s ease-in-out infinite 0s;
+}
+
+.line-panel {
+  animation:
+    idleFloat 6s ease-in-out infinite -3s,
+    spotlight 12s ease-in-out infinite 2s;
+}
+
+.donut-panel {
+  animation:
+    idleFloat 6s ease-in-out infinite -5s,
+    spotlight 12s ease-in-out infinite 4s;
+}
+
+.spark-panel {
+  animation:
+    idleFloat 6s ease-in-out infinite -7s,
+    spotlight 12s ease-in-out infinite 6s;
+}
+
+.table-panel {
+  animation:
+    idleFloat 6s ease-in-out infinite -9s,
+    spotlight 12s ease-in-out infinite 8s;
+}
+
+.trend-panel {
+  animation:
+    idleFloat 6s ease-in-out infinite -11s,
+    spotlight 12s ease-in-out infinite 10s;
+}
 
 .table {
   width:100%;
@@ -824,6 +842,17 @@ div[data-testid="stVerticalBlock"] {
 /* Iframes must never scroll */
 iframe {
     overflow: hidden !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+/* NUCLEAR OVERRIDE – this will beat Streamlit */
+div[data-testid="stButton"] button span,
+div[data-testid="stButton"] button div span,
+div[data-testid="stButton"] button * {
+    font-weight: 600 !important;
 }
 </style>
 """, unsafe_allow_html=True)
