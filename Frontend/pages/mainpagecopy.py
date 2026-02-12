@@ -74,6 +74,58 @@ def df_to_ascii_table(df):
     return top + header + mid + rows
 
 
+def normalize_grid_selection(selection, df):
+    if not selection:
+        return None
+
+    selected_cols = set()
+    selected_rows = set()
+    col_order = list(df.columns)
+
+    for rng in selection:
+        start_row = rng.get("startRow")
+        end_row = rng.get("endRow")
+        cols = rng.get("columns") or []
+
+        if start_row is None or end_row is None or not cols:
+            continue
+
+        try:
+            start = int(start_row)
+            end = int(end_row)
+        except (TypeError, ValueError):
+            continue
+
+        for col in cols:
+            if col in df.columns:
+                selected_cols.add(col)
+
+        for row_idx in range(start, end + 1):
+            selected_rows.add(row_idx + 1)
+
+    if not selected_cols and not selected_rows:
+        return None
+
+    return {
+        "columns": sorted(selected_cols, key=lambda c: col_order.index(c)),
+        "rows": sorted(selected_rows),
+    }
+
+
+def apply_grid_selection_to_filters(selection, df):
+    normalized = normalize_grid_selection(selection, df)
+    if not normalized:
+        return
+
+    signature = (tuple(normalized["columns"]), tuple(normalized["rows"]))
+    if st.session_state.get("last_grid_selection") == signature:
+        return
+
+    st.session_state["selected_columns"] = normalized["columns"]
+    st.session_state["selected_rows"] = normalized["rows"]
+    st.session_state["last_grid_selection"] = signature
+
+
 def render_modal_content(img_path, message):
     col1, col2, col3 = st.columns([1, 2, 1])
 
@@ -139,6 +191,15 @@ if "saved_table" not in st.session_state:
 
 if "saved_uploaded_file" not in st.session_state:
     st.session_state.saved_uploaded_file = None
+
+if "selected_columns" not in st.session_state:
+    st.session_state.selected_columns = []
+
+if "selected_rows" not in st.session_state:
+    st.session_state.selected_rows = []
+
+if "last_grid_selection" not in st.session_state:
+    st.session_state.last_grid_selection = None
 
 
 # Page config
@@ -431,31 +492,6 @@ section[data-testid="stSidebar"] {
     background: rgba(228, 120, 29, 0.7);
 }
 
-/* Enhanced Data Editor - Modern Glossy Black */
-div[data-testid="stDataEditor"] {
-    border-radius: 12px !important;
-    overflow: hidden !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5),
-                0 8px 32px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    background: linear-gradient(145deg, rgba(22, 22, 22, 0.4), rgba(12, 12, 12, 0.3)) !important;
-    backdrop-filter: blur(10px) !important;
-}
-
-div[data-testid="stDataEditor"] table tbody tr:nth-child(even) {
-    background-color: rgba(255, 255, 255, 0.03) !important;
-}
-
-div[data-testid="stDataEditor"] table tbody tr:nth-child(odd) {
-    background-color: rgba(0, 0, 0, 0.15) !important;
-}
-
-div[data-testid="stDataEditor"] thead {
-    background: linear-gradient(135deg, rgba(228, 120, 29, 0.15), rgba(228, 120, 29, 0.08)) !important;
-    font-weight: 600 !important;
-    box-shadow: 0 2px 8px rgba(228, 120, 29, 0.1) !important;
-}
 
 /* Modern Typography - Enhanced */
 h1, h2, h3, h4 {
@@ -683,14 +719,6 @@ div[data-testid="stCheckbox"] input:checked + div:first-child {
     }
 }
 
-/* Data editor hover effect */
-div[data-testid="stDataEditor"] tbody tr {
-    transition: background-color 0.2s ease !important;
-}
-
-div[data-testid="stDataEditor"] tbody tr:hover {
-    background-color: rgba(228, 120, 29, 0.05) !important;
-}
 
 /* Fade in animation - only for specific elements */
 @keyframes fadeIn {
@@ -729,10 +757,6 @@ div[data-testid="stModal"] * {
     animation: fadeInModal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
-/* Apply fade in to main data editor container (not individual rows) */
-div[data-testid="stDataEditor"] {
-    animation: fadeIn 0.5s ease-out !important;
-}
 
 /* Apply fade in to entire main content block when switching between homepage and runs */
 .main .block-container {
@@ -1252,7 +1276,7 @@ div[data-testid="stMultiSelect"] span[data-baseweb="tag"] button:hover svg path 
 </style>
 """, unsafe_allow_html=True)
 
-# Data editor checkbox styling
+# Checkbox styling
 st.markdown("""
 <style>
 /* Checkbox box (unchecked) */
@@ -1281,14 +1305,6 @@ label[data-baseweb="checkbox"]:hover span {
 label[data-baseweb="checkbox"] input:focus-visible + span {
     outline: none !important;
     box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.55) !important;
-}
-
-div[data-testid="stDataEditor"] label[data-baseweb="checkbox"] span {
-    border-color: #e4781d !important;
-}
-
-div[data-testid="stDataEditor"] label[data-baseweb="checkbox"] svg {
-    stroke: #e4781d !important;
 }
 
 /* Disabled checkbox styling - gray out */
@@ -2005,6 +2021,9 @@ else:
                     st.session_state.has_file = False
                     st.session_state.saved_table = None
                     st.session_state.edited_data_cache = {}
+                    st.session_state.selected_columns = []
+                    st.session_state.selected_rows = []
+                    st.session_state.last_grid_selection = None
                     st.session_state.checkbox_key_onecol += 1
                     st.session_state.checkbox_key_twocol += 1
                     st.rerun()
@@ -2047,6 +2066,9 @@ else:
             st.session_state.has_file = False
             st.session_state.saved_table = None
             st.session_state.edited_data_cache = {}
+            st.session_state.selected_columns = []
+            st.session_state.selected_rows = []
+            st.session_state.last_grid_selection = None
             st.rerun()
 
         # Determine which table to use  
@@ -2103,6 +2125,8 @@ else:
 
                 # Display AG Grid with range selection
                 selection = aggrid_range(records, columns, key=f"grid_{file_key}")
+
+                apply_grid_selection_to_filters(selection, df)
                 
                 # Cache the current data
                 edited_table = df.copy()
@@ -2199,6 +2223,8 @@ else:
 
                 # Display AG Grid with range selection
                 selection = aggrid_range(records, columns, key="grid_cached")
+
+                apply_grid_selection_to_filters(selection, df)
                 
                 # Cache the current data
                 edited_table = df.copy()
@@ -2274,7 +2300,17 @@ else:
         col2 = []
 
         if edited_table is not None and len(edited_table.columns) > 0 and len(edited_table) > 0:
-            col1 = st.multiselect("Columns", edited_table.columns)
+            available_cols = list(edited_table.columns)
+            available_rows = list(range(1, len(edited_table) + 1))
+
+            st.session_state.selected_columns = [
+                c for c in st.session_state.selected_columns if c in available_cols
+            ]
+            st.session_state.selected_rows = [
+                r for r in st.session_state.selected_rows if r in available_rows
+            ]
+
+            col1 = st.multiselect("Columns", available_cols, key="selected_columns")
             st.session_state["current_cols"] = col1  
 
             # --- RESET CHECKBOXES ONLY IF USER JUST CLEARED COLUMNS ---
@@ -2287,7 +2323,7 @@ else:
             # Save for next interaction
             st.session_state.last_cols_selected = col1
 
-            col2 = st.multiselect("Rows", list(range(1, len(edited_table) + 1)))
+            col2 = st.multiselect("Rows", available_rows, key="selected_rows")
         else:
             col1 = []
             col2 = []
@@ -2387,8 +2423,9 @@ else:
 
         st.markdown('<div class="run-analysis-anchor">', unsafe_allow_html=True)
 
-        # Make a copy with shifted index for row selection
+        # Make a copy with a 1-based index to match the row selector
         edited_table_for_loc = edited_table.copy()
+        edited_table_for_loc.index = range(1, len(edited_table_for_loc) + 1)
 
         if col1 and col2:
             parsedData = edited_table_for_loc.loc[col2, col1].copy()
@@ -2537,20 +2574,21 @@ st.markdown("""
 
 st.markdown("""
 <style>
-/* This is the culprit wrapper */
-section[data-testid="stAppViewContainer"] > div:first-child {
-    overflow-y: hidden !important;
-    height: auto !important;
+/* Constrain scrolling to the app container to avoid extra blank scroll space */
+html, body {
+    height: 100% !important;
+    overflow: hidden !important;
 }
 
-/* ALSO kill scrolling on its direct child */
-section[data-testid="stAppViewContainer"] > div:first-child > div {
-    overflow-y: hidden !important;
-}
-
-/* Keep ONE outer scrollbar for the whole app */
-html, body, section[data-testid="stAppViewContainer] {
+section[data-testid="stAppViewContainer"] {
+    height: 100vh !important;
     overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+}
+
+section[data-testid="stAppViewContainer"] > div,
+section[data-testid="stMain"] {
+    min-height: 100% !important;
 }
 </style>
 """, unsafe_allow_html=True)
