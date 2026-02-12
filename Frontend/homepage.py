@@ -139,6 +139,16 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+clicked = st.button( 
+    "Get Started", 
+    key="real_button", 
+    use_container_width=True 
+) 
+
+# Redirect to mainpage.py on click 
+if clicked: 
+  st.switch_page("pages/mainpagecopy.py")
+
 # Adjust spacing
 st.markdown(
     """
@@ -275,17 +285,22 @@ st.markdown(
 div[data-testid="stButton"] {
   position: fixed !important;
 
-  /* RESPONSIVE POSITION */
-  right: 31vw;        /* moves with screen size */
+  /* Anchor point */
+  left: 54.5%;
   top: 65%;
+
+  /* True centering */
+  transform: translateX(-50%);
 
   width: 220px !important;
   max-width: 220px !important;
   min-width: 220px !important;
   z-index: 9999;
+
+  transition: left 0.35s ease, top 0.35s ease;
 }
 
-/* Keep Streamlit from stretching it */
+/* Prevent Streamlit stretching */
 div[data-testid="stButton"] > div {
   width: 220px !important;
 }
@@ -299,30 +314,6 @@ div[data-testid="stButton"] {
 """,
 unsafe_allow_html=True
 )
-
-st.markdown(
-"""
-<style>
-/* Hide button when viewport is narrow (split screen) */
-@media (max-width: 1200px) {
-    div[data-testid="stButton"] {
-        display: none !important;
-    }
-}
-</style>
-""",
-unsafe_allow_html=True
-)
-
-clicked = st.button( 
-    "Get Started", 
-    key="real_button", 
-    use_container_width=True 
-) 
-
-# Redirect to mainpage.py on click 
-if clicked: 
-  st.switch_page("pages/mainpagecopy.py")
 
 # HTML and CSS for the homepage all fake charts, layout, and movement, etc.
 components.html(
@@ -662,9 +653,33 @@ h1, p, .eyebrow {
       0 0 12px rgba(228,120,29,0.15) !important;
 }
 
-@media(max-width:900px){
-  .layout{grid-template-columns:1fr;}
-  .visual{min-height:420px;}
+@media (max-width: 1150px) {   /* this is what Streamlit split screen roughly triggers */
+  
+  /* Hide the entire left visual area */
+  .visual {
+    display: none !important;
+  }
+
+  /* Hide the vertical border */
+  .v-divider {
+    display: none !important;
+  }
+
+  /* Make the right content take the full width */
+  .layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .content {
+    width: 100% !important;
+    padding: 80px 48px !important; /* nicer spacing in split */
+  }
+
+  /* Re-center button under the content in split screen */
+  div[data-testid="stButton"] {
+      left: 50% !important;   /* always center horizontally */
+      top: 70% !important;    /* tweak vertical if needed */
+  }
 }
 </style>
 </head>
@@ -778,7 +793,6 @@ h1, p, .eyebrow {
 </body>
 </html>
 """,
-height=0,
 scrolling=False
 )
 
@@ -814,3 +828,15 @@ iframe {
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* FINAL OVERRIDE — MOVE BUTTON IN SPLIT SCREEN */
+@media (max-width: 1150px) {
+    div[data-testid="stButton"] {
+        left: 22% !important;
+        top: 65% !important;
+        transform: translateX(-50%) !important;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
