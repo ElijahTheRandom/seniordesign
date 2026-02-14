@@ -757,7 +757,6 @@ div[data-testid="stModal"] * {
     animation: fadeInModal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
-
 /* Apply fade in to entire main content block when switching between homepage and runs */
 .main .block-container {
     animation: fadeIn 0.6s ease-out !important;
@@ -2590,6 +2589,26 @@ section[data-testid="stAppViewContainer"] > div,
 section[data-testid="stMain"] {
     min-height: 100% !important;
 }
+            
+/* Make the main scroll container span the full viewport, even after shifting */
+section[data-testid="stAppViewContainer"] {
+    position: relative !important;
+
+    /* Pull upward so scrollbar starts at the top */
+    top: -2.8rem !important;
+
+    /* Extend height so bottom is not cut off */
+    height: calc(100vh + 2.8rem) !important;
+
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* Keep header visually above the scroll container */
+header[data-testid="stHeader"] {
+    position: relative !important;
+    z-index: 9999 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -2601,6 +2620,19 @@ html {
 }
 html::-webkit-scrollbar {
   display: none;               /* Chrome/Safari/Edge */
+}
+            
+html, body {
+    height: 100% !important;
+    overflow-x: hidden !important;
+}
+
+[data-testid="stAppViewContainer"] {
+    overflow-x: hidden !important;
+}
+
+.main .block-container {
+    padding-bottom: 2rem !important;
 }
 </style>
 """, unsafe_allow_html=True)

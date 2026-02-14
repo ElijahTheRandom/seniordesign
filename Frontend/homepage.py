@@ -212,58 +212,78 @@ st.markdown(
 # Button styling like Run Analysis
 st.markdown("""
 <style>
+
+/* Force its own GPU layer permanently */
+div[data-testid="stButton"] {
+    position: fixed !important;
+    left: 54.5%;
+    top: 65%;
+    transform: translateX(-50%) translateZ(0);
+    will-change: transform;
+    z-index: 9999;
+}
+
+/* Button base */
 div[data-testid="stButton"] button {
-    background: linear-gradient(135deg, rgba(228,120,29,0.18), rgba(228,120,29,0.10)) !important;
+    background: linear-gradient(
+        135deg,
+        rgba(228,120,29,0.18),
+        rgba(228,120,29,0.10)
+    ) !important;
+
     border: 1.5px solid rgba(228,120,29,0.55) !important;
     border-radius: 10px !important;
     color: rgba(255,255,255,0.92) !important;
     font-weight: 600 !important;
     padding: 12px 20px !important;
+
     box-shadow:
         0 4px 12px rgba(0,0,0,0.35),
         0 0 18px rgba(228,120,29,0.25),
         inset 0 1px 2px rgba(255,255,255,0.05) !important;
-    transition: all 0.2s ease !important;
+
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform;
 }
 
+/* Hover */
 div[data-testid="stButton"] button:hover {
-    background: rgba(228,120,29,0.25) !important;
-    border-color: rgba(228,120,29,0.7) !important;
-    transform: translateY(-2px) !important;
+    transform: translateY(-2px) translateZ(0);
     box-shadow:
         0 6px 20px rgba(0,0,0,0.45),
         0 0 25px rgba(228,120,29,0.35) !important;
 }
 
-    transition:
-        background-color 0.15s ease,
-        box-shadow 0.15s ease,
-        transform 0.12s ease;
-}
+/* ---- HARD OVERRIDE ALL CLICK / FOCUS STATES ---- */
+div[data-testid="stButton"] button,
+div[data-testid="stButton"] button:active,
+div[data-testid="stButton"] button:focus,
+div[data-testid="stButton"] button:focus-visible,
+div[data-testid="stButton"] button:visited {
 
-div[data-testid="stButton"] button:hover,
-div[data-testid="stFileUploader"] button:hover {
-    background-color: #e4781d !important;
-    border-color: #e4781d !important;
+    background: linear-gradient(
+        135deg,
+        rgba(228,120,29,0.18),
+        rgba(228,120,29,0.10)
+    ) !important;
+
+    border: 1.5px solid rgba(228,120,29,0.55) !important;
+    color: rgba(255,255,255,0.92) !important;
 
     box-shadow:
-        0 4px 12px rgba(214, 107, 29, 0.45),
-        0 0 0 3px rgba(214, 107, 29, 0.35);
+        0 4px 12px rgba(0,0,0,0.35),
+        0 0 18px rgba(228,120,29,0.25),
+        inset 0 1px 2px rgba(255,255,255,0.05) !important;
 
-    transform: translateY(-1px);
-}
-
-div[data-testid="stButton"] button:active,
-div[data-testid="stFileUploader"] button:active {
-    background-color: #b85b18 !important;
-    border-color: #b85b18 !important;
-    transform: translateY(0);
-}
-
-div[data-testid="stButton"] button:focus-visible,
-div[data-testid="stFileUploader"] button:focus-visible {
     outline: none !important;
-    box-shadow: 0 0 0 3px rgba(214, 107, 29, 0.5);
+}
+
+/* Optional subtle press effect */
+div[data-testid="stButton"] button:active {
+    transform: translateY(1px) translateZ(0) !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -402,7 +422,6 @@ body {
   background: rgba(20, 20, 20, 0.55) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-radius: 16px !important;
-  backdrop-filter: blur(18px) saturate(180%) !important;
   box-shadow:
     0 8px 32px rgba(0,0,0,0.45),
     inset 0 1px 0 rgba(255,255,255,0.05),
