@@ -821,6 +821,7 @@ div[data-testid="column"]:hover {
 </style>
 """, unsafe_allow_html=True)
 
+# Sidebar toggle button styling and header adjustments
 st.markdown("""
 <style>
 /* ===============================
@@ -2572,6 +2573,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Final override to constrain scrolling to the app container and hide browser scrollbar
 st.markdown("""
 <style>
 /* Constrain scrolling to the app container to avoid extra blank scroll space */
