@@ -376,7 +376,7 @@ st.markdown("""
 [data-testid="stAppViewContainer"],
 section[data-testid="stMain"] {
     background: radial-gradient(ellipse at top, #1a1a1a 0%, #0f0f0f 50%, #000000 100%) !important;
-    position: relative !important;
+    position: static !important;
 }
             
 /* Make all Streamlit alert/info boxes orange themed */
@@ -788,7 +788,7 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
 div[data-testid="column"] {
     background: linear-gradient(145deg, rgba(25, 25, 25, 0.6), rgba(15, 15, 15, 0.4)) !important;
     border-radius: 16px !important;
-    padding: 1.5rem !important;
+    padding: 1rem !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5),
                 inset 0 1px 0 rgba(255, 255, 255, 0.05),
@@ -896,14 +896,24 @@ header[data-testid="stHeader"] > div:not(:first-child) {
 }
 
 /* Minimal top padding on all main containers to accommodate header */
-/* KEEP left/right spacing but ADD space for sidebar toggle */
-.block-container,
-div[data-testid="stMainBlockContainer"],
-div[data-testid="stAppViewBlockContainer"],
-section[data-testid="stAppViewContainer"] > div:first-child {
-    padding-top: 2.8rem; /* remove !important */
+/* Only pad the actual content containers — NOT the scroll wrapper */
+/* SAFE: Only pad the *content*, not the scroll container */
+.block-container {
+    padding-top: 2.8rem;
     padding-left: 1rem;
     padding-right: 1rem;
+    padding-bottom: 1rem !important;
+}
+
+/* DO NOT pad these — they are scroll containers */
+div[data-testid="stMainBlockContainer"],
+div[data-testid="stAppViewBlockContainer"] {
+    padding: 0 !important;
+}
+            
+/* Give the page breathing room at the bottom */
+section[data-testid="stAppViewContainer"] > div:first-child {
+    padding-bottom: 3rem !important;
 }
 
 /* Remove spacing from vertical blocks */
@@ -1383,13 +1393,6 @@ div[data-testid="stMarkdownContainer"] h6 {
 # Pop Up Styling
 st.markdown("""
 <style>
-/* ---- FINAL KILL FOR THE ARROW SCROLLBAR ---- */
-
-/* This is the actual Streamlit content container inside the modal */
-div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
-    overflow: hidden !important;
-}
-
 /* Kill WebKit scrollbar + arrows inside that container */
 div[data-testid="stModal"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar {
     width: 0px !important;
@@ -1410,9 +1413,9 @@ div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
 # Scooting the screen downward for the side bar button
 st.markdown("""
 <style>
-/* Push ALL main content down so sidebar toggle doesn't overlap it */
 .main .block-container {
-    padding-top: 3rem !important;   /* <-- adjust this if you want more/less space */
+    padding-top: 2.5rem !important;
+    padding-bottom: 1rem !important;
 }
 
 /* Also make sure your first header isn't hidden */
@@ -1539,7 +1542,6 @@ st.markdown("""
                 inset 0 1px 0 rgba(255, 255, 255, 0.05),
                 0 0 0 1px rgba(255, 255, 255, 0.02) inset !important;
     backdrop-filter: blur(10px) !important;
-    overflow: hidden !important;
 }
 
 /* AG Grid Header - Orange accent */
@@ -1760,7 +1762,6 @@ st.markdown("""
     height: 100%;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
-    overflow: hidden;
 }
 
 /* Subtle shine effect like Pinterest cards */
@@ -1830,7 +1831,6 @@ div[data-testid="column"] button {
 div[data-testid="column"] {
     min-width: 0 !important;   /* CRITICAL */
     flex: 1 1 0 !important;    /* allow shrinking */
-    overflow: hidden !important; /* prevents weird compression */
 }
 </style>
 """, unsafe_allow_html=True)
@@ -2420,7 +2420,7 @@ else:
 
         st.markdown("---")
 
-        st.markdown('<div class="run-analysis-anchor">', unsafe_allow_html=True)
+        st.markdown('<div class="run-analysis-anchor"></div>', unsafe_allow_html=True)
 
         # Make a copy with a 1-based index to match the row selector
         edited_table_for_loc = edited_table.copy()
@@ -2573,37 +2573,6 @@ st.markdown("""
 
 st.markdown("""
 <style>
-/* Constrain scrolling to the app container to avoid extra blank scroll space */
-html, body {
-    height: 100% !important;
-    overflow: hidden !important;
-}
-
-section[data-testid="stAppViewContainer"] {
-    height: 100vh !important;
-    overflow-y: auto !important;
-    overscroll-behavior: contain !important;
-}
-
-section[data-testid="stAppViewContainer"] > div,
-section[data-testid="stMain"] {
-    min-height: 100% !important;
-}
-            
-/* Make the main scroll container span the full viewport, even after shifting */
-section[data-testid="stAppViewContainer"] {
-    position: relative !important;
-
-    /* Pull upward so scrollbar starts at the top */
-    top: -2.8rem !important;
-
-    /* Extend height so bottom is not cut off */
-    height: calc(100vh + 2.8rem) !important;
-
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-}
-
 /* Keep header visually above the scroll container */
 header[data-testid="stHeader"] {
     position: relative !important;
@@ -2614,25 +2583,86 @@ header[data-testid="stHeader"] {
 
 st.markdown("""
 <style>
-/* Hide the BROWSER scrollbar but still allow scrolling */
+/* SAFE: Keep scrollbar visible but styled */
 html {
-  scrollbar-width: none;       /* Firefox */
+  scrollbar-width: thin; /* Firefox */
+}
+
+html::-webkit-scrollbar {
+  width: 8px; /* Chrome/Safari/Edge */
+}
+
+html::-webkit-scrollbar-thumb {
+  background: rgba(228, 120, 29, 0.5);
+  border-radius: 10px;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background: rgba(228, 120, 29, 0.7);
+}
+
+/* Prevent Streamlit from creating nested scroll regions */
+div[data-testid="stMain"],
+div[data-testid="stAppViewBlockContainer"],
+div[data-testid="stVerticalBlock"],
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    overflow: visible !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+/* --- SINGLE SOURCE OF TRUTH: ONLY THE BROWSER SCROLLS --- */
+
+/* Let the browser own vertical scrolling */
+html, body {
+    height: auto !important;
+    overflow-y: auto !important;
+}
+
+/* Kill Streamlit's internal scroll containers */
+section[data-testid="stAppViewContainer"],
+section[data-testid="stMain"],
+div[data-testid="stAppViewBlockContainer"],
+div[data-testid="stVerticalBlock"],
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* Make sure the main content wrapper doesn't clip the bottom */
+.block-container {
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* Keep your global scrollbar styling, but only as a skin */
+html {
+    scrollbar-width: thin;
 }
 html::-webkit-scrollbar {
-  display: none;               /* Chrome/Safari/Edge */
+    width: 8px;
 }
-            
-html, body {
-    height: 100% !important;
-    overflow-x: hidden !important;
+html::-webkit-scrollbar-thumb {
+    background: rgba(228, 120, 29, 0.5);
+    border-radius: 10px;
 }
+html::-webkit-scrollbar-thumb:hover {
+    background: rgba(228, 120, 29, 0.7);
+}
+</style>
+""", unsafe_allow_html=True)
 
-[data-testid="stAppViewContainer"] {
-    overflow-x: hidden !important;
-}
-
-.main .block-container {
-    padding-bottom: 2rem !important;
+st.markdown("""
+<style>
+/* Allow columns to size independently instead of matching heights */
+div[data-testid="column"] {
+    align-self: flex-start !important;
 }
 </style>
 """, unsafe_allow_html=True)
