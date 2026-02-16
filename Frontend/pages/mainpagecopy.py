@@ -314,6 +314,14 @@ section[data-testid="stSidebar"] {
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+.block-container {
+    padding: 0rem 1rem 0rem 1rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Sidebar button alignment and active run emphasis
 st.markdown("""
 <style>
@@ -416,7 +424,7 @@ div[data-testid="stAlert"] > div {
 
 /* Pull the custom sidebar <hr> upward to match main-page lines */
 .sidebar-top-divider {
-    margin-top: 0rem !important;   /* was -0.8rem */
+    margin-top: 1rem !important;   /* was -0.8rem */
     margin-bottom: 1.2rem !important;
 }
 
@@ -2461,9 +2469,6 @@ else:
             use_container_width=True,
             disabled=not (data_ready and computation_selected)
         )
-        
-        # Add extra bottom padding to ensure the button is always visible when scrolling
-        st.markdown("<div style='padding-bottom: 80px;'></div>", unsafe_allow_html=True)
 
         if run_clicked:
             non_numeric_cols = []
@@ -2690,18 +2695,26 @@ div[data-testid="column"] {
     overflow-y: auto !important;
     max-height: none !important;
 }
+</style>
+""", unsafe_allow_html=True)
 
-/* Ensure right column (analysis configuration) can scroll independently */
-div[data-testid="column"]:nth-child(2) {
-    overflow-y: auto !important;
-    max-height: calc(100vh - 120px) !important;
-    padding-bottom: 100px !important;
+st.markdown("""
+<style>
+/* Remove extra space inside column containers */
+div[data-testid="stVerticalBlock"] {
+    padding-bottom: 0rem !important;
+    margin-bottom: 0rem !important;
 }
 
-/* Add padding to ensure Run Analysis button is always visible */
-.run-analysis-anchor {
-    padding-bottom: 50px !important;
-    margin-bottom: 50px !important;
+/* Remove gap between elements inside vertical stack */
+div[data-testid="stVerticalBlock"] > div {
+    margin-bottom: 0rem !important;
+}
+            
+/* Disable Streamlit internal scroll container */
+section[data-testid="stAppViewContainer"] {
+    overflow: visible !important;
+    height: auto !important;
 }
 </style>
 """, unsafe_allow_html=True)
