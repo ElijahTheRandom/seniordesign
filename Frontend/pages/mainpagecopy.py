@@ -2441,6 +2441,9 @@ else:
             use_container_width=True,
             disabled=not (data_ready and computation_selected)
         )
+        
+        # Add extra bottom padding to ensure the button is always visible when scrolling
+        st.markdown("<div style='padding-bottom: 80px;'></div>", unsafe_allow_html=True)
 
         if run_clicked:
             non_numeric_cols = []
@@ -2664,6 +2667,21 @@ st.markdown("""
 /* Allow columns to size independently instead of matching heights */
 div[data-testid="column"] {
     align-self: flex-start !important;
+    overflow-y: auto !important;
+    max-height: none !important;
+}
+
+/* Ensure right column (analysis configuration) can scroll independently */
+div[data-testid="column"]:nth-child(2) {
+    overflow-y: auto !important;
+    max-height: calc(100vh - 120px) !important;
+    padding-bottom: 100px !important;
+}
+
+/* Add padding to ensure Run Analysis button is always visible */
+.run-analysis-anchor {
+    padding-bottom: 50px !important;
+    margin-bottom: 50px !important;
 }
 </style>
 """, unsafe_allow_html=True)
