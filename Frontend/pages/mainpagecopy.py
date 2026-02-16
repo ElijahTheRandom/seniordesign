@@ -788,7 +788,6 @@ div[data-testid="column"] {
     background: linear-gradient(145deg, rgba(25, 25, 25, 0.6), rgba(15, 15, 15, 0.4)) !important;
     border-radius: 16px !important;
     padding: 1rem !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5),
                 inset 0 1px 0 rgba(255, 255, 255, 0.05),
                 0 0 0 1px rgba(255, 255, 255, 0.02) inset !important;
@@ -2216,6 +2215,27 @@ else:
                     --ag-input-focus-border: 1px solid #e4781d !important;
                     --ag-column-hover-color: rgba(228,120,29,0.08) !important;
                     --ag-browser-color-scheme: dark !important;
+                }
+                            
+                /* Remove ALL AG Grid outer borders */
+                .ag-root-wrapper {
+                    border: none !important;
+                    box-shadow: none !important;
+                }
+
+                .ag-root-wrapper-body {
+                    border: none !important;
+                }
+
+                .ag-root {
+                    border: none !important;
+                }
+
+                .ag-theme-alpine,
+                .ag-theme-balham,
+                .ag-theme-streamlit {
+                    border: none !important;
+                    box-shadow: none !important;
                 }
                 </style>
                 """, unsafe_allow_html=True)

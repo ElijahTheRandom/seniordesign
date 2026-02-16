@@ -479,19 +479,17 @@ body {
     height: 100%;
     background: linear-gradient(
         180deg,
-        rgba(228,120,29,0) 0%,
-        rgba(228,120,29,0.45) 40%,
-        rgba(228,120,29,0.75) 50%,
-        rgba(228,120,29,0.45) 60%,
-        rgba(228,120,29,0) 100%
+        transparent 0%,
+        var(--accent) 40%,
+        var(--accent) 50%,
+        var(--accent) 60%,
+        transparent 100%
     );
     border-radius: 2px;
     box-shadow:
         0 0 12px rgba(228,120,29,0.35),
-        0 0 24px rgba(228,120,29,0.15),
-        inset 0 0 4px rgba(255,255,255,0.15);
+        0 0 24px rgba(228,120,29,0.15);
 }
-
 .bar, .hbar, .dot, .line-point {
     box-shadow: 0 0 12px rgba(228,120,29,0.35) !important;
 }
