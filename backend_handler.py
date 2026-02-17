@@ -12,10 +12,16 @@ from methods.least_squares_regression import LeastSquaresRegression
 from methods.chisquared import ChiSquared
 from class_templates.message_structure import Message
 
-import queue
-import threading
-import uuid
+from concurrent.futures import ThreadPoolExecutor
 
+statistical_methods = {
+    "mean": Mean,
+    "median": Median,
+    "binomial": Binomial,
+    "std": StandardDeviation,
+    "least_squares_regression": LeastSquaresRegression,
+    "chi_squared": ChiSquared
+}
 
 class BackendHandler:
     """
@@ -187,44 +193,11 @@ class BackendHandler:
         """
         results_dict = message.to_dict()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        json_filename = f"results_{timestamp}.json"
-        json_filepath = os.path.join(run_folder, json_filename)
-        with open(json_filepath, "w") as f:
-            json.dump(results_dict, f, indent=4, default=str)
+        results_filename = f"results_{timestamp}.json"
+        results_filepath = os.path.join(results_folder, results_filename)
+        with open(results_filepath, "w") as f:
+            json.dump(results_msg, f, indent=4)
 
-        return json_filepath
-
-
-    def _generate_charts(self, graphics_requests, data, metadata, results_folder):
-        # Generate charts based on the graphics requests and save them to the appropriate location
-        # Update the result message with the paths to the generated charts 
-
-        chart_results = []
-        for graphic_request in graphics_requests:
-            chart_type = graphic_request.get("type")
-            chart_params = {k: v for k, v in graphic_request.items() if k != "type"}
-
-            # Update the path to save charts in the results folder
-            if "path" in chart_params:
-                original_filename = os.path.basename(chart_params["path"])
-                chart_params["path"] = os.path.join(results_folder, original_filename)
-
-            chart_class = self.chart_generation_methods.get(chart_type)
-            if chart_class:
-                chart_instance = chart_class(data, metadata, chart_params)
-                chart_result = chart_instance.create_graphic()
-                chart_results.append(chart_result)
-            else:
-                error_message = f"Chart type {chart_type} not found."
-                chart_results.append({
-                    "type": chart_type,
-                    "ok": False,
-                    "path": None,
-                    "error": error_message,
-                    "params_used": chart_params
-                })
-
-        return chart_results
 
 
     def handle_request(self, request):
@@ -244,6 +217,13 @@ class BackendHandler:
         max_threads = 4  # arbitrary limit, can be changed to a user configurable value later
         results = self._threads_compute(method_requests, data, metadata, max_threads)
         final_result_message = self._package_results(request, results)
+
+        # save results and get path for graphics to be saved to
+        results_folder = self._save_run_results(final_result_message)
+
+        # generate charts and update the result message with the paths to the generated charts
+        chart_results = self._generate_charts(final_result_message.graphics, final_result_message.data, final_result_message.metadata, results_folder)
+        final_result_message.graphics = chart_results
 
         # --- 2. Create unique persistence folder ---
         run_folder = self._create_run_folder(final_result_message)
