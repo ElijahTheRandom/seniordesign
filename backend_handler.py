@@ -1,4 +1,8 @@
 
+from datetime import datetime
+import os
+
+import json
 from methods.mean import Mean
 from methods.median import Median
 from methods.binomial import Binomial
@@ -125,6 +129,27 @@ class BackendHandler:
             "loss_of_precision": False,
             "params_used": params or {}
         }
+
+
+    def _save_run_results(self, result):
+        # create a local cache for the results of each run if a cache doesnt exist already
+        # Save the results of each run to a folder within this cache with the dataset_id and dataset_version number 
+        # The results should turn the message to a Dict via the message's to_dict method, then save the dict as a JSON file in the appropriate folder with a timestamp in the filename
+        # The generated chart images should also be saved in this folder, and the path to the chart in the result message should reflect this saved location
+
+        results_cache_dir = "results_cache"
+        os.makedirs(results_cache_dir, exist_ok=True)
+
+        results_folder = os.path.join(results_cache_dir, f"{result.dataset_id}_v{result.dataset_version}")
+        os.makedirs(results_folder, exist_ok=True)
+
+        results_msg = result.to_dict()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        results_filename = f"results_{timestamp}.json"
+        results_filepath = os.path.join(results_folder, results_filename)
+        with open(results_filepath, "w") as f:
+            json.dump(results_msg, f, indent=4)
+
 
 
     def handle_request(self, request):
