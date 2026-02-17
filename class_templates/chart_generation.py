@@ -1,3 +1,4 @@
+import os
 import numpy as np
 
 """
@@ -6,7 +7,14 @@ import numpy as np
             "type": "scatter", 
             "x_col": 2, 
             "y_col": 3, 
-            "path": "temp/scatter_plot.jpg"
+            "path": "exports/scatter_plot.jpg"
+            "output":{
+                    "type": self.type,
+                    "ok": False,
+                    "path": self.params.get("path"),
+                    "error": error_message,
+                    "params_used": self.params,
+            }
         }
     ],
 """
@@ -21,13 +29,31 @@ class ChartName:
 
     def _applicable(self):
         # Check whether this statistic is valid for the given data selection
-        pass
+        if "path" not in self.params or not self.params["path"]:
+            return "No output path provided"
+        return True
 
     def _generate_return_structure(self):
         # Check whether this statistic is valid for the given data selection
-        pass
+        return {
+            "type": self.type,
+            "ok": True,
+            "path": self.params.get("path"),
+            "error": None,
+            "params_used": self.params,
+        }
 
     def _generate_return_structure_error(self, error_message):
+        return {
+            "type": self.type,
+            "ok": False,
+            "path": self.params.get("path"),
+            "error": error_message,
+            "params_used": self.params,
+        }
+
+    def _create_chart(self):
+        # Create and return a chart object (e.g., matplotlib Figure).
         pass
 
     def create_graphic(self):
@@ -36,7 +62,15 @@ class ChartName:
         if not _applicable:
             return self._generate_return_structure_error(_applicable)
         
-        # Placeholder for the main computation logic
+        try:
+            chart = self._create_chart()
+            output_path = self.params["path"]
+            output_dir = os.path.dirname(output_path)
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
 
-        results = self._generate_return_structure()
-        return results
+            chart.savefig(output_path, bbox_inches="tight")
+        except Exception as exc:
+            return self._generate_return_structure_error(str(exc))
+
+        return self._generate_return_structure()
