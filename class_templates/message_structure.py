@@ -70,6 +70,13 @@ message = {
             "x_col": 2, 
             "y_col": 3, 
             "path": "exports/scatter_plot.jpg"
+            "output":{
+                    "type": self.type,
+                    "ok": False,
+                    "path": self.params.get("path"),
+                    "error": error_message,
+                    "params_used": self.params,
+            }
         }
     ],
 
