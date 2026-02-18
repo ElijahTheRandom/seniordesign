@@ -23,7 +23,7 @@ import plotly.io as pio
     ],
 """
 
-class VerBar:
+class VertBar:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
         self.type = "vert_bar"
