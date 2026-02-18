@@ -314,6 +314,15 @@ section[data-testid="stSidebar"] {
 </style>
 """, unsafe_allow_html=True)
 
+# 
+st.markdown("""
+<style>
+.block-container {
+    padding: 0rem 1rem 0rem 1rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Sidebar button alignment and active run emphasis
 st.markdown("""
 <style>
@@ -471,7 +480,9 @@ section[data-testid="stSidebar"] {
                 inset -1px 0 0 rgba(255, 255, 255, 0.05) !important;
 }
 
- /*-------------------------Stoped Cleanup Here, Can Delete when moved(Christopher)------------------------*/           
+
+
+
 
 /* Modern Typography - Enhanced */
 h1, h2, h3, h4 {
@@ -2665,8 +2676,17 @@ st.markdown("""
 /* Allow columns to size independently instead of matching heights */
 div[data-testid="column"] {
     align-self: flex-start !important;
-    overflow-y: auto !important;
+    overflow-y: visible !important;
+    overflow-x: visible !important;
     max-height: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+/* Specifically target the horizontal layout container to prevent height matching */
+div[data-testid="stHorizontalBlock"] {
+    align-items: flex-start !important;
+    height: auto !important;
 }
 </style>
 """, unsafe_allow_html=True)
