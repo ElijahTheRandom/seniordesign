@@ -209,6 +209,30 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+st.markdown("""
+<style>
+
+/* Add horizontal padding inside tab content */
+div[data-testid="stTabs"] div[role="tabpanel"] {
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+
+/* Add horizontal padding to analysis container */
+div[data-testid="stVerticalBlock"] > div:has(h2) {
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
 with st.sidebar:
     st.markdown("<hr class='sidebar-top-divider'>", unsafe_allow_html=True)
     st.header("Navigation")
@@ -232,7 +256,7 @@ with st.sidebar:
     for i, run in enumerate(st.session_state.analysis_runs):
         is_active = run["id"] == st.session_state.active_run_id
 
-        cols = st.columns([6, 1])
+        cols = st.columns([6, 1.5])
 
         # Clickable run name (acts like a tab)
         with cols[0]:
@@ -365,7 +389,7 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button:focus-visibl
 
 /* Rename icon button — extra subtle */
 section[data-testid="stSidebar"] button:has(span:contains("✏️")) {
-    padding: 4px !important;
+    padding: 12px !important;
     opacity: 0.75;
 }
 
@@ -1839,139 +1863,146 @@ if st.session_state.active_run_id:
     )
 
     if run:
-        st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
-        st.markdown("<hr style='margin: 0; border: none; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />", unsafe_allow_html=True)
-        st.header(f"Analysis Results — {run['name']}", anchor=False)
-
-        st.markdown("---")
-
-        # Build analysis cards dynamically
-        analysis_cards = []
-
-        #-----------------------------------------------------------------------------------------------------------------------------------------------
-        # Add stat cards for methods
-        for method in run["methods"]:
-            if method == "Mean":
-                # Calculate mean for each column
-                for col in run["data"].select_dtypes(include=['number']).columns:
-                    mean_val = run["data"][col].mean()
-                    analysis_cards.append(("stat", f"<b>Mean</b>", f"{mean_val:.2f}"))
-            elif method == "Median":
-                for col in run["data"].select_dtypes(include=['number']).columns:
-                    median_val = run["data"][col].median()
-                    analysis_cards.append(("stat", f"<b>Median</b>", f"{median_val:.2f}"))
-            elif method == "Mode":
-                for col in run["data"].select_dtypes(include=['number']).columns:
-                    mode_val = run["data"][col].mode()
-                    mode_display = f"{mode_val.iloc[0]:.2f}" if len(mode_val) > 0 else "N/A"
-                    analysis_cards.append(("stat", f"<b>Mode</b>", mode_display))
-            elif method == "Variance":
-                for col in run["data"].select_dtypes(include=['number']).columns:
-                    var_val = run["data"][col].var()
-                    analysis_cards.append(("stat", f"<b>Variance</b>", f"{var_val:.2f}"))
-            elif method == "Standard Deviation":
-                for col in run["data"].select_dtypes(include=['number']).columns:
-                    std_val = run["data"][col].std()
-                    analysis_cards.append(("stat", f"<b>Std Dev</b>", f"{std_val:.2f}"))
-            elif method == "Percentiles":
-                for col in run["data"].select_dtypes(include=['number']).columns:
-                    p25 = run["data"][col].quantile(0.25)
-                    p50 = run["data"][col].quantile(0.50)
-                    p75 = run["data"][col].quantile(0.75)
-                    analysis_cards.append(("stat", f"<b>Percentiles</b>", f"{p25:.1f} / {p50:.1f} / {p75:.1f}", "25th / 50th / 75th"))
-            elif method == "Variation":
-                for col in run["data"].select_dtypes(include=['number']).columns:
-                    mean_val = run["data"][col].mean()
-                    std_val = run["data"][col].std()
-                    cv = (std_val / mean_val * 100) if mean_val != 0 else 0
-                    analysis_cards.append(("stat", f"<b>Coeff. of Variation</b>", f"{cv:.2f}%"))
-            elif method == "Chi-Square":
-                analysis_cards.append(("stat", "<b>Chi-Square</b>", "12.24", "p-value: 0.032"))
-            elif method == "Pearson":
-                analysis_cards.append(("stat", "<b>Pearson's Corr.</b>", "0.87", "Strong positive"))
-            elif method == "Spearman":
-                analysis_cards.append(("stat", "<b>Spearman's Rank</b>", "0.82", "Strong correlation"))
-            elif method == "Regression":
-                analysis_cards.append(("stat", "<b>Regression</b>", "0.76", "Good fit"))
-            elif method == "Binomial":
-                analysis_cards.append(("stat", "<b>Binomial Prob</b>", "0.68", "n=10, p=0.5"))
+        analysis_container = st.container()
         
-        # Render stat cards in Pinterest-style grid
-        if analysis_cards:
-            st.subheader("Statistical Analysis", anchor=False)
-            st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
-            
-            # Render cards in rows of 3 with Pinterest-style spacing
-            for i in range(0, len(analysis_cards), 3):
-                cols = st.columns([1, 1, 1], gap="large")
-                for j in range(3):
-                    if i + j < len(analysis_cards):
-                        card = analysis_cards[i + j]
-                        with cols[j]:
-                            if card[0] == "stat":
-                                if len(card) == 4:  # Has subtext
-                                    stat_card(card[1], card[2], card[3])
-                                else:
-                                    stat_card(card[1], card[2])
-                
-                # Add breathing room between rows
-                st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
-            
-            st.markdown("---")
-        
-        # Show visualizations section if any were selected
-        if run.get("visualizations") and len(run["visualizations"]) > 0:
-            st.subheader("Visualizations", anchor=False)
-            st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
-            
-            for v in run["visualizations"]:
-                st.info(f"{v} visualization will be rendered here")
-            
-            st.markdown("---")
-
-        st.subheader("Selected Data", anchor=False)
-        st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
-        st.dataframe(run["data"], use_container_width=True)
-        st.caption(f"Rows: {len(run['data'])}, Columns: {len(run['data'].columns)}")
-
-        st.markdown("---")
-
-        btn1, btn2, btn3 = st.columns(3)
-
-        with btn1:
-            st.button("Save This Run", use_container_width=True)
-
-        with btn2:
-            export_text = f"Analysis Results — {run['name']}\n\n"
-
-            if run["methods"]:
-                export_text += "Methods Applied:\n"
-                for m in run["methods"]:
-                    export_text += f"- {m}\n"
-                export_text += "\n"
-
-            if run.get("visualizations"):
-                export_text += "Visualizations Applied:\n"
-                for v in run["visualizations"]:
-                    export_text += f"- {v}\n"
-                export_text += "\n"
-
-            export_text += "Selected Data:\n"
-            export_text += df_to_ascii_table(run["data"]) + "\n\n"
-
-            st.download_button(
-                label="Export This Run",
-                data=export_text,
-                file_name=f"{run['name']}.txt",
-                mime="text/plain",
-                use_container_width=True,
+        with analysis_container:
+            st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+            st.markdown(
+                "<hr style='margin: 0; border: none; height: 1px; "
+                "background: linear-gradient(90deg, transparent 0%, "
+                "rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />",
+                unsafe_allow_html=True
             )
+            st.header(f"Analysis Results — {run['name']}", anchor=False)
 
-        with btn3:
-            if st.button("Delete This Run", use_container_width=True):
-                st.session_state.analysis_runs = [r for r in st.session_state.analysis_runs if r["id"] != run["id"]]
-                st.session_state.active_run_id = None
-                st.rerun()
+            st.markdown("---")
+
+            # Build analysis cards dynamically
+            analysis_cards = []
+
+            # Add stat cards for methods
+            for method in run["methods"]:
+                if method == "Mean":
+                    # Calculate mean for each column
+                    for col in run["data"].select_dtypes(include=['number']).columns:
+                        mean_val = run["data"][col].mean()
+                        analysis_cards.append(("stat", f"<b>Mean</b>", f"{mean_val:.2f}"))
+                elif method == "Median":
+                    for col in run["data"].select_dtypes(include=['number']).columns:
+                        median_val = run["data"][col].median()
+                        analysis_cards.append(("stat", f"<b>Median</b>", f"{median_val:.2f}"))
+                elif method == "Mode":
+                    for col in run["data"].select_dtypes(include=['number']).columns:
+                        mode_val = run["data"][col].mode()
+                        mode_display = f"{mode_val.iloc[0]:.2f}" if len(mode_val) > 0 else "N/A"
+                        analysis_cards.append(("stat", f"<b>Mode</b>", mode_display))
+                elif method == "Variance":
+                    for col in run["data"].select_dtypes(include=['number']).columns:
+                        var_val = run["data"][col].var()
+                        analysis_cards.append(("stat", f"<b>Variance</b>", f"{var_val:.2f}"))
+                elif method == "Standard Deviation":
+                    for col in run["data"].select_dtypes(include=['number']).columns:
+                        std_val = run["data"][col].std()
+                        analysis_cards.append(("stat", f"<b>Std Dev</b>", f"{std_val:.2f}"))
+                elif method == "Percentiles":
+                    for col in run["data"].select_dtypes(include=['number']).columns:
+                        p25 = run["data"][col].quantile(0.25)
+                        p50 = run["data"][col].quantile(0.50)
+                        p75 = run["data"][col].quantile(0.75)
+                        analysis_cards.append(("stat", f"<b>Percentiles</b>", f"{p25:.1f} / {p50:.1f} / {p75:.1f}", "25th / 50th / 75th"))
+                elif method == "Variation":
+                    for col in run["data"].select_dtypes(include=['number']).columns:
+                        mean_val = run["data"][col].mean()
+                        std_val = run["data"][col].std()
+                        cv = (std_val / mean_val * 100) if mean_val != 0 else 0
+                        analysis_cards.append(("stat", f"<b>Coeff. of Variation</b>", f"{cv:.2f}%"))
+                elif method == "Chi-Square":
+                    analysis_cards.append(("stat", "<b>Chi-Square</b>", "12.24", "p-value: 0.032"))
+                elif method == "Pearson":
+                    analysis_cards.append(("stat", "<b>Pearson's Corr.</b>", "0.87", "Strong positive"))
+                elif method == "Spearman":
+                    analysis_cards.append(("stat", "<b>Spearman's Rank</b>", "0.82", "Strong correlation"))
+                elif method == "Regression":
+                    analysis_cards.append(("stat", "<b>Regression</b>", "0.76", "Good fit"))
+                elif method == "Binomial":
+                    analysis_cards.append(("stat", "<b>Binomial Prob</b>", "0.68", "n=10, p=0.5"))
+            
+            # Render stat cards in Pinterest-style grid
+            if analysis_cards:
+                st.subheader("Statistical Analysis", anchor=False)
+                st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
+                
+                # Render cards in rows of 3 with Pinterest-style spacing
+                for i in range(0, len(analysis_cards), 3):
+                    cols = st.columns([1, 1, 1], gap="large")
+                    for j in range(3):
+                        if i + j < len(analysis_cards):
+                            card = analysis_cards[i + j]
+                            with cols[j]:
+                                if card[0] == "stat":
+                                    if len(card) == 4:  # Has subtext
+                                        stat_card(card[1], card[2], card[3])
+                                    else:
+                                        stat_card(card[1], card[2])
+                    
+                    # Add breathing room between rows
+                    st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
+                
+                st.markdown("---")
+            
+            # Show visualizations section if any were selected
+            if run.get("visualizations") and len(run["visualizations"]) > 0:
+                st.subheader("Visualizations", anchor=False)
+                st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
+                
+                for v in run["visualizations"]:
+                    st.info(f"{v} visualization will be rendered here")
+                
+                st.markdown("---")
+
+            st.subheader("Selected Data", anchor=False)
+            st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
+            st.dataframe(run["data"], use_container_width=True)
+            st.caption(f"Rows: {len(run['data'])}, Columns: {len(run['data'].columns)}")
+
+            st.markdown("---")
+
+            btn1, btn2, btn3 = st.columns(3)
+
+            with btn1:
+                st.button("Save This Run", use_container_width=True)
+
+            with btn2:
+                export_text = f"Analysis Results — {run['name']}\n\n"
+
+                if run["methods"]:
+                    export_text += "Methods Applied:\n"
+                    for m in run["methods"]:
+                        export_text += f"- {m}\n"
+                    export_text += "\n"
+
+                if run.get("visualizations"):
+                    export_text += "Visualizations Applied:\n"
+                    for v in run["visualizations"]:
+                        export_text += f"- {v}\n"
+                    export_text += "\n"
+
+                export_text += "Selected Data:\n"
+                export_text += df_to_ascii_table(run["data"]) + "\n\n"
+
+                st.download_button(
+                    label="Export This Run",
+                    data=export_text,
+                    file_name=f"{run['name']}.txt",
+                    mime="text/plain",
+                    use_container_width=True,
+                )
+
+            with btn3:
+                if st.button("Delete This Run", use_container_width=True):
+                    st.session_state.analysis_runs = [r for r in st.session_state.analysis_runs if r["id"] != run["id"]]
+                    st.session_state.active_run_id = None
+                    st.rerun()
 else:
     # Show homepage with data input and configuration
     # Add spacing at the top so sidebar toggle isn't covered
