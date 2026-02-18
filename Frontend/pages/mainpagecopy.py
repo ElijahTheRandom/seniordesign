@@ -221,17 +221,18 @@ div[data-testid="stTabs"] div[role="tabpanel"] {
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<style>
+# THIS IS WHATS ADJUSTING ALL OF THE MAIN HEADERS BUT WITHOUT IT THE THINGS DON'T SHIFT TO THE RIGHT
+# st.markdown("""
+# <style>
 
-/* Add horizontal padding to analysis container */
-div[data-testid="stVerticalBlock"] > div:has(h2) {
-    padding-left: 2rem !important;
-    padding-right: 2rem !important;
-}
+# /* Add horizontal padding to analysis container */
+# div[data-testid="stVerticalBlock"] > div:has(h2) {
+#     padding-left: 2rem !important;
+#     padding-right: 2rem !important;
+# }
 
-</style>
-""", unsafe_allow_html=True)
+# </style>
+# """, unsafe_allow_html=True)
 
 with st.sidebar:
     st.markdown("<hr class='sidebar-top-divider'>", unsafe_allow_html=True)
