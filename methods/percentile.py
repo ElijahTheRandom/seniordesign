@@ -46,11 +46,12 @@ class Percentile:
 
         self.params = np.asarray(self.params)
 
-        p25 = np.percentile(self.params, 25)
-        p50 = np.percentile(self.params, 50)
-        p75 = np.percentile(self.params, 75)
+        percentiles = []
 
-        percentiles = [p25, p50, p75]
+        for i in range(len(self.params)):
+            appendPercentile = np.percentile(self.data, self.params[i])
+            percentiles.append(appendPercentile)
+
         results = self._generate_return_structure(percentiles)
         return results
 
