@@ -338,14 +338,6 @@ section[data-testid="stSidebar"] {
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<style>
-.block-container {
-    padding: 1rem 1rem 1rem 1rem !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # Sidebar button alignment and active run emphasis
 st.markdown("""
 <style>
@@ -503,26 +495,7 @@ section[data-testid="stSidebar"] {
                 inset -1px 0 0 rgba(255, 255, 255, 0.05) !important;
 }
 
-/* Custom Modern Scrollbar */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: rgba(228, 120, 29, 0.5);
-    border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(228, 120, 29, 0.7);
-}
-
+ /*-------------------------Stoped Cleanup Here, Can Delete when moved(Christopher)------------------------*/           
 
 /* Modern Typography - Enhanced */
 h1, h2, h3, h4 {
