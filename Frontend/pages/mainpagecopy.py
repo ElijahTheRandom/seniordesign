@@ -918,7 +918,7 @@ header[data-testid="stHeader"] > div:not(:first-child) {
     padding-top: 2.8rem;
     padding-left: 1rem;
     padding-right: 1rem;
-    padding-bottom: 1rem !important;
+    padding-bottom: 15rem !important;
 }
 
 /* DO NOT pad these — they are scroll containers */
@@ -929,7 +929,14 @@ div[data-testid="stAppViewBlockContainer"] {
             
 /* Give the page breathing room at the bottom */
 section[data-testid="stAppViewContainer"] > div:first-child {
-    padding-bottom: 3rem !important;
+    padding-bottom: 20rem !important;
+}
+
+/* Ensure main app container allows full scrolling */
+section[data-testid="stAppViewContainer"] {
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow: visible !important;
 }
 
 /* Remove spacing from vertical blocks */
@@ -1431,7 +1438,7 @@ st.markdown("""
 <style>
 .main .block-container {
     padding-top: 2.5rem !important;
-    padding-bottom: 1rem !important;
+    padding-bottom: 15rem !important;
 }
 
 /* Also make sure your first header isn't hidden */
