@@ -206,7 +206,7 @@ st.set_page_config(
     page_title="PS Analytics",
     page_icon=os.path.join(BASE_DIR, "assets", "PStheMainMan.png"),
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 st.markdown("""
@@ -221,18 +221,16 @@ div[data-testid="stTabs"] div[role="tabpanel"] {
 </style>
 """, unsafe_allow_html=True)
 
-# THIS IS WHATS ADJUSTING ALL OF THE MAIN HEADERS BUT WITHOUT IT THE THINGS DON'T SHIFT TO THE RIGHT
-# st.markdown("""
-# <style>
-
-# /* Add horizontal padding to analysis container */
-# div[data-testid="stVerticalBlock"] > div:has(h2) {
-#     padding-left: 2rem !important;
-#     padding-right: 2rem !important;
-# }
-
-# </style>
-# """, unsafe_allow_html=True)
+if st.session_state.active_run_id:
+    st.markdown("""
+    <style>
+    /* Add horizontal padding to analysis headers ONLY when viewing an analysis run */
+    div[data-testid="stVerticalBlock"] > div:has(h2) {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 with st.sidebar:
     st.markdown("<hr class='sidebar-top-divider'>", unsafe_allow_html=True)
@@ -504,10 +502,6 @@ section[data-testid="stSidebar"] {
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5),
                 inset -1px 0 0 rgba(255, 255, 255, 0.05) !important;
 }
-
-
-
-
 
 /* Modern Typography - Enhanced */
 h1, h2, h3, h4 {
@@ -1874,6 +1868,7 @@ if st.session_state.active_run_id:
         analysis_container = st.container()
         
         with analysis_container:
+            st.markdown('<div class="analysis-scope">', unsafe_allow_html=True)
             st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
             st.markdown(
                 "<hr style='margin: 0; border: none; height: 1px; "
@@ -1881,7 +1876,10 @@ if st.session_state.active_run_id:
                 "rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />",
                 unsafe_allow_html=True
             )
+            st.markdown('<div class="analysis-header">', unsafe_allow_html=True)
             st.header(f"Analysis Results — {run['name']}", anchor=False)
+            st.markdown('</div>', unsafe_allow_html=True)
+
 
             st.markdown("---")
 
@@ -1937,7 +1935,9 @@ if st.session_state.active_run_id:
             
             # Render stat cards in Pinterest-style grid
             if analysis_cards:
+                st.markdown('<div class="analysis-header">', unsafe_allow_html=True)
                 st.subheader("Statistical Analysis", anchor=False)
+                st.markdown('</div>', unsafe_allow_html=True)
                 st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
                 
                 # Render cards in rows of 3 with Pinterest-style spacing
@@ -1968,7 +1968,10 @@ if st.session_state.active_run_id:
                 
                 st.markdown("---")
 
+            st.markdown('<div class="analysis-header">', unsafe_allow_html=True)
             st.subheader("Selected Data", anchor=False)
+            st.markdown('</div>', unsafe_allow_html=True)
+
             st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
             st.dataframe(run["data"], use_container_width=True)
             st.caption(f"Rows: {len(run['data'])}, Columns: {len(run['data'].columns)}")
@@ -2011,6 +2014,8 @@ if st.session_state.active_run_id:
                     st.session_state.analysis_runs = [r for r in st.session_state.analysis_runs if r["id"] != run["id"]]
                     st.session_state.active_run_id = None
                     st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
 else:
     # Show homepage with data input and configuration
     # Add spacing at the top so sidebar toggle isn't covered
@@ -2747,6 +2752,17 @@ div[data-testid="stVerticalBlock"] > div {
 section[data-testid="stAppViewContainer"] {
     overflow: visible !important;
     height: auto !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+/* Force MAIN MENU (right side) to stay scrollable, even when sidebar is open */
+[data-testid="stAppViewContainer"],
+section[data-testid="stMain"] {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
 }
 </style>
 """, unsafe_allow_html=True)
