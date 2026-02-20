@@ -2749,6 +2749,17 @@ section[data-testid="stAppViewContainer"] {
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* Force MAIN MENU (right side) to stay scrollable, even when sidebar is open */
+[data-testid="stAppViewContainer"],
+section[data-testid="stMain"] {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Render modals
 if error_modal.is_open():
     with error_modal.container():
