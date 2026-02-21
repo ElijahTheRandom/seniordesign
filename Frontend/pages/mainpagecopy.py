@@ -2748,21 +2748,19 @@ div[data-testid="stVerticalBlock"] > div {
     margin-bottom: 0rem !important;
 }
             
-/* Disable Streamlit internal scroll container */
-section[data-testid="stAppViewContainer"] {
-    overflow: visible !important;
-    height: auto !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-/* Force MAIN MENU (right side) to stay scrollable, even when sidebar is open */
+/* Force MAIN MENU (right side) to stay scrollable, but hide its scrollbar */
 [data-testid="stAppViewContainer"],
 section[data-testid="stMain"] {
     overflow-y: auto !important;
     overflow-x: hidden !important;
+    scrollbar-width: none !important;
+}
+
+[data-testid="stAppViewContainer"]::-webkit-scrollbar,
+section[data-testid="stMain"]::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
