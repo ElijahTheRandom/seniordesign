@@ -21,10 +21,10 @@ from io import BytesIO
     ],
 """
 
-class ChartName:
+class ScatPlot:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
-        self.type = "chart_name"
+        self.type = "scat_plot"
         self.data = data
         self.metadata = metadata
         self.params = params or {}
@@ -59,8 +59,8 @@ class ChartName:
         fig = go.Figure()
 
         fig.add_trace(go.Scatter(
-            x = self.params[1],
-            y = self.params[1],
+            x = self.data[1],
+            y = self.data[1],
             mode = "markers",
             marker = dict(
                 color = "#ff6600",
