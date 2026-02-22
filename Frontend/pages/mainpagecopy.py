@@ -205,8 +205,60 @@ if "last_grid_selection" not in st.session_state:
 st.set_page_config(
     page_title="PS Analytics",
     page_icon=os.path.join(BASE_DIR, "assets", "PStheMainMan.png"),
+    layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+st.markdown("""
+<style>
+
+/* ===== COLLAPSED STATE ===== */
+section[data-testid="stSidebar"][aria-expanded="false"] {
+    width: 0px !important;
+    min-width: 0px !important;
+    max-width: 0px !important;
+    flex: 0 0 0px !important;
+    overflow: hidden !important;
+    transition: width 0.3s ease-in-out, flex-basis 0.3s ease-in-out !important;
+}
+
+/* ===== OPEN STATE ===== */
+section[data-testid="stSidebar"][aria-expanded="true"] {
+    width: 380px !important;
+    min-width: 380px !important;
+    max-width: 380px !important;
+    flex: 0 0 380px !important;
+    overflow: hidden !important;
+}
+
+/* ===== BORDER AND BLACK OMBRE GRADIENT ===== */
+section[data-testid="stSidebar"] {
+    border-right: 2px solid rgba(255,255,255,0.1) !important; /* subtle border */
+    background: linear-gradient(
+        180deg, 
+        #0f0f0f 0%, 
+        #141414 50%, 
+        #1a1a1a 100%
+    ) !important; /* black ombre gradient */
+}
+
+/* ===== HOVER MATCHES NORMAL OMBRE ===== */
+section[data-testid="stSidebar"]:hover {
+    background: linear-gradient(
+        180deg, 
+        #0f0f0f 0%, 
+        #141414 50%, 
+        #1a1a1a 100%
+    ) !important;
+}
+
+/* Remove resize handle */
+div[data-testid="stSidebarResizer"] {
+    display: none !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
