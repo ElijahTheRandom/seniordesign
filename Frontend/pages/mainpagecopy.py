@@ -298,6 +298,18 @@ with st.sidebar:
                     st.session_state["renaming_run_id"] = None
                     st.rerun()
 
+    # Create a load run button at the end of the list of runs
+    if st.session_state.analysis_runs:
+        st.markdown("---")
+        st.button(
+            "Load Run",
+            key="new_analysis_run",
+            use_container_width=True,
+            type="secondary"
+        )
+    
+
+
 
 
 # Create modal instances
@@ -1887,7 +1899,7 @@ if st.session_state.active_run_id:
             analysis_cards = []
 
             # Add stat cards for methods
-            for method in run["methods"]:
+            for method in run.get("methods", []):
                 if method == "Mean":
                     # Calculate mean for each column
                     for col in run["data"].select_dtypes(include=['number']).columns:
@@ -1974,7 +1986,9 @@ if st.session_state.active_run_id:
 
             st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
             st.dataframe(run["data"], use_container_width=True)
-            st.caption(f"Rows: {len(run['data'])}, Columns: {len(run['data'].columns)}")
+            data = run.get("data")
+            if data is not None:
+                st.caption(f"Rows: {len(data)}, Columns: {len(data.columns)}")
 
             st.markdown("---")
 
@@ -1986,9 +2000,9 @@ if st.session_state.active_run_id:
             with btn2:
                 export_text = f"Analysis Results — {run['name']}\n\n"
 
-                if run["methods"]:
+                if run.get("methods"):
                     export_text += "Methods Applied:\n"
-                    for m in run["methods"]:
+                    for m in run.get("methods", []):
                         export_text += f"- {m}\n"
                     export_text += "\n"
 
