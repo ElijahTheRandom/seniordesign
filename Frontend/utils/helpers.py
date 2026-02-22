@@ -250,6 +250,10 @@ def render_modal_content(img_path: str, message: str) -> None:
         message:  Multi-line string. Blank lines become vertical spacers.
     """
     from PIL import Image
+    # Import here to avoid a circular dependency if this module is ever
+    # tested standalone. `st` is the only Streamlit symbol we need and
+    # only for session state — no rendering happens here.
+    import streamlit as st
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
