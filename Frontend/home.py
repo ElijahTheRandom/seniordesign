@@ -146,7 +146,7 @@ clicked = st.button(
 
 # Redirect to mainpage.py on click 
 if clicked: 
-  st.switch_page("pages/mainpagecopy.py")
+  st.switch_page("pages/mainpage.py")
 
 # Adjust spacing
 st.markdown(

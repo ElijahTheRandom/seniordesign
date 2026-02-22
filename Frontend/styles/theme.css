@@ -1,0 +1,1387 @@
+/*
+ * theme.css
+ * =========
+ * Single source of truth for all PS Analytics visual styling.
+ *
+ * Previously: ~19 scattered st.markdown("<style>...") blocks across
+ * mainpage.py, totalling ~1500 lines with duplicate selectors and
+ * no clear organization.
+ *
+ * Now: one file, loaded once by styles/theme.py → inject_styles().
+ *
+ * TABLE OF CONTENTS
+ * -----------------
+ *  1.  Global Reset & Typography
+ *  2.  App Background
+ *  3.  Scrollbar
+ *  4.  Layout & Spacing
+ *  5.  Sidebar
+ *  6.  Sidebar Navigation Buttons
+ *  7.  Sidebar Toggle Button
+ *  8.  Main Content Buttons
+ *  9.  Checkboxes
+ * 10.  Select & Multiselect Dropdowns
+ * 11.  Multiselect Pills (Tags)
+ * 12.  File Uploader
+ * 13.  Alert / Info Boxes
+ * 14.  AG Grid
+ * 15.  Modals
+ * 16.  Analysis Cards
+ * 17.  Animations & Keyframes
+ * 18.  Miscellaneous Fixes
+ */
+
+
+/* ==========================================================================
+   1. Global Reset & Typography
+   ========================================================================== */
+
+* {
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+}
+
+h1, h2, h3, h4 {
+    font-weight: 600 !important;
+    letter-spacing: -0.025em !important;
+    background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.85) 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    position: relative !important;
+}
+
+h1 {
+    font-size: 2.2rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 1.8rem !important;
+    letter-spacing: -0.03em !important;
+}
+
+h2 {
+    font-size: 1.6rem !important;
+    margin-bottom: 1.5rem !important;
+    font-weight: 600 !important;
+}
+
+h3 {
+    font-size: 1.25rem !important;
+    margin-bottom: 1.2rem !important;
+    font-weight: 600 !important;
+}
+
+h1, h2, h3 {
+    background-size: 200% auto !important;
+}
+
+/* Animated accent underline on section headers */
+h2::after, h3::after {
+    content: '' !important;
+    display: block !important;
+    width: 60px !important;
+    height: 3px !important;
+    background: linear-gradient(90deg, #e4781d 0%, rgba(228, 120, 29, 0.5) 70%, transparent 100%) !important;
+    margin-top: 12px !important;
+    border-radius: 2px !important;
+    animation: slideIn 0.6s ease-out !important;
+}
+
+p, label, div[data-testid="stMarkdownContainer"] {
+    line-height: 1.65 !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.01em !important;
+}
+
+label {
+    font-weight: 500 !important;
+    color: rgba(255, 255, 255, 0.95) !important;
+    font-size: 0.95rem !important;
+    text-transform: none !important;
+}
+
+div[data-testid="stCaptionContainer"] {
+    color: rgba(255, 255, 255, 0.6) !important;
+    font-size: 0.875rem !important;
+    font-style: italic !important;
+    letter-spacing: 0.02em !important;
+}
+
+li {
+    color: rgba(255, 255, 255, 0.85) !important;
+    line-height: 1.7 !important;
+    margin: 0.4rem 0 !important;
+}
+
+strong, b {
+    font-weight: 600 !important;
+    color: rgba(255, 255, 255, 0.98) !important;
+    text-shadow: 0 0 10px rgba(228, 120, 29, 0.2) !important;
+}
+
+/* Remove anchor icons from all markdown headers */
+div[data-testid="stMarkdownContainer"] h1 a,
+div[data-testid="stMarkdownContainer"] h2 a,
+div[data-testid="stMarkdownContainer"] h3 a,
+div[data-testid="stMarkdownContainer"] h4 a,
+div[data-testid="stMarkdownContainer"] h5 a,
+div[data-testid="stMarkdownContainer"] h6 a {
+    display: none !important;
+}
+
+div[data-testid="stMarkdownContainer"] h1,
+div[data-testid="stMarkdownContainer"] h2,
+div[data-testid="stMarkdownContainer"] h3,
+div[data-testid="stMarkdownContainer"] h4,
+div[data-testid="stMarkdownContainer"] h5,
+div[data-testid="stMarkdownContainer"] h6 {
+    cursor: default !important;
+}
+
+/* Section dividers */
+hr {
+    border: none !important;
+    height: 1px !important;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(228, 120, 29, 0.5) 50%,
+        transparent 100%) !important;
+    margin: 2rem 0 !important;
+}
+
+
+/* ==========================================================================
+   2. App Background
+   ========================================================================== */
+
+.stApp,
+[data-testid="stAppViewContainer"],
+section[data-testid="stMain"] {
+    background: radial-gradient(ellipse at top, #1a1a1a 0%, #0f0f0f 50%, #000000 100%) !important;
+    position: static !important;
+}
+
+/* Subtle noise + radial glow texture overlay */
+.stApp::before {
+    content: '' !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background-image:
+        radial-gradient(circle at 20% 30%, rgba(228, 120, 29, 0.02) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(228, 120, 29, 0.015) 0%, transparent 50%),
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.025'/%3E%3C/svg%3E") !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+    mix-blend-mode: overlay !important;
+}
+
+/* Top shine */
+.stApp::after {
+    content: '' !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 300px !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.01) 0%, transparent 100%) !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+}
+
+/* Keep content above background layers */
+.stApp > div,
+[data-testid="stAppViewContainer"] > div {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+
+/* ==========================================================================
+   3. Scrollbar
+   ========================================================================== */
+
+html {
+    scrollbar-width: thin; /* Firefox */
+    height: auto !important;
+    overflow-y: auto !important;
+}
+
+html::-webkit-scrollbar,
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+html::-webkit-scrollbar-track,
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+
+html::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb {
+    background: rgba(228, 120, 29, 0.5);
+    border-radius: 10px;
+}
+
+html::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(228, 120, 29, 0.7);
+}
+
+
+/* ==========================================================================
+   4. Layout & Spacing
+   ========================================================================== */
+
+/* Let the browser own scrolling — kill Streamlit's nested scroll containers */
+body {
+    height: auto !important;
+    overflow-y: auto !important;
+}
+
+section[data-testid="stAppViewContainer"],
+section[data-testid="stMain"],
+div[data-testid="stAppViewBlockContainer"],
+div[data-testid="stVerticalBlock"],
+div[data-testid="stVerticalBlockBorderWrapper"],
+div[data-testid="stMainBlockContainer"],
+.block-container {
+    overflow: visible !important;
+}
+
+div[data-testid="stVerticalBlock"],
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    gap: 0rem !important;
+    margin-top: 0rem !important;
+    padding-top: 0rem !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+}
+
+section[data-testid="stAppViewContainer"],
+section[data-testid="stMain"],
+div[data-testid="stAppViewBlockContainer"] {
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+}
+
+.block-container {
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    padding-top: 2.8rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-bottom: 1rem !important;
+}
+
+div[data-testid="stMainBlockContainer"],
+div[data-testid="stAppViewBlockContainer"] {
+    padding: 0 !important;
+}
+
+section[data-testid="stAppViewContainer"] > div:first-child {
+    padding-bottom: 3rem !important;
+}
+
+/* Allow columns to size independently (don't stretch to match tallest) */
+div[data-testid="column"] {
+    align-self: flex-start !important;
+    min-width: 0 !important;
+    flex: 1 1 0 !important;
+}
+
+/* Column card styling */
+div[data-testid="column"] {
+    background: linear-gradient(145deg, rgba(25, 25, 25, 0.6), rgba(15, 15, 15, 0.4)) !important;
+    border-radius: 16px !important;
+    padding: 1rem !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05),
+                0 0 0 1px rgba(255, 255, 255, 0.02) inset !important;
+    backdrop-filter: blur(10px) !important;
+    transition: all 0.3s ease !important;
+}
+
+div[data-testid="column"]:hover {
+    border-color: rgba(228, 120, 29, 0.2) !important;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                0 0 20px rgba(228, 120, 29, 0.08) !important;
+    transform: translateY(-2px) !important;
+}
+
+/* Fix buttons inside columns */
+div[data-testid="column"] button {
+    flex: 1 1 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+/* Status badge for subheaders */
+.stSubheader {
+    display: inline-block !important;
+    padding: 8px 16px !important;
+    background: linear-gradient(135deg, rgba(228, 120, 29, 0.15), rgba(228, 120, 29, 0.08)) !important;
+    border-left: 3px solid #e4781d !important;
+    border-radius: 8px !important;
+    margin-bottom: 1rem !important;
+    box-shadow: 0 4px 12px rgba(228, 120, 29, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(8px) !important;
+}
+
+/* Main content top padding */
+.main .block-container {
+    padding-top: 2.5rem !important;
+    padding-bottom: 1rem !important;
+}
+
+.main h1:first-of-type,
+.main h2:first-of-type,
+.main h3:first-of-type {
+    margin-top: 1rem !important;
+}
+
+
+/* ==========================================================================
+   5. Sidebar
+   ========================================================================== */
+
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, rgba(20, 20, 20, 0.95) 0%, rgba(10, 10, 10, 0.98) 100%) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    border-right: 1px solid rgba(228, 120, 29, 0.15) !important;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5),
+                inset -1px 0 0 rgba(255, 255, 255, 0.05) !important;
+    z-index: 1 !important;
+}
+
+/* Pull the custom <hr> divider up to align with main-page lines */
+.sidebar-top-divider {
+    margin-top: 0rem !important;
+    margin-bottom: 1.2rem !important;
+}
+
+
+/* ==========================================================================
+   6. Sidebar Navigation Buttons
+   ========================================================================== */
+
+/* Base */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button {
+    background-color: transparent !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    border: none !important;
+    border-left: 3px solid transparent !important;
+    border-radius: 6px !important;
+    padding: 10px 12px !important;
+    box-shadow: none !important;
+    font-weight: 400 !important;
+    text-align: left !important;
+    transition: all 0.15s ease !important;
+}
+
+/* Inactive hover */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="secondary"]:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+
+/* Active (currently selected run) */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"] {
+    background-color: rgba(228, 120, 29, 0.12) !important;
+    border-left: 3px solid #e4781d !important;
+    color: #ffffff !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    animation: pulse-glow 3s ease-in-out infinite !important;
+}
+
+/* No focus ring */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Rename icon button — subtle */
+section[data-testid="stSidebar"] button:has(span:contains("✏️")) {
+    padding: 4px !important;
+    opacity: 0.75;
+}
+
+section[data-testid="stSidebar"] button:has(span:contains("✏️")):hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Sidebar nav hover slide animation */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
+    animation: button-hover 0.3s ease !important;
+}
+
+
+/* ==========================================================================
+   7. Sidebar Toggle Button (open & closed states)
+   ========================================================================== */
+
+button[kind="secondary"][data-testid="collapsedControl"] {
+    transition: background-color 0.15s ease-in-out !important;
+}
+
+button[kind="secondary"][data-testid="collapsedControl"]:hover {
+    background-color: rgba(228, 120, 29, 0.20) !important;
+    border: 1px solid rgba(228, 120, 29, 0.5) !important;
+}
+
+button[kind="secondary"][data-testid="collapsedControl"]:hover svg {
+    fill: #e4781d !important;
+}
+
+/* Collapse button inside sidebar */
+header[data-testid="stHeader"] button,
+section[data-testid="stSidebar"] div[data-testid="stSidebarCollapseButton"] button {
+    color: rgba(255, 255, 255, 0.7) !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 6px !important;
+}
+
+header[data-testid="stHeader"] button:hover,
+section[data-testid="stSidebar"] div[data-testid="stSidebarCollapseButton"] button:hover {
+    background: rgba(228, 120, 29, 0.12) !important;
+}
+
+header[data-testid="stHeader"] button:focus-visible,
+section[data-testid="stSidebar"] div[data-testid="stSidebarCollapseButton"] button:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Header bar itself */
+header[data-testid="stHeader"] {
+    background: radial-gradient(ellipse at bottom, #1a1a1a 0%, #0f0f0f 50%, #000000 100%) !important;
+    height: 2.5rem !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    border-bottom: none !important;
+    z-index: 9999 !important;
+    position: relative !important;
+}
+
+header[data-testid="stHeader"] > div:not(:first-child) {
+    display: none !important;
+}
+
+
+/* ==========================================================================
+   8. Main Content Buttons
+   ========================================================================== */
+
+/* Base style for all main content buttons */
+.main button,
+.main div[data-testid="stButton"] > button[data-baseweb="button"],
+.main div[data-testid="stButton"] button[kind="primary"],
+.main div[data-testid="stButton"] button[kind="secondary"] {
+    background: linear-gradient(
+        180deg,
+        rgba(228, 120, 29, 0.18),
+        rgba(228, 120, 29, 0.08)
+    ) !important;
+    background-image: linear-gradient(
+        180deg,
+        rgba(228, 120, 29, 0.18),
+        rgba(228, 120, 29, 0.08)
+    ) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(228, 120, 29, 0.6) !important;
+    border-radius: 10px !important;
+    backdrop-filter: blur(6px) !important;
+    box-shadow: none !important;
+    padding: 10px 20px !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    letter-spacing: 0.02em !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Hover */
+.main button:hover:not(:disabled),
+.main div[data-testid="stButton"] > button[data-baseweb="button"]:hover:not(:disabled),
+.main div[data-testid="stButton"] button[kind="primary"]:hover:not(:disabled),
+.main div[data-testid="stButton"] button[kind="secondary"]:hover:not(:disabled) {
+    background: rgba(228, 120, 29, 0.25) !important;
+    border-color: rgba(228, 120, 29, 0.5) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 3px rgba(228, 120, 29, 0.35) !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Active / pressed */
+.main button:active:not(:disabled),
+.main div[data-testid="stButton"] > button[data-baseweb="button"]:active,
+.main div[data-testid="stButton"] button[kind="primary"]:active,
+.main div[data-testid="stButton"] button[kind="secondary"]:active {
+    background: rgba(228, 120, 29, 0.35) !important;
+    border-color: rgba(228, 120, 29, 0.6) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3),
+                inset 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    transform: translateY(1px) !important;
+}
+
+/* Focus */
+.main button:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(228, 120, 29, 0.4),
+                0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Disabled */
+.main button:disabled,
+.main div[data-testid="stButton"] > button[data-baseweb="button"]:disabled,
+.main div[data-testid="stButton"] button[kind="primary"]:disabled,
+.main div[data-testid="stButton"] button[kind="secondary"]:disabled {
+    background: rgba(100, 100, 100, 0.12) !important;
+    background-image: none !important;
+    border-color: rgba(100, 100, 100, 0.25) !important;
+    color: rgba(255, 255, 255, 0.35) !important;
+    box-shadow: none !important;
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+/* Download button variant */
+div[data-testid="stDownloadButton"] button {
+    background-color: rgba(228, 120, 29, 0.12) !important;
+    border-color: rgba(228, 120, 29, 0.3) !important;
+}
+
+div[data-testid="stDownloadButton"] button:hover:not(:disabled) {
+    background-color: rgba(228, 120, 29, 0.2) !important;
+    border-color: rgba(228, 120, 29, 0.5) !important;
+    box-shadow: 0 4px 16px rgba(228, 120, 29, 0.25),
+                0 2px 8px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+div[data-testid="stDownloadButton"] button:active:not(:disabled) {
+    background-color: rgba(228, 120, 29, 0.25) !important;
+    border-color: rgba(228, 120, 29, 0.6) !important;
+}
+
+/* Generic emotion-cache button fallback */
+button[class*="st-emotion-cache-"] {
+    background-color: rgba(228, 120, 29, 0.12) !important;
+    border-width: 1px !important;
+    border-style: solid !important;
+    border-color: rgba(228, 120, 29, 0.3) !important;
+    border-radius: 0.5rem !important;
+}
+
+button[class*="st-emotion-cache-"]:hover:not(:disabled) {
+    background-color: rgba(228, 120, 29, 0.2) !important;
+    border-color: rgba(228, 120, 29, 0.5) !important;
+}
+
+/* Shared hover micro-animation for all buttons */
+button:hover:not(:disabled) {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+button:active {
+    transform: scale(0.98) !important;
+}
+
+button {
+    font-weight: 500 !important;
+    letter-spacing: 0.015em !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+
+/* ==========================================================================
+   9. Checkboxes
+   ========================================================================== */
+
+/* Box border color */
+div[data-testid="stCheckbox"] span {
+    background-color: #262730 !important;
+    border-radius: 4px;
+    border-color: #e4781d !important;
+}
+
+/* Base checkbox */
+div[data-testid="stCheckbox"] > label > div:first-child {
+    background-color: #262730;
+    border: 1px solid #e4781d;
+    border-radius: 4px;
+    width: 18px;
+    height: 18px;
+    transition: all 0.15s ease;
+}
+
+div[data-testid="stCheckbox"] > label > div:first-child:hover {
+    border-color: #d66b1d;
+    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.4);
+}
+
+div[data-testid="stCheckbox"] > label > input:checked + div:first-child {
+    background-color: #e4781d;
+    border-color: #e4781d;
+}
+
+/* SVG icon */
+label[data-baseweb="checkbox"] span {
+    border-color: #e4781d !important;
+}
+
+label[data-baseweb="checkbox"] svg {
+    stroke: #e4781d !important;
+    fill: none !important;
+}
+
+label[data-baseweb="checkbox"] input:checked + span svg {
+    fill: #e4781d !important;
+    stroke: #e4781d !important;
+}
+
+label[data-baseweb="checkbox"]:hover span {
+    border-color: #f08c2e !important;
+}
+
+label[data-baseweb="checkbox"] input:focus-visible + span {
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.55) !important;
+}
+
+/* Disabled state */
+div[data-testid="stCheckbox"]:has(input:disabled) {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+}
+
+div[data-testid="stCheckbox"]:has(input:disabled) label {
+    cursor: not-allowed !important;
+}
+
+div[data-testid="stCheckbox"]:has(input:disabled) > label > div:first-child {
+    background-color: #1a1a1a !important;
+    border-color: #555555 !important;
+}
+
+div[data-testid="stCheckbox"]:has(input:disabled) span {
+    color: #666666 !important;
+}
+
+/* Animation */
+div[data-testid="stCheckbox"] input:checked + div:first-child {
+    animation: checkbox-check 0.3s ease !important;
+}
+
+
+/* ==========================================================================
+  10. Select & Multiselect Dropdowns
+   ========================================================================== */
+
+/* --- Selectbox --- */
+div[data-testid="stSelectbox"] * {
+    box-shadow: none !important;
+}
+
+div[data-testid="stSelectbox"] {
+    background-color: transparent !important;
+}
+
+div[data-testid="stSelectbox"] div[data-baseweb="select"] {
+    background-color: #262730 !important;
+    border-radius: 4px !important;
+}
+
+div[data-testid="stSelectbox"] div[role="combobox"] {
+    border: 1px solid #e4781d !important;
+    border-radius: 4px !important;
+    padding: 2px 6px !important;
+    box-shadow: 0 0 0 1px #e4781d !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+div[data-testid="stSelectbox"] div[role="combobox"]:hover {
+    border-color: #d66b1d !important;
+    box-shadow: 0 0 0 2px rgba(214, 107, 29, 0.35) !important;
+}
+
+div[data-testid="stSelectbox"] div[role="combobox"][aria-expanded="true"],
+div[data-testid="stSelectbox"] div[role="combobox"]:focus,
+div[data-testid="stSelectbox"] div[role="combobox"]:focus-visible {
+    outline: none !important;
+    border-color: #e4781d !important;
+    box-shadow: 0 0 0 3px rgba(228, 120, 29, 0.5) !important;
+}
+
+div[data-testid="stSelectbox"] svg {
+    fill: #e4781d !important;
+}
+
+.st-ep {
+    background-color: #d66b1d !important;
+}
+
+/* --- Generic BaseWeb Select (column/row dropdowns) --- */
+div[data-baseweb="select"] > div {
+    background: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 10px !important;
+    padding: 6px 10px !important;
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.35),
+        inset 0 1px 2px rgba(255, 255, 255, 0.05) !important;
+    color: #ffffff !important;
+    transition: all 0.2s ease !important;
+}
+
+div[data-baseweb="select"] > div:hover {
+    border-color: rgba(228, 120, 29, 0.35) !important;
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.45),
+        0 0 10px rgba(228, 120, 29, 0.15),
+        inset 0 1px 2px rgba(255, 255, 255, 0.08) !important;
+    transform: translateY(-1px);
+}
+
+div[data-baseweb="select"] > div[aria-expanded="true"] {
+    border-color: rgba(228, 120, 29, 0.55) !important;
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.5),
+        0 0 18px rgba(228, 120, 29, 0.25),
+        inset 0 1px 3px rgba(255, 255, 255, 0.1) !important;
+    transform: translateY(-1px) scale(1.01);
+}
+
+/* Dropdown option list */
+li[role="option"] {
+    background: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
+    padding: 8px 12px !important;
+    border-radius: 6px !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    transition: all 0.15s ease !important;
+}
+
+li[role="option"]:hover {
+    background: rgba(255, 255, 255, 0.06) !important;
+}
+
+li[role="option"][aria-selected="true"] {
+    background: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
+    border-left: 3px solid #e4781d !important;
+}
+
+/* Hide horizontal scrollbar in dropdown */
+div[data-baseweb="menu"],
+div[data-baseweb="popover"],
+div[data-baseweb="layer"],
+div[data-baseweb="layer"] > div,
+div[data-baseweb="popover"] > div {
+    overflow-x: hidden !important;
+}
+
+/* --- Multiselect combobox --- */
+div[data-testid="stMultiSelect"] div[role="combobox"] {
+    background: linear-gradient(145deg, #1e1e28, #262730) !important;
+    border: 1.5px solid rgba(228, 120, 29, 0.4) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25),
+                0 4px 16px rgba(0, 0, 0, 0.15),
+                0 0 0 1px rgba(228, 120, 29, 0.1) inset,
+                0 1px 2px rgba(255, 255, 255, 0.05) inset !important;
+    padding: 8px 12px !important;
+    margin: 4px 0 !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    min-height: 42px !important;
+    position: relative !important;
+    overflow: visible !important;
+}
+
+div[data-testid="stMultiSelect"] div[role="combobox"]::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 30% !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%) !important;
+    border-radius: 10px 10px 0 0 !important;
+    pointer-events: none !important;
+}
+
+div[data-testid="stMultiSelect"] div[role="combobox"]:hover {
+    border-color: rgba(228, 120, 29, 0.6) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3),
+                0 6px 20px rgba(0, 0, 0, 0.2),
+                0 0 25px rgba(228, 120, 29, 0.15),
+                0 0 0 1px rgba(228, 120, 29, 0.2) inset,
+                0 1px 3px rgba(255, 255, 255, 0.08) inset !important;
+    transform: translateY(-2px) !important;
+}
+
+div[data-testid="stMultiSelect"] div[role="combobox"][aria-expanded="true"],
+div[data-testid="stMultiSelect"] div[role="combobox"]:focus,
+div[data-testid="stMultiSelect"] div[role="combobox"]:focus-visible {
+    outline: none !important;
+    border-color: #e4781d !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4),
+                0 8px 32px rgba(0, 0, 0, 0.25),
+                0 0 35px rgba(228, 120, 29, 0.2),
+                0 0 0 2px rgba(228, 120, 29, 0.3) inset,
+                0 1px 4px rgba(255, 255, 255, 0.1) inset !important;
+    transform: translateY(-2px) scale(1.005) !important;
+}
+
+/* Disabled multiselect */
+div[data-testid="stMultiSelect"] div[role="combobox"][aria-disabled="true"] {
+    border-color: rgba(100, 100, 100, 0.3) !important;
+    box-shadow: none !important;
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+div[data-testid="stMultiSelect"]:has(div[role="combobox"][aria-disabled="true"]) label {
+    color: rgba(255, 255, 255, 0.4) !important;
+}
+
+div[data-testid="stMultiSelect"] input::placeholder {
+    color: rgba(255, 255, 255, 0.4) !important;
+    font-style: italic !important;
+}
+
+div[data-testid="stMultiSelect"] div[role="combobox"] > div:first-child {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Focus animation */
+div[data-testid="stMultiSelect"] div[role="combobox"]:focus-within {
+    animation: input-focus 0.3s ease !important;
+}
+
+
+/* ==========================================================================
+  11. Multiselect Pills (Tags)
+   ========================================================================== */
+
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"] {
+    background: linear-gradient(135deg, rgba(228, 120, 29, 0.2), rgba(228, 120, 29, 0.15)) !important;
+    border: 1.5px solid rgba(228, 120, 29, 0.5) !important;
+    border-radius: 20px !important;
+    padding: 4px 10px 4px 12px !important;
+    margin: 2px 4px !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2),
+                0 0 8px rgba(228, 120, 29, 0.1) !important;
+}
+
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"]:hover {
+    background: linear-gradient(135deg, rgba(228, 120, 29, 0.3), rgba(228, 120, 29, 0.25)) !important;
+    border-color: rgba(228, 120, 29, 0.7) !important;
+    transform: scale(1.05) translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3),
+                0 0 16px rgba(228, 120, 29, 0.2) !important;
+}
+
+/* X (remove) button inside pill */
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"] button {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 50% !important;
+    width: 14px !important;
+    height: 14px !important;
+    min-width: 14px !important;
+    min-height: 14px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease !important;
+    flex-shrink: 0 !important;
+}
+
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"] button:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    transform: scale(1.1) !important;
+}
+
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"] svg {
+    width: 9px !important;
+    height: 9px !important;
+}
+
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"] svg path {
+    stroke: rgba(255, 255, 255, 0.9) !important;
+    stroke-width: 2px !important;
+}
+
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"]:hover svg path,
+div[data-testid="stMultiSelect"] span[data-baseweb="tag"] button:hover svg path {
+    stroke: #ffffff !important;
+}
+
+
+/* ==========================================================================
+  12. File Uploader
+   ========================================================================== */
+
+div[data-testid="stFileUploader"] {
+    margin-bottom: 1.5rem !important;
+    animation: fadeIn 0.4s ease-out !important;
+}
+
+section[data-testid="stFileUploaderDropzone"] {
+    background-color: rgb(26, 26, 26) !important;
+}
+
+
+/* ==========================================================================
+  13. Alert / Info Boxes
+   ========================================================================== */
+
+div[data-testid="stAlert"] {
+    background: linear-gradient(135deg, rgba(228, 120, 29, 0.18), rgba(228, 120, 29, 0.10)) !important;
+    border: 1.5px solid rgba(228, 120, 29, 0.55) !important;
+    border-radius: 10px !important;
+    padding: 1rem 1.25rem !important;
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.35),
+        0 0 18px rgba(228, 120, 29, 0.25),
+        inset 0 1px 2px rgba(255, 255, 255, 0.05) !important;
+}
+
+div[data-testid="stAlert"] > div {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+}
+
+div[data-testid="stAlert"] p {
+    color: rgba(255, 255, 255, 0.92) !important;
+    font-weight: 500 !important;
+}
+
+div[data-testid="stAlert"] svg {
+    fill: #e4781d !important;
+}
+
+
+/* ==========================================================================
+  14. AG Grid
+   ========================================================================== */
+
+/* Allow grid to grow to natural height */
+.ag-theme-streamlit {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* CSS custom properties — applied via class so they cascade to all cells */
+.ag-theme-streamlit {
+    --ag-background-color: #141414 !important;
+    --ag-odd-row-background-color: #141414 !important;
+    --ag-header-background-color: #1f1f1f !important;
+    --ag-foreground-color: #e5e7eb !important;
+    --ag-secondary-foreground-color: #9ca3af !important;
+    --ag-border-color: rgba(255, 255, 255, 0.08) !important;
+    --ag-row-border-color: rgba(255, 255, 255, 0.05) !important;
+    --ag-accent-color: #e4781d !important;
+    --ag-inherited-accent-color: #e4781d !important;
+    --ag-checkbox-checked-border-color: #e4781d !important;
+    --ag-checkbox-checked-shape-color: #e4781d !important;
+    --ag-row-hover-color: rgba(228, 120, 29, 0.12) !important;
+    --ag-selected-row-background-color: rgba(228, 120, 29, 0.22) !important;
+    --ag-range-selection-border-color: #e4781d !important;
+    --ag-range-selection-background-color: rgba(228, 120, 29, 0.25) !important;
+    --ag-range-selection-background-color-1: rgba(228, 120, 29, 0.2) !important;
+    --ag-range-selection-background-color-2: rgba(228, 120, 29, 0.25) !important;
+    --ag-range-selection-background-color-3: rgba(228, 120, 29, 0.3) !important;
+    --ag-range-selection-background-color-4: rgba(228, 120, 29, 0.35) !important;
+    --ag-cell-editing-border: 1px solid #e4781d !important;
+    --ag-input-focus-border: 1px solid #e4781d !important;
+    --ag-column-hover-color: rgba(228, 120, 29, 0.08) !important;
+    --ag-browser-color-scheme: dark !important;
+    --ag-invalid-color: #e4781d !important;
+    --ag-checkbox-checked-color: #e4781d !important;
+    --ag-checkbox-unchecked-color: rgba(228, 120, 29, 0.4) !important;
+    --ag-input-focus-border-color: rgba(228, 120, 29, 0.8) !important;
+}
+
+/* Container */
+.ag-theme-streamlit {
+    background: linear-gradient(145deg, rgba(25, 25, 25, 0.7), rgba(15, 15, 15, 0.5)) !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(228, 120, 29, 0.2) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6),
+                0 4px 16px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05),
+                0 0 0 1px rgba(255, 255, 255, 0.02) inset !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+/* Header */
+.ag-theme-streamlit .ag-header {
+    background: linear-gradient(135deg, rgba(228, 120, 29, 0.2), rgba(228, 120, 29, 0.1)) !important;
+    border-bottom: 2px solid rgba(228, 120, 29, 0.4) !important;
+    font-weight: 600 !important;
+    color: rgba(255, 255, 255, 0.95) !important;
+    box-shadow: 0 2px 8px rgba(228, 120, 29, 0.15) !important;
+}
+
+.ag-theme-streamlit .ag-header-cell {
+    color: rgba(255, 255, 255, 0.95) !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    letter-spacing: 0.02em !important;
+    padding: 12px !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.ag-theme-streamlit .ag-header-cell:hover {
+    background: rgba(228, 120, 29, 0.15) !important;
+}
+
+/* Rows */
+.ag-theme-streamlit .ag-row {
+    background: rgba(20, 20, 20, 0.4) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    transition: all 0.2s ease !important;
+}
+
+.ag-theme-streamlit .ag-row-even {
+    background: rgba(25, 25, 25, 0.4) !important;
+}
+
+.ag-theme-streamlit .ag-row:hover {
+    background: rgba(228, 120, 29, 0.08) !important;
+    transform: translateX(2px) !important;
+    box-shadow: inset 3px 0 0 rgba(228, 120, 29, 0.6) !important;
+}
+
+/* Cells */
+.ag-theme-streamlit .ag-cell {
+    color: rgba(255, 255, 255, 0.9) !important;
+    padding: 10px 12px !important;
+    font-size: 13px !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Selected rows */
+.ag-theme-streamlit .ag-row-selected,
+.ag-theme-streamlit .ag-row.ag-row-selected,
+.ag-theme-streamlit .ag-row-selected:before,
+.ag-theme-streamlit .ag-row-selected:hover,
+.ag-theme-streamlit .ag-row-selected.ag-row-hover {
+    background-color: rgba(228, 120, 29, 0.15) !important;
+    background: rgba(228, 120, 29, 0.15) !important;
+    border-left: 3px solid rgba(228, 120, 29, 0.8) !important;
+}
+
+/* Range selection */
+.ag-theme-streamlit .ag-cell-range-selected,
+.ag-theme-streamlit .ag-cell-range-selected:not(.ag-cell-inline-editing),
+.ag-theme-streamlit .ag-cell.ag-cell-range-selected,
+.ag-theme-streamlit .ag-cell-range-selected-1:not(.ag-cell-inline-editing),
+.ag-theme-streamlit .ag-cell-range-selected-2:not(.ag-cell-inline-editing),
+.ag-theme-streamlit .ag-cell-range-selected-3:not(.ag-cell-inline-editing),
+.ag-theme-streamlit .ag-cell-range-selected-4:not(.ag-cell-inline-editing) {
+    background-color: rgba(228, 120, 29, 0.2) !important;
+    background: rgba(228, 120, 29, 0.2) !important;
+}
+
+.ag-theme-streamlit .ag-cell-range-selected:not(.ag-cell-inline-editing),
+.ag-theme-streamlit .ag-cell-range-top,
+.ag-theme-streamlit .ag-cell-range-right,
+.ag-theme-streamlit .ag-cell-range-bottom,
+.ag-theme-streamlit .ag-cell-range-left {
+    border-color: rgba(228, 120, 29, 0.6) !important;
+}
+
+/* Focus cell */
+.ag-theme-streamlit .ag-cell-focus:not(.ag-cell-range-single-cell),
+.ag-theme-streamlit .ag-cell.ag-cell-focus,
+.ag-theme-streamlit .ag-cell-focus {
+    border: 2px solid #e4781d !important;
+    outline: none !important;
+}
+
+/* Cell editing */
+.ag-theme-streamlit .ag-cell-inline-editing {
+    background: rgba(228, 120, 29, 0.1) !important;
+    border: 2px solid rgba(228, 120, 29, 0.6) !important;
+}
+
+/* Checkboxes in grid */
+.ag-theme-streamlit .ag-checkbox-input-wrapper {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 2px solid rgba(228, 120, 29, 0.6) !important;
+    border-radius: 4px !important;
+    transition: all 0.2s ease !important;
+}
+
+.ag-theme-streamlit .ag-checkbox-input-wrapper.ag-checked {
+    background: linear-gradient(135deg, rgba(228, 120, 29, 0.8), rgba(228, 120, 29, 0.6)) !important;
+    border-color: rgba(228, 120, 29, 0.9) !important;
+}
+
+.ag-theme-streamlit .ag-checkbox-input-wrapper:hover {
+    background: rgba(228, 120, 29, 0.15) !important;
+    box-shadow: 0 0 8px rgba(228, 120, 29, 0.3) !important;
+}
+
+/* Range handle */
+.ag-theme-streamlit .ag-fill-handle,
+.ag-theme-streamlit .ag-range-handle {
+    background-color: #e4781d !important;
+}
+
+/* Prevent nested scrollbars */
+.block-container {
+    overflow: visible !important;
+}
+
+
+/* ==========================================================================
+  15. Modals
+   ========================================================================== */
+
+/* Kill the link icon inside modal title */
+div[data-testid="stModal"] h3 > a {
+    display: none !important;
+}
+
+div[data-baseweb="stMarkdownContainer"] h3 a {
+    display: none !important;
+}
+
+/* Backdrop covers full page including sidebar */
+div[data-testid="stModal"] {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 999999 !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    animation: fadeInModal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+div[data-testid="stModal"] * {
+    animation: fadeInModal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+/* Close button spacing */
+div[data-baseweb="modal"] header {
+    padding-top: 24px !important;
+    padding-right: 24px !important;
+}
+
+div[data-baseweb="modal"] button[aria-label="Close"] {
+    position: relative !important;
+}
+
+/* Hide scrollbar inside modal */
+div[data-testid="stModal"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar {
+    width: 0px !important;
+    height: 0px !important;
+}
+
+div[data-testid="stModal"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar-button {
+    display: none !important;
+}
+
+div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
+    scrollbar-width: none !important;
+}
+
+
+/* ==========================================================================
+  16. Analysis Cards (Pinterest-style stat grid)
+   ========================================================================== */
+
+.stColumn {
+    padding: 0.5rem !important;
+}
+
+.analysis-card {
+    background: linear-gradient(145deg, #2e2f34, #272a30);
+    border: 1px solid rgba(228, 120, 29, 0.15);
+    border-radius: 16px;
+    padding: 2rem 2.25rem;
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.1),
+        0 8px 16px rgba(0, 0, 0, 0.15),
+        0 16px 32px rgba(0, 0, 0, 0.1);
+    height: 100%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+/* Top shine line */
+.analysis-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(228, 120, 29, 0.3),
+        transparent);
+}
+
+.analysis-card:hover {
+    border-color: rgba(228, 120, 29, 0.35);
+    box-shadow:
+        0 8px 12px rgba(0, 0, 0, 0.15),
+        0 16px 24px rgba(0, 0, 0, 0.2),
+        0 24px 48px rgba(0, 0, 0, 0.15),
+        0 0 0 1px rgba(228, 120, 29, 0.2);
+    transform: translateY(-4px) scale(1.01);
+}
+
+.analysis-title {
+    font-size: 0.875rem;
+    color: #b4b8c4;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.85;
+}
+
+.analysis-value {
+    font-size: 3.25rem;
+    font-weight: 700;
+    color: #fb923c;
+    line-height: 0.95;
+    margin-bottom: 0.75rem;
+    text-shadow: 0 2px 8px rgba(251, 146, 60, 0.2);
+}
+
+.analysis-subtext {
+    font-size: 0.9rem;
+    color: #9ca3af;
+    margin-top: 0.75rem;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+
+/* ==========================================================================
+  17. Animations & Keyframes
+   ========================================================================== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInModal {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        width: 0;
+        opacity: 0;
+    }
+    to {
+        width: 60px;
+        opacity: 1;
+    }
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(228, 120, 29, 0.15) !important;
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(228, 120, 29, 0.25) !important;
+    }
+}
+
+@keyframes textShimmer {
+    0% { background-position: -100% center; }
+    100% { background-position: 200% center; }
+}
+
+@keyframes input-focus {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.01); }
+    100% { transform: scale(1); }
+}
+
+@keyframes checkbox-check {
+    0%   { transform: scale(0.8); }
+    50%  { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+@keyframes button-hover {
+    0%   { transform: translateX(0); }
+    50%  { transform: translateX(3px); }
+    100% { transform: translateX(0); }
+}
+
+/* Apply fade-in to main content block */
+.main .block-container,
+.main .block-container > div {
+    animation: fadeIn 0.6s ease-out !important;
+}
+
+/* Heading hover shimmer */
+h1:hover, h2:hover, h3:hover {
+    animation: textShimmer 3s ease-in-out infinite !important;
+}
+
+
+/* ==========================================================================
+  18. Miscellaneous Fixes
+   ========================================================================== */
+
+/* Smooth transitions on all interactive elements */
+button, input, select, textarea,
+div[data-testid="stCheckbox"],
+div[data-testid="stMultiSelect"],
+div[data-testid="stSelectbox"] {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
