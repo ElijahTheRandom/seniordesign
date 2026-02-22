@@ -304,13 +304,9 @@ with st.sidebar:
             "Load Run",
             key="new_analysis_run",
             use_container_width=True,
-            type="secondary"
+            type="primary"
         )
     
-
-
-
-
 # Create modal instances
 error_modal = Modal(
     "Invalid Analysis",
