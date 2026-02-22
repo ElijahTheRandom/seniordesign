@@ -205,7 +205,6 @@ if "last_grid_selection" not in st.session_state:
 st.set_page_config(
     page_title="PS Analytics",
     page_icon=os.path.join(BASE_DIR, "assets", "PStheMainMan.png"),
-    layout="wide",
     initial_sidebar_state="collapsed"
 )
 
@@ -924,7 +923,7 @@ header[data-testid="stHeader"] > div:not(:first-child) {
     padding-top: 2.8rem;
     padding-left: 1rem;
     padding-right: 1rem;
-    padding-bottom: 15rem !important;
+    padding-bottom: 1rem !important;
 }
 
 /* DO NOT pad these — they are scroll containers */
@@ -941,8 +940,6 @@ section[data-testid="stAppViewContainer"] > div:first-child {
 /* Ensure main app container allows full scrolling */
 section[data-testid="stAppViewContainer"] {
     height: auto !important;
-    min-height: 100vh !important;
-    overflow: visible !important;
 }
 
 /* Remove spacing from vertical blocks */
@@ -1057,7 +1054,6 @@ div[data-testid="stMultiSelect"] div[role="combobox"] {
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
     min-height: 42px !important;
     position: relative !important;
-    overflow: visible !important;
 }
 
 /* Add subtle shine effect at the top */
@@ -1444,7 +1440,7 @@ st.markdown("""
 <style>
 .main .block-container {
     padding-top: 2.5rem !important;
-    padding-bottom: 15rem !important;
+    padding-bottom: 1rem !important;
 }
 
 /* Also make sure your first header isn't hidden */
@@ -2490,8 +2486,6 @@ else:
 
         st.markdown("---")
 
-        st.markdown('<div class="run-analysis-anchor"></div>', unsafe_allow_html=True)
-
         # Make a copy with a 1-based index to match the row selector
         edited_table_for_loc = edited_table.copy()
         edited_table_for_loc.index = range(1, len(edited_table_for_loc) + 1)
@@ -2706,7 +2700,6 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
 
 /* Make sure the main content wrapper doesn't clip the bottom */
 .block-container {
-    height: auto !important;
     min-height: auto !important;
     max-height: none !important;
     overflow: visible !important;
@@ -2761,21 +2754,110 @@ div[data-testid="stVerticalBlock"] {
 div[data-testid="stVerticalBlock"] > div {
     margin-bottom: 0rem !important;
 }
-            
-/* Force MAIN MENU (right side) to stay scrollable, but hide its scrollbar */
-[data-testid="stAppViewContainer"],
-section[data-testid="stMain"] {
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    scrollbar-width: none !important;
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+
+/* =====================================
+   SIDEBAR — TRUE COLLAPSE TO 0px
+   ===================================== */
+
+/* When sidebar is COLLAPSED */
+section[data-testid="stSidebar"][aria-expanded="false"] {
+    width: 0px !important;
+    min-width: 0px !important;
+    max-width: 0px !important;
+    flex: 0 0 0px !important;
 }
 
-[data-testid="stAppViewContainer"]::-webkit-scrollbar,
-section[data-testid="stMain"]::-webkit-scrollbar {
-    display: none !important;
-    width: 0 !important;
-    height: 0 !important;
+/* When sidebar is OPEN */
+section[data-testid="stSidebar"][aria-expanded="true"] {
+    width: 385px !important;
+    min-width: 385px !important;
+    max-width: 385px !important;
+    flex: 0 0 385px !important;
 }
+
+/* Lock internal wrapper width */
+section[data-testid="stSidebar"][aria-expanded="true"] > div:first-child {
+    width: 385px !important;
+}
+
+/* Remove resize handle */
+div[data-testid="stSidebarResizer"] {
+    display: none !important;
+}
+
+/* Remove transition jitter */
+section[data-testid="stMain"] {
+    transition: none !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+
+/* Keep border but remove hover highlight */
+section[data-testid="stSidebar"] {
+    box-shadow: none !important;
+}
+
+/* Remove hover glow but preserve border */
+section[data-testid="stSidebar"]:hover {
+    box-shadow: none !important;
+}
+
+/* Remove resize cursor everywhere on sidebar */
+section[data-testid="stSidebar"],
+section[data-testid="stSidebar"] * {
+    cursor: default !important;
+}
+
+/* Specifically kill any col-resize behavior */
+div[data-testid="stSidebarResizer"] {
+    display: none !important;
+    cursor: default !important;
+}
+
+/* Re-enable pointer cursor for interactive elements */
+section[data-testid="stSidebar"] button,
+section[data-testid="stSidebar"] input,
+section[data-testid="stSidebar"] select,
+section[data-testid="stSidebar"] textarea,
+section[data-testid="stSidebar"] label {
+    cursor: pointer !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+
+/* Lock sidebar right border color */
+section[data-testid="stSidebar"] {
+    border-right: 1px solid #2B2B2B !important;  /* change to your exact border color */
+}
+
+/* Prevent hover from changing divider color */
+section[data-testid="stSidebar"]:hover {
+    border-right: 1px solid #2B2B2B !important;
+}
+
+/* Kill resizer visual highlight */
+div[data-testid="stSidebarResizer"] {
+    background: #2B2B2B !important;
+    opacity: 1 !important;
+}
+
+div[data-testid="stSidebarResizer"]:hover {
+    background: #2B2B2B !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
