@@ -2228,51 +2228,6 @@ else:
                 st.markdown("")  # Add spacing
                 st.caption("**Tip:** Click and drag to select a range of cells.")
                 
-                # Display selection output
-                if selection:
-                    print("\n--- Selected Ranges ---")
-                    pprint.pprint(selection)
-                    print("-----------------------")
-                    
-                    st.markdown("---")
-                    st.markdown("**Selection Output**")
-                    
-                    with st.expander("Selected Ranges Metadata", expanded=False):
-                        st.json(selection)
-                    
-                    # Process and display the selected data
-                    for idx, rng in enumerate(selection):
-                        st.write(f"**Range {idx + 1} Selection:**")
-                        
-                        # Extract indices and columns
-                        start_row = rng.get("startRow")
-                        end_row = rng.get("endRow")
-                        selected_cols = rng.get("columns", [])
-                        
-                        if start_row is not None and end_row is not None and selected_cols:
-                            # Ensure indices are integers
-                            start = int(start_row)
-                            end = int(end_row)
-                            
-                            # Validate columns exist in current dataframe
-                            valid_cols = [c for c in selected_cols if c in df.columns]
-                            
-                            if valid_cols:
-                                # Slice rows (end is inclusive in AG Grid)
-                                subset = df.iloc[start : end + 1][valid_cols]
-                                
-                                print(f"\n--- Range {idx + 1} Data ---")
-                                print(subset.to_markdown(index=False, tablefmt="grid"))
-                                print("----------------------")
-                                
-                                st.dataframe(subset, use_container_width=True)
-                            else:
-                                st.warning("Selected columns not found in current data.")
-                        else:
-                            st.warning("Invalid selection data received.")
-                else:
-                    st.info("Select a range of cells in the grid to see details here.")
-                
             except Exception as e:
                 st.error(f"Error processing file: {e}")
                 edited_table = pd.DataFrame(columns=["Enter your data..."])
@@ -2904,6 +2859,22 @@ div[data-testid="stSidebarResizer"] {
 
 div[data-testid="stSidebarResizer"]:hover {
     background: #2B2B2B !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+
+/* Target ONLY the file uploader button text */
+div[data-testid="stFileUploader"] button span {
+    font-weight: 400 !important;   /* normal */
+}
+
+/* Stronger fallback */
+div[data-testid="stFileUploader"] button {
+    font-weight: 400 !important;
 }
 
 </style>
