@@ -31,17 +31,18 @@
  * 18.  Miscellaneous Fixes
  */
 
-
 /* ==========================================================================
    1. Global Reset & Typography
    ========================================================================== */
 
+/* Improves font rendering across all web browsers */
 * {
-    -webkit-font-smoothing: antialiased !important;
-    -moz-osx-font-smoothing: grayscale !important;
-    text-rendering: optimizeLegibility !important;
+    -webkit-font-smoothing: antialiased !important; /*Chrome and safari*/
+    -moz-osx-font-smoothing: grayscale !important; /*Firefox*/
+    text-rendering: optimizeLegibility !important; 
 }
 
+/* Styling for all of the headers */
 h1, h2, h3, h4 {
     font-weight: 600 !important;
     letter-spacing: -0.025em !important;
@@ -53,6 +54,7 @@ h1, h2, h3, h4 {
     position: relative !important;
 }
 
+/* Styling only for the main headers (Ex. Analysis Results - Run #) */
 h1 {
     font-size: 2.2rem !important;
     font-weight: 700 !important;
@@ -60,12 +62,14 @@ h1 {
     letter-spacing: -0.03em !important;
 }
 
+/* Styling only for the sub headers (Ex. Visualization configuration) */
 h2 {
     font-size: 1.6rem !important;
     margin-bottom: 1.5rem !important;
     font-weight: 600 !important;
 }
 
+/* Styling only for the subsections/general text */
 h3 {
     font-size: 1.25rem !important;
     margin-bottom: 1.2rem !important;
@@ -76,7 +80,7 @@ h1, h2, h3 {
     background-size: 200% auto !important;
 }
 
-/* Animated accent underline on section headers */
+/* Decorated accent underline on section headers */
 h2::after, h3::after {
     content: '' !important;
     display: block !important;
@@ -88,6 +92,7 @@ h2::after, h3::after {
     animation: slideIn 0.6s ease-out !important;
 }
 
+/* Paragraph readability */
 p, label, div[data-testid="stMarkdownContainer"] {
     line-height: 1.65 !important;
     color: rgba(255, 255, 255, 0.9) !important;
@@ -109,12 +114,14 @@ div[data-testid="stCaptionContainer"] {
     letter-spacing: 0.02em !important;
 }
 
+/* Paragraph spacing */
 li {
     color: rgba(255, 255, 255, 0.85) !important;
     line-height: 1.7 !important;
     margin: 0.4rem 0 !important;
 }
 
+/* Slight text glow */
 strong, b {
     font-weight: 600 !important;
     color: rgba(255, 255, 255, 0.98) !important;
@@ -140,7 +147,7 @@ div[data-testid="stMarkdownContainer"] h6 {
     cursor: default !important;
 }
 
-/* Section dividers */
+/* Horizontal divider styling on home screen */
 hr {
     border: none !important;
     height: 1px !important;
@@ -151,11 +158,11 @@ hr {
     margin: 2rem 0 !important;
 }
 
-
 /* ==========================================================================
    2. App Background
    ========================================================================== */
 
+/* Background styling */
 .stApp,
 [data-testid="stAppViewContainer"],
 section[data-testid="stMain"] {
@@ -211,12 +218,14 @@ html {
     overflow-y: auto !important;
 }
 
+/* Scrollbar size */
 html::-webkit-scrollbar,
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
+/* Scrollbar styling */
 html::-webkit-scrollbar-track,
 ::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.05);
@@ -229,11 +238,11 @@ html::-webkit-scrollbar-thumb,
     border-radius: 10px;
 }
 
+/* Change in styling when hovered */
 html::-webkit-scrollbar-thumb:hover,
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(228, 120, 29, 0.7);
 }
-
 
 /* ==========================================================================
    4. Layout & Spacing
@@ -245,6 +254,7 @@ body {
     overflow-y: auto !important;
 }
 
+/* Natural expansion of containers, hover effects, resizing prevention on certain elements, background effects, etc. */
 section[data-testid="stAppViewContainer"],
 section[data-testid="stMain"],
 div[data-testid="stAppViewBlockContainer"],
@@ -357,6 +367,7 @@ div[data-testid="column"] button {
    5. Sidebar
    ========================================================================== */
 
+/* Sidebar styling */
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, rgba(20, 20, 20, 0.95) 0%, rgba(10, 10, 10, 0.98) 100%) !important;
     backdrop-filter: blur(20px) saturate(180%) !important;
@@ -516,7 +527,7 @@ div[data-testid="stFileUploader"] button {
    6. Sidebar Navigation Buttons
    ========================================================================== */
 
-/* Base */
+/* Base styling */
 section[data-testid="stSidebar"] div[data-testid="stButton"] button {
     background-color: transparent !important;
     color: rgba(255, 255, 255, 0.8) !important;
@@ -553,7 +564,7 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button:focus-visibl
     box-shadow: none !important;
 }
 
-/* Rename icon button — subtle */
+/* Rename icon button — subtle styling */
 section[data-testid="stSidebar"] button:has(span:contains("✏️")) {
     padding: 4px !important;
     opacity: 0.75;
@@ -569,11 +580,11 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
     animation: button-hover 0.3s ease !important;
 }
 
-
 /* ==========================================================================
    7. Sidebar Toggle Button (open & closed states)
    ========================================================================== */
 
+/* Collapsed sidebar toggle and all other states below */
 button[kind="secondary"][data-testid="collapsedControl"] {
     transition: background-color 0.15s ease-in-out !important;
 }
@@ -706,6 +717,7 @@ div[data-testid="stDownloadButton"] button {
     border-color: rgba(228, 120, 29, 0.3) !important;
 }
 
+/* Download button hover and other styling below*/
 div[data-testid="stDownloadButton"] button:hover:not(:disabled) {
     background-color: rgba(228, 120, 29, 0.2) !important;
     border-color: rgba(228, 120, 29, 0.5) !important;
@@ -719,7 +731,7 @@ div[data-testid="stDownloadButton"] button:active:not(:disabled) {
     border-color: rgba(228, 120, 29, 0.6) !important;
 }
 
-/* Generic emotion-cache button fallback */
+/* Generic emotion-cache button fallback and other stylings below */
 button[class*="st-emotion-cache-"] {
     background-color: rgba(228, 120, 29, 0.12) !important;
     border-width: 1px !important;
@@ -739,16 +751,17 @@ button:hover:not(:disabled) {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
 }
 
+/* Active button scaling */
 button:active {
     transform: scale(0.98) !important;
 }
 
+/* Global text for buttons */
 button {
     font-weight: 500 !important;
     letter-spacing: 0.015em !important;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
-
 
 /* ==========================================================================
    9. Checkboxes
@@ -771,17 +784,19 @@ div[data-testid="stCheckbox"] > label > div:first-child {
     transition: all 0.15s ease;
 }
 
+/* Checkbox hovering */
 div[data-testid="stCheckbox"] > label > div:first-child:hover {
     border-color: #d66b1d;
     box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.4);
 }
 
+/* State when checkbox is filled */
 div[data-testid="stCheckbox"] > label > input:checked + div:first-child {
     background-color: #e4781d;
     border-color: #e4781d;
 }
 
-/* SVG icon */
+/* SVG check icon */
 label[data-baseweb="checkbox"] span {
     border-color: #e4781d !important;
 }
@@ -824,7 +839,7 @@ div[data-testid="stCheckbox"]:has(input:disabled) span {
     color: #666666 !important;
 }
 
-/* Animation */
+/* Animation when checked and unchecked */
 div[data-testid="stCheckbox"] input:checked + div:first-child {
     animation: checkbox-check 0.3s ease !important;
 }
@@ -835,10 +850,12 @@ div[data-testid="stCheckbox"] input:checked + div:first-child {
    ========================================================================== */
 
 /* --- Selectbox --- */
+/* Removes default shadowing */
 div[data-testid="stSelectbox"] * {
     box-shadow: none !important;
 }
 
+/* Dropdown styling */
 div[data-testid="stSelectbox"] {
     background-color: transparent !important;
 }
@@ -952,6 +969,7 @@ div[data-testid="stMultiSelect"] div[role="combobox"] {
     overflow: visible !important;
 }
 
+/* Continued styling */
 div[data-testid="stMultiSelect"] div[role="combobox"]::before {
     content: '' !important;
     position: absolute !important;
@@ -1019,6 +1037,7 @@ div[data-testid="stMultiSelect"] div[role="combobox"]:focus-within {
   11. Multiselect Pills (Tags)
    ========================================================================== */
 
+/* Base styling for the "pills" aka the selected items in the dropdowns */
 div[data-testid="stMultiSelect"] span[data-baseweb="tag"] {
     background: linear-gradient(135deg, rgba(228, 120, 29, 0.2), rgba(228, 120, 29, 0.15)) !important;
     border: 1.5px solid rgba(228, 120, 29, 0.5) !important;
@@ -1036,6 +1055,7 @@ div[data-testid="stMultiSelect"] span[data-baseweb="tag"] {
                 0 0 8px rgba(228, 120, 29, 0.1) !important;
 }
 
+/* Pill hovers */
 div[data-testid="stMultiSelect"] span[data-baseweb="tag"]:hover {
     background: linear-gradient(135deg, rgba(228, 120, 29, 0.3), rgba(228, 120, 29, 0.25)) !important;
     border-color: rgba(228, 120, 29, 0.7) !important;
@@ -1061,11 +1081,13 @@ div[data-testid="stMultiSelect"] span[data-baseweb="tag"] button {
     flex-shrink: 0 !important;
 }
 
+/* Styling */
 div[data-testid="stMultiSelect"] span[data-baseweb="tag"] button:hover {
     background: rgba(255, 255, 255, 0.2) !important;
     transform: scale(1.1) !important;
 }
 
+/* SVG styling */
 div[data-testid="stMultiSelect"] span[data-baseweb="tag"] svg {
     width: 9px !important;
     height: 9px !important;
@@ -1076,6 +1098,7 @@ div[data-testid="stMultiSelect"] span[data-baseweb="tag"] svg path {
     stroke-width: 2px !important;
 }
 
+/* SVG hover */
 div[data-testid="stMultiSelect"] span[data-baseweb="tag"]:hover svg path,
 div[data-testid="stMultiSelect"] span[data-baseweb="tag"] button:hover svg path {
     stroke: #ffffff !important;
@@ -1086,11 +1109,13 @@ div[data-testid="stMultiSelect"] span[data-baseweb="tag"] button:hover svg path 
   12. File Uploader
    ========================================================================== */
 
+/* The actual upload container/button */
 div[data-testid="stFileUploader"] {
     margin-bottom: 1.5rem !important;
     animation: fadeIn 0.4s ease-out !important;
 }
 
+/* The container around the button (can also be selected for input */
 section[data-testid="stFileUploaderDropzone"] {
     background-color: rgb(26, 26, 26) !important;
 }
@@ -1100,6 +1125,7 @@ section[data-testid="stFileUploaderDropzone"] {
   13. Alert / Info Boxes
    ========================================================================== */
 
+/* Main container */
 div[data-testid="stAlert"] {
     background: linear-gradient(135deg, rgba(228, 120, 29, 0.18), rgba(228, 120, 29, 0.10)) !important;
     border: 1.5px solid rgba(228, 120, 29, 0.55) !important;
@@ -1111,6 +1137,7 @@ div[data-testid="stAlert"] {
         inset 0 1px 2px rgba(255, 255, 255, 0.05) !important;
 }
 
+/* Removes nested layers */
 div[data-testid="stAlert"] > div {
     background: transparent !important;
     padding: 0 !important;
@@ -1118,11 +1145,13 @@ div[data-testid="stAlert"] > div {
     border: none !important;
 }
 
+/* Alert text styling */
 div[data-testid="stAlert"] p {
     color: rgba(255, 255, 255, 0.92) !important;
     font-weight: 500 !important;
 }
 
+/* Alert coloring */
 div[data-testid="stAlert"] svg {
     fill: #e4781d !important;
 }
@@ -1182,7 +1211,7 @@ div[data-testid="stAlert"] svg {
     backdrop-filter: blur(10px) !important;
 }
 
-/* Header */
+/* Header and it's styling*/
 .ag-theme-streamlit .ag-header {
     background: linear-gradient(135deg, rgba(228, 120, 29, 0.2), rgba(228, 120, 29, 0.1)) !important;
     border-bottom: 2px solid rgba(228, 120, 29, 0.4) !important;
@@ -1305,7 +1334,7 @@ div[data-testid="stAlert"] svg {
 
 
 /* ==========================================================================
-  15. Modals
+  15. Modals/Popups
    ========================================================================== */
 
 /* Kill the link icon inside modal title */
@@ -1362,10 +1391,12 @@ div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
   16. Analysis Cards (Pinterest-style stat grid)
    ========================================================================== */
 
+/* Column spacing */
 .stColumn {
     padding: 0.5rem !important;
 }
 
+/* Card base styling */
 .analysis-card {
     background: linear-gradient(145deg, #2e2f34, #272a30);
     border: 1px solid rgba(228, 120, 29, 0.15);
@@ -1404,6 +1435,7 @@ div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
     transform: translateY(-4px) scale(1.01);
 }
 
+/* Card title */
 .analysis-title {
     font-size: 0.875rem;
     color: #b4b8c4;
@@ -1414,6 +1446,7 @@ div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
     opacity: 0.85;
 }
 
+/* Stat values */
 .analysis-value {
     font-size: 3.25rem;
     font-weight: 700;
@@ -1423,6 +1456,7 @@ div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
     text-shadow: 0 2px 8px rgba(251, 146, 60, 0.2);
 }
 
+/* Other text */
 .analysis-subtext {
     font-size: 0.9rem;
     color: #9ca3af;
@@ -1430,7 +1464,6 @@ div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
     font-weight: 400;
     line-height: 1.4;
 }
-
 
 /* ==========================================================================
   17. Animations & Keyframes

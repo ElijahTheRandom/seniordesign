@@ -60,20 +60,25 @@ def validate_numeric(
         Returns an empty list if all data is valid or no numeric
         method is selected.
     """
+    # List of all of the currently possible numeric methods and plots
     numeric_methods = {
         "mean", "median", "mode", "std_dev", "variance",
         "pearson", "spearman", "regression", "percentiles", "variation",
         "viz_hist", "viz_box", "viz_scatter", "viz_line", "viz_heatmap",
     }
 
+    # Determines if at least one selected method requires some form of validation
     numeric_required = any(
         method_flags.get(m, False)
         for m in numeric_methods
     )
 
+    # Skips validation if no numeric method is selected
     if not numeric_required:
         return []
 
+    # Stores all sells that fails the validation tests and returns a list of all of the
+    # cells that cause issues for the data
     non_numeric = []
     for col in data.columns:
         coerced = pd.to_numeric(data[col], errors="coerce")
@@ -84,10 +89,9 @@ def validate_numeric(
                 "column": col,
                 "value":  val,
             })
-
     return non_numeric
 
-
+# Creates a run based on the input from the user
 def create_run(
     parsed_data: pd.DataFrame,
     edited_table: pd.DataFrame,
@@ -118,17 +122,17 @@ def create_run(
             id, name, table, data, columns, rows, methods, visualizations
     """
     return {
-        "id":   str(uuid.uuid4()),
+        "id":   str(uuid.uuid4()), # Generate a unique id for the run
         "name": f"Run {run_count + 1}",
-        "table": edited_table,
-        "data":  parsed_data.reset_index(drop=True),
+        "table": edited_table, # Stores the whole og table as a reference
+        "data":  parsed_data.reset_index(drop=True), # Stores the sliced data
         "columns": col1,
         "rows":    col2,
-        "methods": _collect_selected(method_flags, METHOD_NAMES),
-        "visualizations": _collect_selected(method_flags, VIZ_NAMES),
+        "methods": _collect_selected(method_flags, METHOD_NAMES), # Converts selected items into readable method names
+        "visualizations": _collect_selected(method_flags, VIZ_NAMES), # Converts selected items into readable visualization names
     }
 
-
+# Error message sent to the user if they selected incompatible data for some calculation/visual
 def build_error_message(non_numeric_cells: list[dict]) -> str:
     """
     Build the user-facing error message for non-numeric data.
@@ -154,7 +158,7 @@ def build_error_message(non_numeric_cells: list[dict]) -> str:
         lines.append(f" ...and {len(non_numeric_cells) - 2} more entries.")
     return "\n".join(lines)
 
-
+# Success message sent to the user once their run tab has been generated and where to go
 def build_success_message(run: dict) -> str:
     """
     Build the user-facing success message after a run is created.
@@ -192,8 +196,8 @@ def _collect_selected(
     """
     return [
         display_name
-        for key, display_name in name_map.items()
-        if flags.get(key, False)
+        for key, display_name in name_map.items() # Preserves the display order
+        if flags.get(key, False) # Include only true flags 
     ]
 
 
@@ -208,6 +212,7 @@ def _collect_selected(
 # hardcode these strings. They just pass flags through and let run_manager
 # produce the names.
 
+# Maps the internal method keys to how they're displayed for the user
 METHOD_NAMES: dict[str, str] = {
     "mean":       "Mean",
     "median":     "Median",
@@ -223,10 +228,11 @@ METHOD_NAMES: dict[str, str] = {
     "variation":  "Variation",
 }
 
+# Maps the internal visualization key to how they're displayed for the user
 VIZ_NAMES: dict[str, str] = {
-    "hist":    "Pie Chart",
-    "box":     "Vertical Bar Chart",
-    "scatter": "Horizontal Bar Chart",
-    "line":    "Scatter Plot",
-    "heatmap": "Line of Best Fit Scatter Plot",
+    "hist":    "Pie Chart", # histogram = pie chart
+    "box":     "Vertical Bar Chart", # box chart = vertical bar chart
+    "scatter": "Horizontal Bar Chart", # I'm pretty sure these got flipped somehow?
+    "line":    "Scatter Plot", # I'm pretty sure these got flipped somehow?
+    "heatmap": "Line of Best Fit Scatter Plot", # heatmap = line of best fit
 }

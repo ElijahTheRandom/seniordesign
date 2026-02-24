@@ -209,6 +209,9 @@ def _clear_file_state() -> None:
         st.session_state.pop(key, None)
 
     st.session_state.has_file = False
+
+    # Keep previously selected values valid if the underlying DataFrame changed
+    # (prevents Streamlit from crashing when a column disappears between reruns)
     st.session_state.selected_columns = []
     st.session_state.selected_rows = []
     st.session_state.last_grid_selection = None
@@ -497,7 +500,8 @@ def _render_column_row_selectors(
         col2 = st.multiselect("Rows", available_rows, key="selected_rows")
 
         # --- Reset two-column checkboxes when dropping below 2 columns ---
-        last_num = st.session_state.get("last_num_cols", 0)
+        # If user drops from >=2 columns to 1 column,
+        # reset two-column statistical method checkboxes
         if last_num >= 2 and len(col1) == 1:
             st.session_state.checkbox_key_twocol += 1
         st.session_state.last_num_cols = len(col1)
@@ -532,6 +536,8 @@ def _render_computation_options(
     disable_one_col = not data_ready or len(col1) < 1
     disable_two_cols = not data_ready or len(col1) < 2
 
+    # If user drops from >=2 columns to 1 column,
+    # reset two-column statistical method checkboxes
     k1 = st.session_state.checkbox_key_onecol
     k2 = st.session_state.checkbox_key_twocol
 
@@ -684,10 +690,11 @@ def _handle_run_analysis(
         return
 
     # --- Slice to selected columns and rows ---
-    # Use a 1-based index so .loc[col2, col1] aligns with the row selector
+    # Convert to 1-based index so row selections align with multiselect values
     edited_table_for_loc = edited_table.copy()
     edited_table_for_loc.index = range(1, len(edited_table_for_loc) + 1)
 
+    # Apply column/row filters depending on what the user selected
     if col1 and col2:
         parsed_data = edited_table_for_loc.loc[col2, col1].copy()
     elif col1:
@@ -698,6 +705,8 @@ def _handle_run_analysis(
         parsed_data = edited_table_for_loc.copy()
 
     # --- Build method flags dict for run_manager ---
+    # Consolidate all computation + visualization flags into one dict
+    # for validation and run creation logic
     method_flags = {
         "mean": mean, "median": median, "mode": mode,
         "variance": variance, "std_dev": std_dev, "percentiles": percentiles,
