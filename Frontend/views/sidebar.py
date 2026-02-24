@@ -51,6 +51,9 @@ def render_sidebar() -> None:
         for i, run in enumerate(st.session_state.analysis_runs):
             _render_run_button(run)
 
+        st.markdown("---")
+        _load_run_data(st.session_state.active_run_id)
+
 
 # ---------------------------------------------------------------------------
 # Private helpers
@@ -160,3 +163,21 @@ def _render_rename_form(run: dict) -> None:
         if st.button("Cancel", key=f"cancel_rename_{run['id']}"):
             st.session_state["renaming_run_id"] = None
             st.rerun()
+
+def _load_run_data(run_id: str) -> dict:
+    """
+    Load the full data for a run by its ID.
+
+    This is a placeholder function. In a real implementation, this would
+    likely involve reading from disk or a database, since we don't want
+    to keep all run data in memory at all times.
+
+    For now, it just returns the run dict from session state based on ID.
+    """
+    st.button(
+        "Load Run Data",
+        key=f"load_run_{run_id}",
+        use_container_width=True,
+        type="primary" if run_id == st.session_state.active_run_id else "secondary"
+
+    )
