@@ -1,0 +1,11 @@
+services:
+  ui:
+    build: .
+    image: senior-design-app:latest
+    ports:
+      - "8501:8501"
+    volumes:
+      - senior_design_data:/app/data
+
+volumes:
+  senior_design_data:
