@@ -127,7 +127,6 @@ def _render_run_button(run: dict) -> None:
     if st.session_state.get("renaming_run_id") == run["id"]:
         _render_rename_form(run)
 
-
 def _render_rename_form(run: dict) -> None:
     """
     Render the inline rename form for a single run.
@@ -164,6 +163,7 @@ def _render_rename_form(run: dict) -> None:
             st.session_state["renaming_run_id"] = None
             st.rerun()
 
+# Method that will allow the user to load the full data for a previous run by its ID
 def _load_run_data(run_id: str) -> dict:
     """
     Load the full data for a run by its ID.
@@ -179,5 +179,4 @@ def _load_run_data(run_id: str) -> dict:
         key=f"load_run_{run_id}",
         use_container_width=True,
         type="primary" if run_id == st.session_state.active_run_id else "secondary"
-
     )

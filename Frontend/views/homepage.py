@@ -502,7 +502,7 @@ def _render_column_row_selectors(
         # --- Reset two-column checkboxes when dropping below 2 columns ---
         # If user drops from >=2 columns to 1 column,
         # reset two-column statistical method checkboxes
-        if last_num >= 2 and len(col1) == 1:
+        if st.session_state.get("last_num_cols", 0) >= 2 and len(col1) == 1:
             st.session_state.checkbox_key_twocol += 1
         st.session_state.last_num_cols = len(col1)
 

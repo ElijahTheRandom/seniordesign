@@ -271,6 +271,7 @@ def _build_export_text(run: dict) -> str:
 # ---------------------------------------------------------------------------
 
 def _compute_mean(data: pd.DataFrame) -> list:
+    # Placeholder: Replace with backend call to compute mean for selected data
     return [
         ("stat", "<b>Mean</b>", f"{data[col].mean():.2f}")
         for col in data.select_dtypes(include=["number"]).columns
@@ -278,6 +279,7 @@ def _compute_mean(data: pd.DataFrame) -> list:
 
 
 def _compute_median(data: pd.DataFrame) -> list:
+    # Placeholder: Replace with backend call to compute median for selected data
     return [
         ("stat", "<b>Median</b>", f"{data[col].median():.2f}")
         for col in data.select_dtypes(include=["number"]).columns
@@ -285,6 +287,7 @@ def _compute_median(data: pd.DataFrame) -> list:
 
 
 def _compute_mode(data: pd.DataFrame) -> list:
+    # Placeholder: Replace with backend call to compute mode for selected data
     cards = []
     for col in data.select_dtypes(include=["number"]).columns:
         mode_val = data[col].mode()
@@ -294,6 +297,7 @@ def _compute_mode(data: pd.DataFrame) -> list:
 
 
 def _compute_variance(data: pd.DataFrame) -> list:
+    # Placeholder: Replace with backend call to compute variance for selected data
     return [
         ("stat", "<b>Variance</b>", f"{data[col].var():.2f}")
         for col in data.select_dtypes(include=["number"]).columns
@@ -301,14 +305,15 @@ def _compute_variance(data: pd.DataFrame) -> list:
 
 
 def _compute_std_dev(data: pd.DataFrame) -> list:
+    # Placeholder: Replace with backend call to compute std dev for selected data
     return [
         ("stat", "<b>Std Dev</b>", f"{data[col].std():.2f}")
         for col in data.select_dtypes(include=["number"]).columns
     ]
 
-
 def _compute_percentiles(data: pd.DataFrame) -> list:
-    cards = []
+    # Placeholder: Replace with backend call to compute percentiles for selected data
+    cards = [] 
     for col in data.select_dtypes(include=["number"]).columns:
         p25 = data[col].quantile(0.25)
         p50 = data[col].quantile(0.50)
@@ -323,6 +328,7 @@ def _compute_percentiles(data: pd.DataFrame) -> list:
 
 
 def _compute_variation(data: pd.DataFrame) -> list:
+    # Placeholder: Replace with backend call to compute coefficient of variation for selected data
     cards = []
     for col in data.select_dtypes(include=["number"]).columns:
         mean_val = data[col].mean()
@@ -332,30 +338,30 @@ def _compute_variation(data: pd.DataFrame) -> list:
     return cards
 
 
-# --- Placeholder stats (real computation will come in Stage 6) ---
+# --- Placeholder stats ---
 
 def _compute_chi_square(data: pd.DataFrame) -> list:
-    # TODO (Stage 6): Replace with real scipy.stats.chi2_contingency call
+    # Placeholder: Replace with backend call to compute chi-square for selected data
     return [("stat", "<b>Chi-Square</b>", "12.24", "p-value: 0.032")]
 
 
 def _compute_pearson(data: pd.DataFrame) -> list:
-    # TODO (Stage 6): Replace with real pandas .corr(method='pearson') call
+    # Placeholder: Replace with backend call to compute Pearson's correlation for selected data
     return [("stat", "<b>Pearson's Corr.</b>", "0.87", "Strong positive")]
 
 
 def _compute_spearman(data: pd.DataFrame) -> list:
-    # TODO (Stage 6): Replace with real pandas .corr(method='spearman') call
+    # Placeholder: Replace with backend call to compute Spearman's rank correlation for selected data
     return [("stat", "<b>Spearman's Rank</b>", "0.82", "Strong correlation")]
 
 
 def _compute_regression(data: pd.DataFrame) -> list:
-    # TODO (Stage 6): Replace with real numpy.polyfit / scipy.stats.linregress
+    # Placeholder: Replace with backend call to compute regression for selected data
     return [("stat", "<b>Regression</b>", "0.76", "Good fit")]
 
 
 def _compute_binomial(data: pd.DataFrame) -> list:
-    # TODO (Stage 6): Replace with real scipy.stats.binom call
+    # Placeholder: Replace with backend call to compute binomial probability for selected data
     return [("stat", "<b>Binomial Prob</b>", "0.68", "n=10, p=0.5")]
 
 
