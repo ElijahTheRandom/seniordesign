@@ -497,6 +497,7 @@ def _render_column_row_selectors(
             st.session_state.checkbox_key_onecol += 1
         st.session_state.last_cols_selected = col1
 
+        
         col2 = st.multiselect("Rows", available_rows, key="selected_rows")
 
         # --- Reset two-column checkboxes when dropping below 2 columns ---
@@ -512,6 +513,17 @@ def _render_column_row_selectors(
 
     return col1, col2
 
+
+# ============================================================================
+# ⭐ STATISTICAL METHODS SELECTED BY USER
+# Return values: mean, median, mode, variance, std_dev, percentiles (one-column)
+#                pearson, spearman, regression, chi_square, binomial, variation
+# ============================================================================
+# The following function renders checkboxes for: Mean, Median, Mode, Variance,
+# Standard Deviation, Percentiles, Pearson, Spearman, Regression, Chi-Square,
+# Binomial, and Coefficient of Variation. The return values are the method
+# selection flags that get passed to _handle_run_analysis.
+# ============================================================================
 
 def _render_computation_options(
     data_ready: bool,
@@ -564,6 +576,15 @@ def _render_computation_options(
         pearson, spearman, regression, chi_square, binomial, variation
     )
 
+
+# ============================================================================
+# ⭐ VISUALIZATION OPTIONS SELECTED BY USER
+# Return values: hist, box, scatter, line, heatmap
+# ============================================================================
+# The following function renders checkboxes for: Pie Chart, Vertical Bar Chart,
+# Horizontal Bar Chart, Scatter Plot, and Line of Best Fit Scatter Plot.
+# The return values are the visualization selection flags.
+# ============================================================================
 
 def _render_visualization_options(
     data_ready: bool,
@@ -704,7 +725,15 @@ def _handle_run_analysis(
     else:
         parsed_data = edited_table_for_loc.copy()
 
-    # --- Build method flags dict for run_manager ---
+    # ========================================================================
+    # ⭐ PACKAGE ANALYSIS DATA: SELECTED COLUMNS, ROWS, METHODS & VISUALIZATIONS
+    # Variables:
+    #   - col1 (list of selected column names) 
+    #   - col2 (list of selected row indices)
+    #   - method_flags dict containing all boolean selections
+    #   - parsed_data (DataFrame sliced to selected cols/rows)
+    # ========================================================================
+    # Build method flags dict for run_manager ---
     # Consolidate all computation + visualization flags into one dict
     # for validation and run creation logic
     method_flags = {

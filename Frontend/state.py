@@ -71,9 +71,14 @@ def initialize_session_state() -> None:
     # Allows multiple files to be swapped without losing edits.
     st.session_state.setdefault("edited_data_cache", {})
 
-    # ------------------------------------------------------------------
+    # ================================================================
+    # ⭐ SELECTED DATA FOR ANALYSIS
+    # Variables:
+    #   - st.session_state["selected_columns"]  (list of column names)
+    #   - st.session_state["selected_rows"]     (list of 1-based row integers)
+    # ================================================================
     # Grid Selection State
-    # ------------------------------------------------------------------
+    # ================================================================
 
     # List of column names currently selected in the AG Grid.
     st.session_state.setdefault("selected_columns", [])

@@ -100,6 +100,7 @@ p, label, div[data-testid="stMarkdownContainer"] {
     letter-spacing: 0.01em !important;
 }
 
+/* Label styling (for checkboxes, selectboxes, file uploader, etc.) */
 label {
     font-weight: 500 !important;
     color: rgba(255, 255, 255, 0.95) !important;
@@ -107,6 +108,7 @@ label {
     text-transform: none !important;
 }
 
+/* Caption styling */
 div[data-testid="stCaptionContainer"] {
     color: rgba(255, 255, 255, 0.6) !important;
     font-size: 0.875rem !important;
@@ -138,6 +140,7 @@ div[data-testid="stMarkdownContainer"] h6 a {
     display: none !important;
 }
 
+/* Remove cursor pointer from headers */
 div[data-testid="stMarkdownContainer"] h1,
 div[data-testid="stMarkdownContainer"] h2,
 div[data-testid="stMarkdownContainer"] h3,
@@ -212,6 +215,7 @@ section[data-testid="stMain"] {
    3. Scrollbar
    ========================================================================== */
 
+/* Let the browser handle scrolling and apply custom scrollbar styles */
 html {
     scrollbar-width: thin; /* Firefox */
     height: auto !important;
@@ -232,6 +236,7 @@ html::-webkit-scrollbar-track,
     border-radius: 10px;
 }
 
+/* Scrollbar thumb */
 html::-webkit-scrollbar-thumb,
 ::-webkit-scrollbar-thumb {
     background: rgba(228, 120, 29, 0.5);
@@ -265,6 +270,7 @@ div[data-testid="stMainBlockContainer"],
     overflow: visible !important;
 }
 
+/* Remove Streamlit's default 100% height and overflow:hidden on various containers to allow natural content flow and browser scrolling */
 div[data-testid="stVerticalBlock"],
 div[data-testid="stVerticalBlockBorderWrapper"] {
     gap: 0rem !important;
@@ -275,6 +281,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     max-height: none !important;
 }
 
+/* Allow main app containers to grow naturally with content and not be constrained to 100% viewport height */
 section[data-testid="stAppViewContainer"],
 section[data-testid="stMain"],
 div[data-testid="stAppViewBlockContainer"] {
@@ -283,6 +290,7 @@ div[data-testid="stAppViewBlockContainer"] {
     max-height: none !important;
 }
 
+/* Main block container padding and height adjustments */
 .block-container {
     height: auto !important;
     min-height: auto !important;
@@ -322,6 +330,7 @@ div[data-testid="column"] {
     transition: all 0.3s ease !important;
 }
 
+/* Column hover effect */
 div[data-testid="column"]:hover {
     border-color: rgba(228, 120, 29, 0.2) !important;
     box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4),

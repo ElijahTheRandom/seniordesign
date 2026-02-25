@@ -78,6 +78,15 @@ def render_results(run: dict, base_dir: str) -> None:
 # Section renderers
 # ---------------------------------------------------------------------------
 
+# ============================================================================
+# ⭐ STATISTICAL RESULTS DISPLAY
+# Variables:
+#   - run["methods"] (list of selected method names)
+#   - STAT_COMPUTERS[method_name] (dispatch table mapping to compute functions)
+#   - run["data"] (DataFrame passed to compute functions)
+# Rendered via stat cards using _render_stat_card(title, value, subtext)
+# ============================================================================
+
 def _render_stat_cards(run: dict) -> None:
     """
     Compute and render all stat cards for the methods in this run.
