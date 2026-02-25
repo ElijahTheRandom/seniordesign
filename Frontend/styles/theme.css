@@ -259,9 +259,14 @@ body {
     overflow-y: auto !important;
 }
 
-/* Natural expansion of containers, hover effects, resizing prevention on certain elements, background effects, etc. */
+/* Force main content area to be scrollable to prevent elements from being cut off */
 section[data-testid="stAppViewContainer"],
-section[data-testid="stMain"],
+section[data-testid="stMain"] {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* Allow other containers to expand naturally */
 div[data-testid="stAppViewBlockContainer"],
 div[data-testid="stVerticalBlock"],
 div[data-testid="stVerticalBlockBorderWrapper"],
@@ -286,19 +291,19 @@ section[data-testid="stAppViewContainer"],
 section[data-testid="stMain"],
 div[data-testid="stAppViewBlockContainer"] {
     height: auto !important;
-    min-height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
 }
 
 /* Main block container padding and height adjustments */
 .block-container {
     height: auto !important;
-    min-height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
     padding-top: 2.8rem;
     padding-left: 1rem;
     padding-right: 1rem;
-    padding-bottom: 1rem !important;
+    padding-bottom: 1.5rem !important;
 }
 
 div[data-testid="stMainBlockContainer"],
@@ -307,7 +312,7 @@ div[data-testid="stAppViewBlockContainer"] {
 }
 
 section[data-testid="stAppViewContainer"] > div:first-child {
-    padding-bottom: 3rem !important;
+    padding-bottom: 0 !important;
 }
 
 /* Allow columns to size independently (don't stretch to match tallest) */
