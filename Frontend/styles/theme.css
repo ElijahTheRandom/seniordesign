@@ -215,95 +215,76 @@ section[data-testid="stMain"] {
    3. Scrollbar
    ========================================================================== */
 
-/* Let the browser handle scrolling and apply custom scrollbar styles */
-html {
-    scrollbar-width: thin; /* Firefox */
-    height: auto !important;
+/* Let Streamlit manage layout height correctly */
+html, body {
+    height: 100% !important;
+    overflow-x: hidden !important;
+}
+
+/* Only browser scroll */
+body {
     overflow-y: auto !important;
 }
 
-/* Scrollbar size */
-html::-webkit-scrollbar,
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+/* Apply custom scrollbar ONLY to browser */
+body::-webkit-scrollbar {
+    width: 10px;
 }
 
-/* Scrollbar styling */
-html::-webkit-scrollbar-track,
-::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
+body::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
 }
 
-/* Scrollbar thumb */
-html::-webkit-scrollbar-thumb,
-::-webkit-scrollbar-thumb {
+body::-webkit-scrollbar-thumb {
     background: rgba(228, 120, 29, 0.5);
     border-radius: 10px;
 }
 
-/* Change in styling when hovered */
-html::-webkit-scrollbar-thumb:hover,
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(228, 120, 29, 0.7);
+body::-webkit-scrollbar-thumb:hover {
+    background: rgba(228, 120, 29, 0.75);
+}
+
+/* Firefox */
+body {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(228, 120, 29, 0.5) rgba(255, 255, 255, 0.05);
 }
 
 /* ==========================================================================
    4. Layout & Spacing
    ========================================================================== */
 
-/* Let the browser own scrolling — kill Streamlit's nested scroll containers */
-body {
-    height: auto !important;
-    overflow-y: auto !important;
-}
-
-/* Force main content area to be scrollable to prevent elements from being cut off */
+/* Prevent Streamlit containers from creating their own scroll contexts */
 section[data-testid="stAppViewContainer"],
 section[data-testid="stMain"] {
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-}
-
-/* Allow other containers to expand naturally */
-div[data-testid="stAppViewBlockContainer"],
-div[data-testid="stVerticalBlock"],
-div[data-testid="stVerticalBlockBorderWrapper"],
-div[data-testid="stMainBlockContainer"],
-.block-container {
     overflow: visible !important;
+    height: auto !important;
 }
 
-/* Remove Streamlit's default 100% height and overflow:hidden on various containers to allow natural content flow and browser scrolling */
-div[data-testid="stVerticalBlock"],
-div[data-testid="stVerticalBlockBorderWrapper"] {
-    gap: 0rem !important;
-    margin-top: 0rem !important;
-    padding-top: 0rem !important;
-    height: auto !important;
+/* Fix vertical block spacing without breaking Streamlit layout */
+div[data-testid="stVerticalBlock"] > div:empty {
+    display: none !important;
+}
+
+div[data-testid="stVerticalBlock"] {
+    gap: 0.5rem !important;
+}
+
+/* Prevent initial vertical stretching glitch */
+section[data-testid="stMain"] > div:first-child {
     min-height: auto !important;
-    max-height: none !important;
-}
-
-/* Allow main app containers to grow naturally with content and not be constrained to 100% viewport height */
-section[data-testid="stAppViewContainer"],
-section[data-testid="stMain"],
-div[data-testid="stAppViewBlockContainer"] {
     height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
 }
 
 /* Main block container padding and height adjustments */
 .block-container {
     height: auto !important;
-    min-height: 0 !important;
+    min-height: auto !important;
     max-height: none !important;
-    padding-top: 2.8rem;
+    padding-top: 1.5rem !important;
     padding-left: 1rem;
     padding-right: 1rem;
-    padding-bottom: 1.5rem !important;
+    padding-bottom: 2rem !important;
 }
 
 div[data-testid="stMainBlockContainer"],
@@ -311,15 +292,12 @@ div[data-testid="stAppViewBlockContainer"] {
     padding: 0 !important;
 }
 
-section[data-testid="stAppViewContainer"] > div:first-child {
-    padding-bottom: 0 !important;
-}
-
 /* Allow columns to size independently (don't stretch to match tallest) */
 div[data-testid="column"] {
     align-self: flex-start !important;
     min-width: 0 !important;
     flex: 1 1 0 !important;
+    overflow: visible !important;
 }
 
 /* Column card styling */
@@ -1175,11 +1153,19 @@ div[data-testid="stAlert"] svg {
   14. AG Grid
    ========================================================================== */
 
-/* Allow grid to grow to natural height */
+/* Let AG Grid expand naturally without internal scroll */
 .ag-theme-streamlit {
     height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
+}
+
+/* Remove grid internal viewport height cap */
+.ag-center-cols-viewport,
+.ag-body-viewport {
+    max-height: none !important;
+    height: auto !important;
 }
 
 /* CSS custom properties — applied via class so they cascade to all cells */
