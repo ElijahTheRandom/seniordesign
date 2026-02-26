@@ -330,7 +330,8 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> None:
     st.caption("**Tip:** Click and drag to select a range of cells.")
 
     if selection:
-        st.info("Select computations and visualizations on the right, then click 'Run Analysis' to see results for the selected range.")
+        _display_selection_output(selection, df)
+        #st.info("Select computations and visualizations on the right, then click 'Run Analysis' to see results for the selected range.")
     else:
         st.info("Select a range of cells in the grid to see details here.")
 

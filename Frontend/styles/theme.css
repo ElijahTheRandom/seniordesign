@@ -240,10 +240,6 @@ body::-webkit-scrollbar-thumb {
     border-radius: 10px;
 }
 
-body::-webkit-scrollbar-thumb:hover {
-    background: rgba(228, 120, 29, 0.75);
-}
-
 /* Firefox */
 body {
     scrollbar-width: thin;
