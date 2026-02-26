@@ -391,6 +391,37 @@ section[data-testid="stSidebar"] {
     z-index: 1 !important;
 }
 
+/* ===== Hover (like dropdown) ===== */
+div[data-baseweb="input"] > div:first-child:hover {
+    border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Remove ANY red/error borders from Streamlit wrapper */
+div.stTextInput > div {
+    border: 1.5px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 10px !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Hover (like dropdown) */
+div.stTextInput > div:hover {
+    border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Focus = ORANGE GLOW */
+div.stTextInput:focus-within > div {
+    border: 1.5px solid rgba(228, 120, 29, 0.55) !important;
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.5),
+        0 0 18px rgba(228, 120, 29, 0.25),
+        inset 0 1px 3px rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Remove ALL outlines */
+div.stTextInput * {
+    outline: none !important;
+}
+
 /* Pull the custom <hr> divider up to align with main-page lines */
 .sidebar-top-divider {
     margin-top: 0rem !important;
@@ -592,6 +623,22 @@ section[data-testid="stSidebar"] button:has(span:contains("✏️")):hover {
 /* Sidebar nav hover slide animation */
 section[data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
     animation: button-hover 0.3s ease !important;
+}
+
+/* Active Home button (orange highlight, pulse) */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"] {
+    background-color: rgba(228, 120, 29, 0.12) !important;
+    border-left: 3px solid #e4781d !important;
+    color: #ffffff !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    animation: pulse-glow 3s ease-in-out infinite !important;
+}
+
+/* Hover for all secondary buttons */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="secondary"]:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: #ffffff !important;
 }
 
 /* ==========================================================================
@@ -919,6 +966,18 @@ div[data-baseweb="select"] > div {
         inset 0 1px 2px rgba(255, 255, 255, 0.05) !important;
     color: #ffffff !important;
     transition: all 0.2s ease !important;
+}
+
+/* Target the clear (X) icon inside multiselect */
+div[data-baseweb="select"] svg {
+    color: #e4781d !important;
+    fill: #e4781d !important;
+}
+
+/* Optional: slightly brighter on hover */
+div[data-baseweb="select"] svg:hover {
+    color: #ff8c2a !important;
+    fill: #ff8c2a !important;
 }
 
 div[data-baseweb="select"] > div:hover {

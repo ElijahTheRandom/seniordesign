@@ -25,6 +25,8 @@ SESSION STATE USED:
     Write:  active_run_id, renaming_run_id, analysis_runs[i]["name"]
 """
 
+from pdb import run
+
 import streamlit as st
 
 
@@ -99,7 +101,7 @@ def _render_run_button(run: dict) -> None:
     is_active = run["id"] == st.session_state.active_run_id
 
     # Row: run name button + rename icon, side by side
-    cols = st.columns([6, 1])
+    cols = st.columns([6, 2])
 
     with cols[0]:
         if st.button(
@@ -149,17 +151,27 @@ def _render_rename_form(run: dict) -> None:
         label_visibility="collapsed"
     )
 
-    save_col, cancel_col = st.columns(2)
+
+    save_col, cancel_col = st.columns([1, 1])  # You can tweak ratios here
 
     with save_col:
-        if st.button("Save", key=f"save_rename_{run['id']}"):
-            # Fall back to current name if user submits blank input
+        if st.button(
+            "Save",
+            key=f"save_rename_{run['id']}",
+            use_container_width=True,
+            type="secondary"  # Make it blend like Home button when inactive
+        ):
             run["name"] = new_name.strip() or run["name"]
             st.session_state["renaming_run_id"] = None
             st.rerun()
 
     with cancel_col:
-        if st.button("Cancel", key=f"cancel_rename_{run['id']}"):
+        if st.button(
+            "Cancel",
+            key=f"cancel_rename_{run['id']}",
+            use_container_width=True,
+            type="secondary"  # Same as above
+        ):
             st.session_state["renaming_run_id"] = None
             st.rerun()
 
@@ -175,8 +187,8 @@ def _load_run_data(run_id: str) -> dict:
     For now, it just returns the run dict from session state based on ID.
     """
     st.button(
-        "Load Run Data",
+        "Previous Runs",
         key=f"load_run_{run_id}",
         use_container_width=True,
-        type="primary" if run_id == st.session_state.active_run_id else "secondary"
+        type="secondary"
     )
