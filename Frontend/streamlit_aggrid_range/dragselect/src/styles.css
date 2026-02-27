@@ -28,6 +28,14 @@
     background-color: var(--ag-range-selection-background-color, rgba(33, 150, 243, 0.2)) !important;
 }
 
+.ag-theme-alpine .ag-root-wrapper {
+    border: none;
+}
+
+html, body {
+    background-color: transparent !important;
+}
+
 /* Header styling for a fully selected column. */
 .full-column-selected {
     background-color: #e0e0e0 !important;

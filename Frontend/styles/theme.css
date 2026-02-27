@@ -578,6 +578,14 @@ div[data-testid="stFileUploader"] button {
     font-weight: 400 !important;
 }
 
+/* Make sidebar match full scroll height */
+section[data-testid="stSidebar"] {
+    position: sticky !important;
+    top: 0 !important;
+    align-self: flex-start !important;
+    height: 100vh !important;
+}
+
 /* ==========================================================================
    6. Sidebar Navigation Buttons
    ========================================================================== */
@@ -1252,6 +1260,11 @@ div[data-testid="stAlert"] svg {
     overflow: visible !important;
 }
 
+div[class*="ag-theme"] .ag-root-wrapper {
+    border: none !important;
+    box-shadow: none !important;
+}
+
 /* Remove grid internal viewport height cap */
 .ag-center-cols-viewport,
 .ag-body-viewport {
@@ -1266,7 +1279,6 @@ div[data-testid="stAlert"] svg {
     --ag-header-background-color: #1f1f1f !important;
     --ag-foreground-color: #e5e7eb !important;
     --ag-secondary-foreground-color: #9ca3af !important;
-    --ag-border-color: rgba(255, 255, 255, 0.08) !important;
     --ag-row-border-color: rgba(255, 255, 255, 0.05) !important;
     --ag-accent-color: #e4781d !important;
     --ag-inherited-accent-color: #e4781d !important;
@@ -1293,8 +1305,8 @@ div[data-testid="stAlert"] svg {
 /* Container */
 .ag-theme-alpine {
     background: linear-gradient(145deg, rgba(25, 25, 25, 0.7), rgba(15, 15, 15, 0.5)) !important;
-    border-radius: 14px !important;
-    border: 1px solid rgba(228, 120, 29, 0.2) !important;
+    border-radius: 0px !important;
+    border: 0px solid rgba(228, 120, 29, 0.2) !important;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6),
                 0 4px 16px rgba(0, 0, 0, 0.4),
                 inset 0 1px 0 rgba(255, 255, 255, 0.05),
@@ -1423,6 +1435,10 @@ div[data-testid="stAlert"] svg {
 }
 iframe[title="streamlit_aggrid_range"] {
     border: none !important;
+}
+
+.ag-body-viewport {
+    padding-bottom: 18px !important;
 }
 
 /* ==========================================================================
