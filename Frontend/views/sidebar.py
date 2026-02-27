@@ -186,7 +186,7 @@ def _load_run_data(run_id: str) -> dict:
     For now, it just returns the run dict from session state based on ID.
     """
     st.button(
-        "Previous Runs",
+        "Load Previous Runs",
         key=f"load_run_{run_id}",
         use_container_width=True,
         type="secondary"
