@@ -236,14 +236,14 @@ body::-webkit-scrollbar-track {
 }
 
 body::-webkit-scrollbar-thumb {
-    background: rgba(228, 120, 29, 0.5);
+    background: rgba(255, 255, 255, 0.5);
     border-radius: 10px;
 }
 
 /* Firefox */
 body {
     scrollbar-width: thin;
-    scrollbar-color: rgba(228, 120, 29, 0.5) rgba(255, 255, 255, 0.05);
+    scrollbar-color: rgba(255, 255, 255, 0.5) rgba(255, 255, 255, 0.05);
 }
 
 /* Remove browser scroll */
@@ -268,18 +268,18 @@ html, body {
 }
 
 [data-testid="stAppViewContainer"]::-webkit-scrollbar-thumb {
-    background: rgba(228, 120, 29, 0.85);
+    background: rgba(255, 255, 255, 0.85);
     border-radius: 10px;
 }
 
 [data-testid="stAppViewContainer"]::-webkit-scrollbar-thumb:hover {
-    background: rgba(228, 120, 29, 1);
+    background: rgb(255, 255, 255);
 }
 
 /* Firefox */
 [data-testid="stAppViewContainer"] {
     scrollbar-width: thin;
-    scrollbar-color: rgba(228, 120, 29, 0.85) rgba(255, 255, 255, 0.04);
+    scrollbar-color: rgba(255, 255, 255, 0.85) rgba(255, 255, 255, 0.04);
 }
 
 /* ==========================================================================
