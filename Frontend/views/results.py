@@ -71,7 +71,6 @@ def render_results(run: dict, base_dir: str) -> None:
         height: auto !important;
         min-height: auto !important;
         max-height: none !important;
-        padding-top: 0.5rem !important;
         padding-left: 0.5rem !important;
         padding-right: 1rem !important;
         padding-bottom: 0.5rem !important;
