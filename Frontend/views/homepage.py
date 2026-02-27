@@ -79,14 +79,6 @@ def render_homepage(base_dir: str, error_modal, success_modal) -> None:
         unsafe_allow_html=True
     )
 
-    st.markdown("""
-    <style>
-    iframe[title="streamlit_aggrid_range"] {
-        border: none !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
     left_col, right_col = st.columns([3, 2], gap="medium")
 
     with left_col:

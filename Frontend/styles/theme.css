@@ -1437,10 +1437,6 @@ iframe[title="streamlit_aggrid_range"] {
     border: none !important;
 }
 
-.ag-body-viewport {
-    padding-bottom: 18px !important;
-}
-
 /* ==========================================================================
   15. Modals/Popups
    ========================================================================== */
