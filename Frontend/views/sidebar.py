@@ -42,7 +42,7 @@ def render_sidebar() -> None:
     """
     with st.sidebar:
         st.markdown("<hr class='sidebar-top-divider'>", unsafe_allow_html=True)
-        st.header("Navigation")
+        st.header("Page Navigation")
 
         _render_home_button()
 

@@ -65,6 +65,20 @@ def render_results(run: dict, base_dir: str) -> None:
         unsafe_allow_html=True
     )
 
+    st.markdown("""
+    <style>
+    div[data-testid="stAppViewContainer"] .block-container {
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+        padding-top: 0.5rem !important;
+        padding-left: 0.5rem !important;
+        padding-right: 1rem !important;
+        padding-bottom: 0.5rem !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     st.header(f"Analysis Results — {run['name']}", anchor=False)
     st.markdown("---")
 

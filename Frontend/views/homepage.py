@@ -57,7 +57,6 @@ from logic.run_manager import (
     build_success_message,
 )
 
-
 # ---------------------------------------------------------------------------
 # Public interface
 # ---------------------------------------------------------------------------
@@ -79,6 +78,14 @@ def render_homepage(base_dir: str, error_modal, success_modal) -> None:
         "rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />",
         unsafe_allow_html=True
     )
+
+    st.markdown("""
+    <style>
+    iframe[title="streamlit_aggrid_range"] {
+        border: none !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
     left_col, right_col = st.columns([3, 2], gap="medium")
 

@@ -246,6 +246,42 @@ body {
     scrollbar-color: rgba(228, 120, 29, 0.5) rgba(255, 255, 255, 0.05);
 }
 
+/* Remove browser scroll */
+html, body {
+    height: 100%;
+    overflow: hidden !important;
+}
+
+/* Force Streamlit root to scroll */
+[data-testid="stAppViewContainer"] {
+    height: 100vh !important;
+    overflow-y: auto !important;
+}
+
+/* Webkit browsers (Chrome, Edge, Safari) */
+[data-testid="stAppViewContainer"]::-webkit-scrollbar {
+    width: 10px;
+}
+
+[data-testid="stAppViewContainer"]::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+[data-testid="stAppViewContainer"]::-webkit-scrollbar-thumb {
+    background: rgba(228, 120, 29, 0.85);
+    border-radius: 10px;
+}
+
+[data-testid="stAppViewContainer"]::-webkit-scrollbar-thumb:hover {
+    background: rgba(228, 120, 29, 1);
+}
+
+/* Firefox */
+[data-testid="stAppViewContainer"] {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(228, 120, 29, 0.85) rgba(255, 255, 255, 0.04);
+}
+
 /* ==========================================================================
    4. Layout & Spacing
    ========================================================================== */
@@ -414,10 +450,10 @@ section[data-testid="stSidebar"][aria-expanded="false"] {
 
 /* ===== OPEN STATE ===== */
 section[data-testid="stSidebar"][aria-expanded="true"] {
-    width: 380px !important;
-    min-width: 380px !important;
-    max-width: 380px !important;
-    flex: 0 0 380px !important;
+    width: 385px !important;
+    min-width: 385px !important;
+    max-width: 385px !important;
+    flex: 0 0 385px !important;
     overflow: hidden !important;
 }
 
@@ -1209,7 +1245,7 @@ div[data-testid="stAlert"] svg {
    ========================================================================== */
 
 /* Let AG Grid expand naturally without internal scroll */
-.ag-theme-streamlit {
+.ag-theme-alpine {
     height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
@@ -1224,7 +1260,7 @@ div[data-testid="stAlert"] svg {
 }
 
 /* CSS custom properties — applied via class so they cascade to all cells */
-.ag-theme-streamlit {
+.ag-theme-alpine {
     --ag-background-color: #141414 !important;
     --ag-odd-row-background-color: #141414 !important;
     --ag-header-background-color: #1f1f1f !important;
@@ -1255,7 +1291,7 @@ div[data-testid="stAlert"] svg {
 }
 
 /* Container */
-.ag-theme-streamlit {
+.ag-theme-alpine {
     background: linear-gradient(145deg, rgba(25, 25, 25, 0.7), rgba(15, 15, 15, 0.5)) !important;
     border-radius: 14px !important;
     border: 1px solid rgba(228, 120, 29, 0.2) !important;
@@ -1267,7 +1303,7 @@ div[data-testid="stAlert"] svg {
 }
 
 /* Header and it's styling*/
-.ag-theme-streamlit .ag-header {
+.ag-theme-alpine .ag-header {
     background: linear-gradient(135deg, rgba(228, 120, 29, 0.2), rgba(228, 120, 29, 0.1)) !important;
     border-bottom: 2px solid rgba(228, 120, 29, 0.4) !important;
     font-weight: 600 !important;
@@ -1275,7 +1311,7 @@ div[data-testid="stAlert"] svg {
     box-shadow: 0 2px 8px rgba(228, 120, 29, 0.15) !important;
 }
 
-.ag-theme-streamlit .ag-header-cell {
+.ag-theme-alpine .ag-header-cell {
     color: rgba(255, 255, 255, 0.95) !important;
     font-weight: 600 !important;
     font-size: 14px !important;
@@ -1284,29 +1320,29 @@ div[data-testid="stAlert"] svg {
     border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
-.ag-theme-streamlit .ag-header-cell:hover {
+.ag-theme-alpine .ag-header-cell:hover {
     background: rgba(228, 120, 29, 0.15) !important;
 }
 
 /* Rows */
-.ag-theme-streamlit .ag-row {
+.ag-theme-alpine .ag-row {
     background: rgba(20, 20, 20, 0.4) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
     transition: all 0.2s ease !important;
 }
 
-.ag-theme-streamlit .ag-row-even {
+.ag-theme-alpine .ag-row-even {
     background: rgba(25, 25, 25, 0.4) !important;
 }
 
-.ag-theme-streamlit .ag-row:hover {
+.ag-theme-alpine .ag-row:hover {
     background: rgba(228, 120, 29, 0.08) !important;
     transform: translateX(2px) !important;
     box-shadow: inset 3px 0 0 rgba(228, 120, 29, 0.6) !important;
 }
 
 /* Cells */
-.ag-theme-streamlit .ag-cell {
+.ag-theme-alpine .ag-cell {
     color: rgba(255, 255, 255, 0.9) !important;
     padding: 10px 12px !important;
     font-size: 13px !important;
@@ -1315,78 +1351,79 @@ div[data-testid="stAlert"] svg {
 
 /* Selected rows */
 .ag-theme-streamlit .ag-row-selected,
-.ag-theme-streamlit .ag-row.ag-row-selected,
-.ag-theme-streamlit .ag-row-selected:before,
-.ag-theme-streamlit .ag-row-selected:hover,
-.ag-theme-streamlit .ag-row-selected.ag-row-hover {
+.ag-theme-alpine .ag-row.ag-row-selected,
+.ag-theme-alpine .ag-row-selected:before,
+.ag-theme-alpine .ag-row-selected:hover,
+.ag-theme-alpine .ag-row-selected.ag-row-hover {
     background-color: rgba(228, 120, 29, 0.15) !important;
     background: rgba(228, 120, 29, 0.15) !important;
     border-left: 3px solid rgba(228, 120, 29, 0.8) !important;
 }
 
 /* Range selection */
-.ag-theme-streamlit .ag-cell-range-selected,
-.ag-theme-streamlit .ag-cell-range-selected:not(.ag-cell-inline-editing),
-.ag-theme-streamlit .ag-cell.ag-cell-range-selected,
-.ag-theme-streamlit .ag-cell-range-selected-1:not(.ag-cell-inline-editing),
-.ag-theme-streamlit .ag-cell-range-selected-2:not(.ag-cell-inline-editing),
-.ag-theme-streamlit .ag-cell-range-selected-3:not(.ag-cell-inline-editing),
-.ag-theme-streamlit .ag-cell-range-selected-4:not(.ag-cell-inline-editing) {
+.ag-theme-alpine .ag-cell-range-selected,
+.ag-theme-alpine .ag-cell-range-selected:not(.ag-cell-inline-editing),
+.ag-theme-alpine .ag-cell.ag-cell-range-selected,
+.ag-theme-alpine .ag-cell-range-selected-1:not(.ag-cell-inline-editing),
+.ag-theme-alpine .ag-cell-range-selected-2:not(.ag-cell-inline-editing),
+.ag-theme-alpine .ag-cell-range-selected-3:not(.ag-cell-inline-editing),
+.ag-theme-alpine .ag-cell-range-selected-4:not(.ag-cell-inline-editing) {
     background-color: rgba(228, 120, 29, 0.2) !important;
     background: rgba(228, 120, 29, 0.2) !important;
 }
 
 .ag-theme-streamlit .ag-cell-range-selected:not(.ag-cell-inline-editing),
-.ag-theme-streamlit .ag-cell-range-top,
-.ag-theme-streamlit .ag-cell-range-right,
-.ag-theme-streamlit .ag-cell-range-bottom,
-.ag-theme-streamlit .ag-cell-range-left {
+.ag-theme-alpine .ag-cell-range-top,
+.ag-theme-alpine .ag-cell-range-right,
+.ag-theme-alpine .ag-cell-range-bottom,
+.ag-theme-alpine .ag-cell-range-left {
     border-color: rgba(228, 120, 29, 0.6) !important;
 }
 
 /* Focus cell */
-.ag-theme-streamlit .ag-cell-focus:not(.ag-cell-range-single-cell),
-.ag-theme-streamlit .ag-cell.ag-cell-focus,
-.ag-theme-streamlit .ag-cell-focus {
+.ag-theme-alpine .ag-cell-focus:not(.ag-cell-range-single-cell),
+.ag-theme-alpine .ag-cell.ag-cell-focus,
+.ag-theme-alpine .ag-cell-focus {
     border: 2px solid #e4781d !important;
     outline: none !important;
 }
 
 /* Cell editing */
-.ag-theme-streamlit .ag-cell-inline-editing {
+.ag-theme-alpine .ag-cell-inline-editing {
     background: rgba(228, 120, 29, 0.1) !important;
     border: 2px solid rgba(228, 120, 29, 0.6) !important;
 }
 
 /* Checkboxes in grid */
-.ag-theme-streamlit .ag-checkbox-input-wrapper {
+.ag-theme-alpine .ag-checkbox-input-wrapper {
     background: rgba(255, 255, 255, 0.08) !important;
     border: 2px solid rgba(228, 120, 29, 0.6) !important;
     border-radius: 4px !important;
     transition: all 0.2s ease !important;
 }
 
-.ag-theme-streamlit .ag-checkbox-input-wrapper.ag-checked {
+.ag-theme-alpine .ag-checkbox-input-wrapper.ag-checked {
     background: linear-gradient(135deg, rgba(228, 120, 29, 0.8), rgba(228, 120, 29, 0.6)) !important;
     border-color: rgba(228, 120, 29, 0.9) !important;
 }
 
-.ag-theme-streamlit .ag-checkbox-input-wrapper:hover {
+.ag-theme-alpine .ag-checkbox-input-wrapper:hover {
     background: rgba(228, 120, 29, 0.15) !important;
     box-shadow: 0 0 8px rgba(228, 120, 29, 0.3) !important;
 }
 
 /* Range handle */
-.ag-theme-streamlit .ag-fill-handle,
-.ag-theme-streamlit .ag-range-handle {
+.ag-theme-alpine .ag-fill-handle,
+.ag-theme-alpine .ag-range-handle {
     background-color: #e4781d !important;
 }
 
-/* Prevent nested scrollbars */
-.block-container {
-    overflow: visible !important;
+.ag-theme-alpine .ag-root-wrapper {
+    border: none !important;
 }
-
+iframe[title="streamlit_aggrid_range"] {
+    border: none !important;
+}
 
 /* ==========================================================================
   15. Modals/Popups
