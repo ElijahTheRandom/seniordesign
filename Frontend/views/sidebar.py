@@ -97,17 +97,12 @@ def _render_compare_mode() -> None:
     active once 2+ runs are selected.
     """
     # Exit button
-    col1, col2 = st.columns([1, 5])
-    with col1:
-        if st.button("⬅️", key="exit_compare_mode", help="Exit Compare Mode"):
-            st.session_state.compare_mode_active = False
-            st.session_state.selected_runs_for_comparison = []
-            st.session_state.show_comparison_view = False
-            st.rerun()
+    if st.button("⬅️ Exit Compare Mode", key="exit_compare_mode", use_container_width=True, type="secondary"):
+        st.session_state.compare_mode_active = False
+        st.session_state.selected_runs_for_comparison = []
+        st.session_state.show_comparison_view = False
+        st.rerun()
     
-    with col2:
-        st.markdown("**Exit Compare Mode**")
-
     st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
 
     # Checkboxes for each run

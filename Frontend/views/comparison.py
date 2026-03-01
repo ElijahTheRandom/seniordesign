@@ -130,11 +130,11 @@ def _render_view_mode_selector() -> None:
         else:
             selected_mode = st.radio(
                 "Comparison View",
-                options=["side-by-side", "stacked", "diff"],
+                options=["side-by-side", "stacked"],  # "diff" can be added in the future
                 horizontal=True,
                 key="view_mode_radio",
                 label_visibility="collapsed",
-                index=["side-by-side", "stacked", "diff"].index(
+                index=["side-by-side", "stacked"].index(
                     st.session_state.get("comparison_view_mode", "side-by-side")
                 )
             )
