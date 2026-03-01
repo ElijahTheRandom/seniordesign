@@ -79,8 +79,6 @@ def render_results(run: dict, base_dir: str) -> None:
     """, unsafe_allow_html=True)
 
     st.header(f"Analysis Results — {run['name']}", anchor=False)
-    st.markdown("---")
-
     _render_stat_cards(run)
     _render_visualizations(run)
     _render_data_table(run)

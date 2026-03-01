@@ -49,11 +49,100 @@ def render_sidebar() -> None:
         st.markdown("---")
         st.header("Analysis Runs")
 
-        for i, run in enumerate(st.session_state.analysis_runs):
-            _render_run_button(run)
+        # Render different UI based on compare mode
+        if st.session_state.get("compare_mode_active", False):
+            _render_compare_mode()
+        else:
+            _render_normal_mode()
 
         st.markdown("---")
         _load_run_data(st.session_state.active_run_id)
+
+
+# ---------------------------------------------------------------------------
+# Private helpers
+# ---------------------------------------------------------------------------
+
+def _render_normal_mode() -> None:
+    """
+    Render the sidebar in normal mode: list of runs with a Compare button.
+
+    This is the default mode where runs are displayed as navigation buttons.
+    """
+    for i, run in enumerate(st.session_state.analysis_runs):
+        _render_run_button(run)
+
+    st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
+    
+    # Show Compare button only if there are 2+ runs
+    if len(st.session_state.analysis_runs) >= 2:
+        if st.button(
+            "Compare Runs",
+            key="compare_runs_btn",
+            use_container_width=True,
+            type="secondary"
+        ):
+            st.session_state.compare_mode_active = True
+            st.session_state.selected_runs_for_comparison = []
+            st.session_state.show_comparison_view = False
+            st.rerun()
+
+
+def _render_compare_mode() -> None:
+    """
+    Render the sidebar in compare mode: exit button, checkboxes, start button.
+
+    In this mode, users can select multiple runs to compare by clicking
+    checkboxes next to each run name. The "Start Comparison" button becomes
+    active once 2+ runs are selected.
+    """
+    # Exit button
+    col1, col2 = st.columns([1, 5])
+    with col1:
+        if st.button("⬅️", key="exit_compare_mode", help="Exit Compare Mode"):
+            st.session_state.compare_mode_active = False
+            st.session_state.selected_runs_for_comparison = []
+            st.session_state.show_comparison_view = False
+            st.rerun()
+    
+    with col2:
+        st.markdown("**Exit Compare Mode**")
+
+    st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
+
+    # Checkboxes for each run
+    for run in st.session_state.analysis_runs:
+        is_selected = run["id"] in st.session_state.selected_runs_for_comparison
+        
+        new_selected = st.checkbox(
+            run["name"],
+            value=is_selected,
+            key=f"compare_checkbox_{run['id']}"
+        )
+
+        if new_selected != is_selected:
+            if new_selected:
+                st.session_state.selected_runs_for_comparison.append(run["id"])
+            else:
+                st.session_state.selected_runs_for_comparison.remove(run["id"])
+            st.rerun()
+
+    st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
+
+    # Start Comparison button (enabled only if 2+ runs are selected)
+    num_selected = len(st.session_state.selected_runs_for_comparison)
+    is_enabled = num_selected >= 2
+
+    if st.button(
+        f"Compare Selected ({num_selected})",
+        key="start_comparison_btn",
+        use_container_width=True,
+        type="primary" if is_enabled else "secondary",
+        disabled=not is_enabled
+    ):
+        st.session_state.show_comparison_view = True
+        st.session_state.active_run_id = None  # Clear single-run view
+        st.rerun()
 
 
 # ---------------------------------------------------------------------------

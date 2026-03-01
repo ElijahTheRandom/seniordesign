@@ -54,6 +54,23 @@ def initialize_session_state() -> None:
     st.session_state.setdefault("renaming_run_id", None)
 
     # ------------------------------------------------------------------
+    # Comparison Mode State
+    # ------------------------------------------------------------------
+
+    # Whether comparison mode is currently active in the sidebar.
+    st.session_state.setdefault("compare_mode_active", False)
+
+    # List of run IDs selected for comparison.
+    st.session_state.setdefault("selected_runs_for_comparison", [])
+
+    # View mode for comparison display: "side-by-side" or "stacked"
+    st.session_state.setdefault("comparison_view_mode", "side-by-side")
+
+    # Whether the comparison view should be displayed (after "Start Comparison"
+    # is clicked).
+    st.session_state.setdefault("show_comparison_view", False)
+
+    # ------------------------------------------------------------------
     # File & Table State
     # ------------------------------------------------------------------
 

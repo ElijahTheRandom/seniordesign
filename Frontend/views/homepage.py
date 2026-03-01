@@ -417,6 +417,9 @@ def _render_analysis_config(
         pearson, spearman, regression, chi_square, binomial, variation = \
         _render_computation_options(data_ready, col1, col2)
 
+    # Placement for user defined methods button
+    _user_defined_computation_options()
+
     st.markdown("---")
 
     hist, box, scatter, line, heatmap = _render_visualization_options(
@@ -576,6 +579,20 @@ def _render_computation_options(
         pearson, spearman, regression, chi_square, binomial, variation
     )
 
+def _user_defined_computation_options():
+    """
+    A placeholder function for future user-defined computational methods. The user
+    can click an "Add Method" button to open a form where they can input the name of the method,
+    a description, and the code to execute. The form data can then be validated and, if valid,
+    added to the list of able computations that the user can select for their analysis runs.
+    """
+
+    #Place holder button for adding user-defined methods
+    new_method_clicked = st.button(
+        "Add Method",
+        key="add_method",
+        use_container_width=True
+    )
 
 # ============================================================================
 # ⭐ VISUALIZATION OPTIONS SELECTED BY USER
