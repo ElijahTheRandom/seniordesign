@@ -24,6 +24,8 @@ SESSION STATE WRITTEN:
     comparison_view_mode
 """
 
+from cProfile import run
+
 import streamlit as st
 import pandas as pd
 
@@ -34,6 +36,23 @@ from views.results import (
     _render_data_table,
 )
 
+st.markdown("""
+<style>
+.comparison-wrapper {
+    height: 75vh;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
+def _big_section_divider():
+    st.markdown(
+        "<hr style='margin: 1rem 0 1.5rem 0; border: none; height: 1px; "
+        "background: linear-gradient(90deg, transparent 0%, "
+        "rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />",
+        unsafe_allow_html=True
+    )
 
 # ---------------------------------------------------------------------------
 # Public interface
@@ -86,8 +105,13 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
     
     # View mode selector
     _render_view_mode_selector()
-    
-    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+
+    st.markdown(
+        "<hr style='margin: 1rem 0 1.5rem 0; border: none; height: 1px; "
+        "background: linear-gradient(90deg, transparent 0%, "
+        "rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />",
+        unsafe_allow_html=True
+    )
 
     # Render based on selected view mode
     view_mode = st.session_state.get("comparison_view_mode", "side-by-side")
@@ -97,57 +121,52 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
     elif view_mode == "stacked":
         _render_stacked_comparison(runs, base_dir)
 
+    # Necessary export button
+    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
 
+    # Placeholder export button
+    if st.button("Multi-Run Export", use_container_width=True):
+        st.info("Export functionality coming soon!")
 
 # ---------------------------------------------------------------------------
 # View mode selector
 # ---------------------------------------------------------------------------
 
 def _render_view_mode_selector() -> None:
-    """
-    Render the view mode selector radio buttons.
 
-    Allows users to choose between side-by-side, stacked, and diff view modes.
-    Note: When >3 runs are selected, stacked mode is forced for readability.
-    """
-    # Get current runs for count check
     runs = [
         r for r in st.session_state.analysis_runs
         if r["id"] in st.session_state.selected_runs_for_comparison
     ]
-    
-    col1, col2, col3, col4 = st.columns([2, 2, 2, 3])
-    
-    with col1:
-        if len(runs) > 3:
-            st.write("**View Mode:** (Stacked)")
-        else:
-            st.write("**View Mode:**")
-    
-    with col2:
-        if len(runs) > 3:
-            st.info(f"{len(runs)} runs selected → stacked mode auto-selected")
-        else:
-            selected_mode = st.radio(
-                "Comparison View",
-                options=["side-by-side", "stacked"],  # "diff" can be added in the future
-                horizontal=True,
-                key="view_mode_radio",
-                label_visibility="collapsed",
-                index=["side-by-side", "stacked"].index(
-                    st.session_state.get("comparison_view_mode", "side-by-side")
-                )
-            )
-            if selected_mode != st.session_state.get("comparison_view_mode", "side-by-side"):
-                st.session_state.comparison_view_mode = selected_mode
-                st.rerun()
 
+    if len(runs) > 3:
+        st.write("View Mode (Stacked)")
+        st.info(f"{len(runs)} runs selected → stacked mode auto-selected")
+        return
+
+    st.subheader("Comparison View Modes:", anchor=False)
+
+    selected_mode = st.radio(
+        "Comparison View",
+        options=["side-by-side", "stacked"],
+        horizontal=True,
+        key="view_mode_radio",
+        label_visibility="collapsed",
+        index=["side-by-side", "stacked"].index(
+            st.session_state.get("comparison_view_mode", "side-by-side")
+        ),
+        format_func=lambda x: "Side by Side" if x == "side-by-side" else "Stacked"
+    )
+
+    if selected_mode != st.session_state.get("comparison_view_mode", "side-by-side"):
+        st.session_state.comparison_view_mode = selected_mode
+        st.rerun()
 
 # ---------------------------------------------------------------------------
 # Comparison layout renderers
 # ---------------------------------------------------------------------------
-
 def _render_side_by_side_comparison(runs: list, base_dir: str) -> None:
+
     """
     Render runs in side-by-side columns.
 
@@ -158,27 +177,71 @@ def _render_side_by_side_comparison(runs: list, base_dir: str) -> None:
         runs:     List of run dicts to compare.
         base_dir: Absolute path to the frontend directory.
     """
+
+    # ---------- Row 1: Headers ----------
     cols = st.columns(len(runs))
-    
     for col, run in zip(cols, runs):
         with col:
-            _render_comparison_section(run, base_dir)
+            st.header(run["name"], anchor=False)
+
+    _big_section_divider()
+
+    # ---------- Row 2: Statistical Analysis ----------
+    cols = st.columns(len(runs))
+    for col, run in zip(cols, runs):
+        with col:
+            _render_stat_cards(run, show_divider=False)
+
+    _big_section_divider()
+
+    # ---------- Row 3: Visualizations ----------
+    any_visualizations = any(run.get("visualizations") for run in runs)
+
+    if any_visualizations:
+        cols = st.columns(len(runs))
+        for col, run in zip(cols, runs):
+            with col:
+                if run.get("visualizations"):
+                    _render_visualizations(run, show_divider=False)
+                else:
+                    st.markdown(
+                        "<div style='height: 400px;'></div>",
+                        unsafe_allow_html=True
+                    )
+
+        _big_section_divider()
+
+    # ---------- Row 4: Data Table ----------
+    cols = st.columns(len(runs))
+    for col, run in zip(cols, runs):
+        with col:
+            _render_data_table(run, show_divider=False)
+
+    _big_section_divider()
 
 
 def _render_stacked_comparison(runs: list, base_dir: str) -> None:
     """
-    Render runs stacked vertically.
+    Render runs stacked vertically with big headers like side-by-side.
 
-    Each run is displayed in full width below the previous one.
-    Useful for scrolling comparison on smaller screens.
-
-    Args:
-        runs:     List of run dicts to compare.
-        base_dir: Absolute path to the frontend directory.
+    Each run is displayed in full width below the previous one,
+    with consistent headers and section dividers.
     """
     for run in runs:
-        _render_comparison_section(run, base_dir)
-        st.markdown("---")
+        # Big header like side-by-side
+        st.header(run["name"], anchor=False)
+        
+        # Render stat cards
+        _render_stat_cards(run, show_divider=False)
+        
+        # Render visualizations
+        _render_visualizations(run, show_divider=False)
+        
+        # Render data table
+        _render_data_table(run, show_divider=False)
+
+        # Divider between runs
+        _big_section_divider()
 
 
 #
@@ -218,14 +281,12 @@ def _render_comparison_section(run: dict, base_dir: str) -> None:
     st.subheader(f"{run['name']}", anchor=False)
     
     # Render stat cards
-    _render_stat_cards(run)
+    _render_stat_cards(run, show_divider=False)
     
     # Render visualizations
-    _render_visualizations(run)
-    
-    # Render data table (condensed)
-    st.markdown("**Data Preview:**")
-    _render_data_table(run)
+    _render_visualizations(run, show_divider=False)
+
+    _render_data_table(run, show_divider=False)
 
 
 # ---------------------------------------------------------------------------
@@ -286,4 +347,4 @@ def render_comparison_tabbed(selected_run_ids: list, base_dir: str) -> None:
         for col, run in zip(cols, runs):
             with col:
                 st.write(f"**{run['name']}**")
-                _render_data_table(run)
+                _render_data_table(run, show_divider=False)

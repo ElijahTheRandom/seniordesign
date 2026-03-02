@@ -98,7 +98,7 @@ def render_results(run: dict, base_dir: str) -> None:
 # Rendered via stat cards using _render_stat_card(title, value, subtext)
 # ============================================================================
 
-def _render_stat_cards(run: dict) -> None:
+def _render_stat_cards(run: dict, show_divider: bool = True) -> None:
     """
     Compute and render all stat cards for the methods in this run.
 
@@ -134,7 +134,8 @@ def _render_stat_cards(run: dict) -> None:
 
         st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
 
-    st.markdown("---")
+    if show_divider:
+        st.markdown("---")
 
 
 def _render_stat_card(title: str, value: str, subtext: str = None) -> None:
@@ -159,7 +160,7 @@ def _render_stat_card(title: str, value: str, subtext: str = None) -> None:
     """, unsafe_allow_html=True)
 
 
-def _render_visualizations(run: dict) -> None:
+def _render_visualizations(run: dict, show_divider: bool = True) -> None:
     """
     Render the visualizations section if any were selected.
 
@@ -179,10 +180,11 @@ def _render_visualizations(run: dict) -> None:
     for viz in run["visualizations"]:
         st.info(f"{viz} visualization will be rendered here")
 
-    st.markdown("---")
+    if show_divider:
+        st.markdown("---")
 
 
-def _render_data_table(run: dict) -> None:
+def _render_data_table(run: dict, show_divider: bool = True) -> None:
     """
     Render the selected data table with a row/column summary caption.
 
@@ -196,7 +198,9 @@ def _render_data_table(run: dict) -> None:
     st.caption(
         f"Rows: {len(run['data'])}, Columns: {len(run['data'].columns)}"
     )
-    st.markdown("---")
+    
+    if show_divider:
+        st.markdown("---")
 
 
 def _render_action_buttons(run: dict) -> None:

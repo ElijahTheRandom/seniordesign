@@ -164,7 +164,7 @@ def _render_file_action_buttons(uploaded_file) -> None:
         temp_df = pd.read_csv(uploaded_file)
         st.session_state.edited_data_cache[file_key] = temp_df.copy()
 
-    col_remove, col_download, _ = st.columns([1, 1, 2])
+    col_download, col_remove, _ = st.columns([1, 1, 2])
 
     with col_remove:
         if st.button("Remove", key="remove_file_btn", use_container_width=True):

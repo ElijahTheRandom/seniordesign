@@ -73,6 +73,9 @@ def _render_normal_mode() -> None:
         _render_run_button(run)
 
     st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
+
+    if len(st.session_state.analysis_runs) < 2 and len(st.session_state.analysis_runs) > 0:
+        st.info("At least two runs must be generated before you can compare them.")
     
     # Show Compare button only if there are 2+ runs
     if len(st.session_state.analysis_runs) >= 2:
@@ -90,25 +93,13 @@ def _render_normal_mode() -> None:
 
 def _render_compare_mode() -> None:
     """
-    Render the sidebar in compare mode: exit button, checkboxes, start button.
-
-    In this mode, users can select multiple runs to compare by clicking
-    checkboxes next to each run name. The "Start Comparison" button becomes
-    active once 2+ runs are selected.
+    Render the sidebar in compare mode: checkboxes first, then action buttons.
     """
-    # Exit button
-    if st.button("⬅️ Exit Compare Mode", key="exit_compare_mode", use_container_width=True, type="secondary"):
-        st.session_state.compare_mode_active = False
-        st.session_state.selected_runs_for_comparison = []
-        st.session_state.show_comparison_view = False
-        st.rerun()
-    
-    st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
 
-    # Checkboxes for each run
+    # --- Checkboxes ---
     for run in st.session_state.analysis_runs:
         is_selected = run["id"] in st.session_state.selected_runs_for_comparison
-        
+
         new_selected = st.checkbox(
             run["name"],
             value=is_selected,
@@ -124,21 +115,35 @@ def _render_compare_mode() -> None:
 
     st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
 
-    # Start Comparison button (enabled only if 2+ runs are selected)
+    # --- Side-by-side buttons UNDER checkboxes ---
+    compare_col, exit_col = st.columns([1, 1])
+
     num_selected = len(st.session_state.selected_runs_for_comparison)
     is_enabled = num_selected >= 2
 
-    if st.button(
-        f"Compare Selected ({num_selected})",
-        key="start_comparison_btn",
-        use_container_width=True,
-        type="primary" if is_enabled else "secondary",
-        disabled=not is_enabled
-    ):
-        st.session_state.show_comparison_view = True
-        st.session_state.active_run_id = None  # Clear single-run view
-        st.rerun()
+    with exit_col:
+        if st.button(
+            "Cancel",
+            key="exit_compare_mode",
+            use_container_width=True,
+            type="secondary"
+        ):
+            st.session_state.compare_mode_active = False
+            st.session_state.selected_runs_for_comparison = []
+            st.session_state.show_comparison_view = False
+            st.rerun()
 
+    with compare_col:
+        if st.button(
+            f"Compare",
+            key="start_comparison_btn",
+            use_container_width=True,
+            type="primary" if is_enabled else "secondary",
+            disabled=not is_enabled
+        ):
+            st.session_state.show_comparison_view = True
+            st.session_state.active_run_id = None
+            st.rerun()
 
 # ---------------------------------------------------------------------------
 # Private helpers
@@ -147,12 +152,12 @@ def _render_compare_mode() -> None:
 def _render_home_button() -> None:
     """
     Render the Home navigation button.
-
-    Styled as "primary" (active/highlighted) when no run is selected,
-    "secondary" (muted) when viewing a run. Clicking it sets
-    active_run_id to None, returning the user to the homepage.
     """
-    is_active = st.session_state.active_run_id is None
+
+    is_active = (
+        st.session_state.active_run_id is None
+        and not st.session_state.get("show_comparison_view", False)
+    )
 
     if st.button(
         "Home",
@@ -161,6 +166,8 @@ def _render_home_button() -> None:
         type="primary" if is_active else "secondary"
     ):
         st.session_state.active_run_id = None
+        st.session_state.compare_mode_active = False
+        st.session_state.show_comparison_view = False
         st.rerun()
 
 
