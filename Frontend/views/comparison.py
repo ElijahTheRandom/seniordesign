@@ -184,8 +184,6 @@ def _render_side_by_side_comparison(runs: list, base_dir: str) -> None:
         with col:
             st.header(run["name"], anchor=False)
 
-    _big_section_divider()
-
     # ---------- Row 2: Statistical Analysis ----------
     cols = st.columns(len(runs))
     for col, run in zip(cols, runs):

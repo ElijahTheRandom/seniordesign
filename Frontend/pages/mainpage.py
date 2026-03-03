@@ -40,6 +40,7 @@ from views.sidebar  import render_sidebar
 from views.homepage import render_homepage
 from views.results  import render_results
 from views.comparison import render_comparison
+from views.help_statistical_methods import render_help_statistical_methods
 
 # ---------------------------------------------------------------------------
 # Page config — must be the very first Streamlit call
@@ -82,10 +83,13 @@ render_sidebar() # Fires up the sidebar and all of its functions, buttons, etc.
 # ---------------------------------------------------------------------------
 
 # Route based on current state:
-#   1. If comparison view is active → show comparison of selected runs
-#   2. If a single run is selected → show its results
-#   3. Otherwise → show homepage
-if st.session_state.get("show_comparison_view", False) and st.session_state.get("selected_runs_for_comparison"):
+#   1. If help view is active → show statistical methods help page
+#   2. If comparison view is active → show comparison of selected runs
+#   3. If a single run is selected → show its results
+#   4. Otherwise → show homepage
+if st.session_state.get("current_view") == "help":
+    render_help_statistical_methods()
+elif st.session_state.get("show_comparison_view", False) and st.session_state.get("selected_runs_for_comparison"):
     render_comparison(st.session_state.selected_runs_for_comparison, BASE_DIR)
 elif st.session_state.active_run_id:
     run = next(
