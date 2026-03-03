@@ -29,6 +29,7 @@
  * 16.  Analysis Cards
  * 17.  Animations & Keyframes
  * 18.  Miscellaneous Fixes
+ * 19.  Radios
  */
 
 /* ==========================================================================
@@ -842,85 +843,63 @@ button {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* ==========================================================================
-   9. Checkboxes
+/* ==========================================================================  
+   Checkboxes  
    ========================================================================== */
 
-/* Box border color */
-div[data-testid="stCheckbox"] span {
-    background-color: #262730 !important;
-    border-radius: 4px;
-    border-color: #e4781d !important;
-}
-
-/* Base checkbox */
-div[data-testid="stCheckbox"] > label > div:first-child {
-    background-color: #262730;
-    border: 1px solid #e4781d;
-    border-radius: 4px;
-    width: 18px;
-    height: 18px;
-    transition: all 0.15s ease;
-}
-
-/* Checkbox hovering */
-div[data-testid="stCheckbox"] > label > div:first-child:hover {
-    border-color: #d66b1d;
-    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.4);
-}
-
-/* State when checkbox is filled */
-div[data-testid="stCheckbox"] > label > input:checked + div:first-child {
-    background-color: #e4781d;
-    border-color: #e4781d;
-}
-
-/* SVG check icon */
+/* Base box */
 label[data-baseweb="checkbox"] span {
-    border-color: #e4781d !important;
+    background-color: #1f2128 !important;
+    border: 1.5px solid rgba(228, 120, 29, 0.45) !important;
+    border-radius: 8px !important;
+    width: 20px !important;
+    height: 20px !important;
+    transition: 
+        background-color 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease,
+        transform 0.15s ease;
 }
 
-label[data-baseweb="checkbox"] svg {
-    stroke: #e4781d !important;
-    fill: none !important;
-}
-
-label[data-baseweb="checkbox"] input:checked + span svg {
-    fill: #e4781d !important;
-    stroke: #e4781d !important;
-}
-
+/* HOVER (correct target) */
 label[data-baseweb="checkbox"]:hover span {
-    border-color: #f08c2e !important;
+    border-color: rgba(228, 120, 29, 0.75) !important;
+    box-shadow: 0 0 0 3px rgba(228, 120, 29, 0.18) !important;
+    transform: scale(1.04);
 }
 
+/* Checked */
+label[data-baseweb="checkbox"] input:checked + span {
+    background-color: #c86a1a !important;   /* muted orange */
+    border-color: #c86a1a !important;
+    box-shadow: 0 0 6px rgba(200, 106, 26, 0.35);
+}
+
+/* Smooth check animation */
+label[data-baseweb="checkbox"] input:checked + span {
+    animation: checkbox-pop 0.18s ease-out;
+}
+
+/* Check icon */
+label[data-baseweb="checkbox"] svg {
+    transform: scale(0.7) !important;
+}
+
+/* Focus ring */
 label[data-baseweb="checkbox"] input:focus-visible + span {
+    box-shadow: 0 0 0 3px rgba(200, 106, 26, 0.35) !important;
     outline: none !important;
-    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.55) !important;
 }
 
-/* Disabled state */
+/* Label text smoothing */
+div[data-testid="stCheckbox"] label {
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
+/* Disabled */
 div[data-testid="stCheckbox"]:has(input:disabled) {
-    opacity: 0.4 !important;
-    cursor: not-allowed !important;
-}
-
-div[data-testid="stCheckbox"]:has(input:disabled) label {
-    cursor: not-allowed !important;
-}
-
-div[data-testid="stCheckbox"]:has(input:disabled) > label > div:first-child {
-    background-color: #1a1a1a !important;
-    border-color: #555555 !important;
-}
-
-div[data-testid="stCheckbox"]:has(input:disabled) span {
-    color: #666666 !important;
-}
-
-/* Animation when checked and unchecked */
-div[data-testid="stCheckbox"] input:checked + div:first-child {
-    animation: checkbox-check 0.3s ease !important;
+    opacity: 0.45;
 }
 
 
@@ -1638,6 +1617,12 @@ div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
     100% { transform: translateX(0); }
 }
 
+@keyframes checkbox-pop {
+    0%   { transform: scale(0.85); }
+    60%  { transform: scale(1.08); }
+    100% { transform: scale(1); }
+}
+
 /* Apply fade-in to main content block */
 .main .block-container,
 .main .block-container > div {
@@ -1661,3 +1646,7 @@ div[data-testid="stMultiSelect"],
 div[data-testid="stSelectbox"] {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
+
+/* ==========================================================================
+  19. Radios
+   ========================================================================== */

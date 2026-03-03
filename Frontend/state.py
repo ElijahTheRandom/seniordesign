@@ -53,6 +53,8 @@ def initialize_session_state() -> None:
     # The UUID of the run currently being renamed, or None.
     st.session_state.setdefault("renaming_run_id", None)
 
+    st.session_state.setdefault("current_view", "home")
+
     # ------------------------------------------------------------------
     # Comparison Mode State
     # ------------------------------------------------------------------

@@ -45,6 +45,8 @@ def render_sidebar() -> None:
         st.header("Page Navigation")
 
         _render_home_button()
+        _render_help_button()
+        _render_load_button()
 
         st.markdown("---")
         st.header("Analysis Runs")
@@ -56,7 +58,6 @@ def render_sidebar() -> None:
             _render_normal_mode()
 
         st.markdown("---")
-        _load_run_data(st.session_state.active_run_id)
 
 
 # ---------------------------------------------------------------------------
@@ -150,24 +151,20 @@ def _render_compare_mode() -> None:
 # ---------------------------------------------------------------------------
 
 def _render_home_button() -> None:
-    """
-    Render the Home navigation button.
-    """
 
-    is_active = (
-        st.session_state.active_run_id is None
-        and not st.session_state.get("show_comparison_view", False)
-    )
+    is_active = st.session_state.get("current_view") == "home"
 
     if st.button(
-        "Home",
+        "Home Screen",
         key="nav_home",
         use_container_width=True,
         type="primary" if is_active else "secondary"
     ):
+        st.session_state.current_view = "home"
         st.session_state.active_run_id = None
         st.session_state.compare_mode_active = False
         st.session_state.show_comparison_view = False
+        st.session_state.show_help_view = False
         st.rerun()
 
 
@@ -266,19 +263,37 @@ def _render_rename_form(run: dict) -> None:
             st.rerun()
 
 # Method that will allow the user to load the full data for a previous run by its ID
-def _load_run_data(run_id: str) -> dict:
-    """
-    Load the full data for a run by its ID.
+def _render_load_button() -> None:
 
-    This is a placeholder function. In a real implementation, this would
-    likely involve reading from disk or a database, since we don't want
-    to keep all run data in memory at all times.
+    is_active = st.session_state.get("current_view") == "load"
 
-    For now, it just returns the run dict from session state based on ID.
-    """
-    st.button(
+    if st.button(
         "Load Previous Runs",
-        key=f"load_run_{run_id}",
+        key="nav_load",
         use_container_width=True,
-        type="secondary"
-    )
+        type="primary" if is_active else "secondary"
+    ):
+        st.session_state.current_view = "load"
+        st.session_state.active_run_id = None
+        st.session_state.compare_mode_active = False
+        st.session_state.show_comparison_view = False
+        st.session_state.show_help_view = False
+        st.rerun()
+
+# Method that will allow the user to view the help screen
+def _render_help_button() -> None:
+
+    is_active = st.session_state.get("current_view") == "help"
+
+    if st.button(
+        "Help Screen",
+        key="nav_help",
+        use_container_width=True,
+        type="primary" if is_active else "secondary"
+    ):
+        st.session_state.current_view = "help"
+        st.session_state.active_run_id = None
+        st.session_state.compare_mode_active = False
+        st.session_state.show_comparison_view = False
+        st.session_state.show_help_view = True
+        st.rerun()
