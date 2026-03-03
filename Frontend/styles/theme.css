@@ -865,7 +865,7 @@ label[data-baseweb="checkbox"] span {
 label[data-baseweb="checkbox"]:hover span {
     border-color: rgba(228, 120, 29, 0.75) !important;
     box-shadow: 0 0 0 3px rgba(228, 120, 29, 0.18) !important;
-    transform: scale(1.04);
+    transform: scale(1);
 }
 
 /* Checked */
@@ -882,7 +882,19 @@ label[data-baseweb="checkbox"] input:checked + span {
 
 /* Check icon */
 label[data-baseweb="checkbox"] svg {
-    transform: scale(0.7) !important;
+    transform: scale(0.2) !important;
+}
+
+/* Force icon wrapper smaller than box */
+label[data-baseweb="checkbox"] span > div {
+    width: 60% !important;
+    height: 60% !important;
+}
+
+/* Ensure svg fills the wrapper */
+label[data-baseweb="checkbox"] span > div svg {
+    width: 100% !important;
+    height: 100% !important;
 }
 
 /* Focus ring */
@@ -1650,3 +1662,30 @@ div[data-testid="stSelectbox"] {
 /* ==========================================================================
   19. Radios
    ========================================================================== */
+/* Style the outer circle */
+div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child {
+    border: 1px solid #555 !important;
+    background-color: #2a2a2a !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Remove the inner white dot */
+div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child > div {
+    display: none !important;
+}
+
+/* Selected state – circle fill */
+div[data-testid="stRadio"]
+label[data-baseweb="radio"]:has(input[type="radio"]:checked)
+> div:first-child {
+    background-color: #e4781d !important;
+    border-color: #e4781d !important;
+    box-shadow: 0 0 4px rgba(204, 85, 0, 0.4);
+}
+
+/* Hover effect (circle only) */
+div[data-testid="stRadio"]
+label[data-baseweb="radio"]:hover
+> div:first-child {
+    border-color: #e4781d !important;
+}

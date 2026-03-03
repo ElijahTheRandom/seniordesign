@@ -41,6 +41,7 @@ def render_sidebar() -> None:
     Reads from and writes to st.session_state directly.
     """
     with st.sidebar:
+        st.markdown("<div style='margin-top: 2.5rem;'></div>", unsafe_allow_html=True)
         st.markdown("<hr class='sidebar-top-divider'>", unsafe_allow_html=True)
         st.header("Page Navigation")
 

@@ -149,7 +149,7 @@ def _render_view_mode_selector() -> None:
     selected_mode = st.radio(
         "Comparison View",
         options=["side-by-side", "stacked"],
-        horizontal=True,
+        horizontal=False,
         key="view_mode_radio",
         label_visibility="collapsed",
         index=["side-by-side", "stacked"].index(
