@@ -41,6 +41,7 @@ from views.homepage import render_homepage
 from views.results  import render_results
 from views.comparison import render_comparison
 from views.help_statistical_methods import render_help_statistical_methods
+from views.load_previous_runs import render_load_previous_runs
 
 # ---------------------------------------------------------------------------
 # Page config — must be the very first Streamlit call
@@ -86,9 +87,12 @@ render_sidebar() # Fires up the sidebar and all of its functions, buttons, etc.
 #   1. If help view is active → show statistical methods help page
 #   2. If comparison view is active → show comparison of selected runs
 #   3. If a single run is selected → show its results
-#   4. Otherwise → show homepage
+#   4. If load previous runs view is active → show load previous runs page
+#   5. Otherwise → show homepage
 if st.session_state.get("current_view") == "help":
     render_help_statistical_methods()
+elif st.session_state.get("current_view") == "load":
+    render_load_previous_runs()
 elif st.session_state.get("show_comparison_view", False) and st.session_state.get("selected_runs_for_comparison"):
     render_comparison(st.session_state.selected_runs_for_comparison, BASE_DIR)
 elif st.session_state.active_run_id:
