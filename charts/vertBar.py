@@ -82,7 +82,7 @@ class VertBar:
             paper_bgcolor = "black",
             plot_bgcolor = "black",
             font = dict(color = "white"),
-            xaxis = dict(showgrid = False),
+            xaxis = dict(showgrid = False, automargin = True, ticklabelstandoff = 10),
             yaxis = dict(showgrid = True, gridcolor = "gray"),
             height = 500
         )
