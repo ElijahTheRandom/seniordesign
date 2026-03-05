@@ -67,8 +67,8 @@ class VertBar:
             text = self.data,
             textposition = "outside",
             marker = dict(
-                color = "#ff9900",
-                line = dict (width = 1, color = "#ff9900")
+                color = "#e4781d",
+                line = dict (width = 1, color = "#e4781d")
             )
         ))
 
