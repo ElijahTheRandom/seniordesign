@@ -54,18 +54,41 @@ class PieChart:
             "params_used": self.params,
         }
 
+    def color_pallette(self, n, base = "#e4781d"):
+            base = base.lstrip("#")
+
+            r = int(base[0:2], 16)
+            g = int(base[2:4], 16)
+            b = int(base[4:6], 16)
+
+            colors = []
+
+            for i in range(n):
+                factor = i / max(n - 1, 1)
+
+                # blend toward white for lighter shades
+                r2 = int(r + (255 - r) * factor * 0.6)
+                g2 = int(g + (255 - g) * factor * 0.6)
+                b2 = int(b + (255 - b) * factor * 0.6)
+
+                colors.append(f"#{r2:02x}{g2:02x}{b2:02x}")
+
+            return colors
+    
     def _create_chart(self):
+        # Create and return a chart object (e.g., matplotlib Figure).
         # Create and return a chart object (e.g., matplotlib Figure).
         n = len(self.params)
 
-        colors = pc.sample_colorscale("Oranges", [i/(n-1) if n > 1 else 0.5 for i in range(n)])
+        colors = self.color_pallette(len(self.params))
 
         fig = go.Figure(go.Pie(
             labels = self.params,
             values = self.data,
             hole = 0.45,
             marker = dict(colors = colors),
-            textinfor = "percent+label"
+            textinfo = "percent+label",
+            textposition = "outside"
         ))
 
         fig.update_layout(
@@ -80,6 +103,8 @@ class PieChart:
         buffer.seek(0)
 
         return buffer
+    
+    
 
     def create_graphic(self):
         # Perform the statistical computation and return a standardized result dictionary
