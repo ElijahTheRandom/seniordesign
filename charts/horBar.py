@@ -62,14 +62,14 @@ class HorBar:
         figure = go.Figure()
 
         figure.add_trace(go.Bar(
-            x = self.params,
-            y = self.data,
+            x = self.data[::-1],
+            y = self.params[::-1],
             orientation = 'h',
-            text = self.data,
+            text = self.data[::-1],
             textposition = "outside",
             marker = dict(
-                color = "#ff9900",
-                line = dict (width = 1, color = "#ff9900")
+                color = "#e4781d",
+                line = dict (width = 1, color = "#e4781d")
             )
         ))
 
@@ -82,9 +82,9 @@ class HorBar:
             template = "plotly_dark",
             paper_bgcolor = "black",
             plot_bgcolor = "black",
-            font = dict(color = "white"),
-            xaxis = dict(showgrid = False),
-            yaxis = dict(showgrid = True, gridcolor = "gray"),
+            font = dict(color = "white", family = "Arial", size = 15),
+            xaxis = dict(showgrid = True, gridcolor = "white"),
+            yaxis = dict(showgrid = False, automargin = True, ticklabelstandoff = 10),
             height = 500
         )
 
