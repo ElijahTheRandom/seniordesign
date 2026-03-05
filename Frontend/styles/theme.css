@@ -1242,25 +1242,9 @@ div[data-testid="stAlert"] svg {
 /* ==========================================================================
   14. AG Grid
    ========================================================================== */
-
-/* Let AG Grid expand naturally without internal scroll */
-.ag-theme-alpine {
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-}
-
 div[class*="ag-theme"] .ag-root-wrapper {
     border: none !important;
     box-shadow: none !important;
-}
-
-/* Remove grid internal viewport height cap */
-.ag-center-cols-viewport,
-.ag-body-viewport {
-    max-height: none !important;
-    height: auto !important;
 }
 
 /* CSS custom properties — applied via class so they cascade to all cells */
@@ -1657,6 +1641,23 @@ div[data-testid="stCheckbox"],
 div[data-testid="stMultiSelect"],
 div[data-testid="stSelectbox"] {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.ag-theme-alpine,
+.ag-theme-alpine * {
+    box-sizing: border-box !important;
+}
+
+.ag-theme-alpine .ag-header {
+    box-shadow: none !important;
+}
+
+.ag-theme-alpine {
+    box-shadow: none !important;
+}
+
+.ag-theme-alpine .ag-root-wrapper {
+    height: 480px !important;
 }
 
 /* ==========================================================================

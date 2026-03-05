@@ -21,6 +21,7 @@
     --ag-column-hover-color: rgba(228, 120, 29, 0.08);
     --ag-borders: 0px;
     --ag-border-color: transparent;
+    /* height: 100%; */
 }
 
 /* Ensure the focused cell shares the same background as the selection. */

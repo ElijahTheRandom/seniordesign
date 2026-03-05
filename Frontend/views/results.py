@@ -263,8 +263,22 @@ def _build_export_text(run: dict) -> str:
 
     if run["methods"]:
         lines.append("Methods Applied:")
+
         for m in run["methods"]:
-            lines.append(f"- {m}")
+            compute_fn = STAT_COMPUTERS.get(m)
+
+            if compute_fn:
+                cards = compute_fn(run["data"])
+
+                for card in cards:
+                    value = card[2]
+
+                    if len(card) == 4:
+                        subtext = card[3]
+                        lines.append(f"{m}: {value} ({subtext})")
+                    else:
+                        lines.append(f"{m}: {value}")
+
         lines.append("")
 
     if run.get("visualizations"):

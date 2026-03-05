@@ -34,6 +34,7 @@ from views.results import (
     _render_stat_cards,
     _render_visualizations,
     _render_data_table,
+    _build_export_text
 )
 
 st.markdown("""
@@ -121,12 +122,31 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
     elif view_mode == "stacked":
         _render_stacked_comparison(runs, base_dir)
 
-    # Necessary export button
     st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
 
-    # Placeholder export button
-    if st.button("Multi-Run Export", use_container_width=True):
-        st.info("Export functionality coming soon!")
+    export_left, export_center, export_right = st.columns([1, 3, 1])
+
+    with export_center:
+
+        export_sections = []
+        run_names = []
+
+        for run in runs:
+            export_sections.append(_build_export_text(run))
+            run_names.append(run["name"])
+
+        export_text = ("\n\n" + "=" * 60 + "\n\n").join(export_sections)
+
+        # Build filename like: Run 1, Run 2 Combined Results.txt
+        filename = f"{', '.join(run_names)} Combined Results.txt"
+
+        st.download_button(
+            label="Export Multi-Run Report",
+            data=export_text,
+            file_name=filename,
+            mime="text/plain",
+            use_container_width=True,
+        )
 
 # ---------------------------------------------------------------------------
 # View mode selector
