@@ -55,13 +55,14 @@ class BestFit:
         }
 
     def _create_chart(self):
-        # Create and return a chart object (e.g., matplotlib Figure).
         x = np.array(self.data[0], dtype = float)
         y = np.array(self.data[1], dtype = float)
 
         slope, intercept = np.polyfit(x, y, 1)
 
-        xFit = np.linspace(x.min(), x.max(), 100)
+        padding = (x.max() - x.min()) * 0.2
+
+        xFit = np.linspace(x.min() - padding, x.max() + padding, 100, endpoint = False)
         yFit = slope * xFit + intercept
 
         fig = go.Figure()
@@ -70,27 +71,27 @@ class BestFit:
             x = self.data[0],
             y = self.data[1],
             mode = "markers",
-            marker = dict(color = "#ffa500", size = 10),
-            name = ""
+            marker = dict(color = "#e4781d", size = 10),
+            name = "Data Markers"
         ))
 
         fig.add_trace(go.Scatter(
             x = xFit,
             y = yFit,
             mode = "lines",
-            line = dict(color = "#ff6600", width = 3),
-            name = ""
+            line = dict(color = "#f59403", width = 3),
+            name = "Line of Best Fit"
         ))
 
         fig.update_layout(
             plot_bgcolor = "black",
             paper_bgcolor = "black",
-            font = dict(colro = "white"),
+            font = dict(color = "white"),
             title = ""
         )
 
-        fig.update_xaxes(gridcolor = "#222222")
-        fig.update_yaxes(gridcolor = "#222222")
+        fig.update_xaxes(gridcolor = "#222222", dtick = 1)
+        fig.update_yaxes(gridcolor = "#222222", dtick = 1)
 
         buffer = BytesIO()
         fig.write_image(buffer, format = "png")
