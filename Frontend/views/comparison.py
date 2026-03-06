@@ -124,10 +124,12 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
 
     st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
 
-    export_left, export_center, export_right = st.columns([1, 3, 1])
+    @st.dialog("Export Comparison")
+    def _export_comparison_dialog(runs: list):
 
-    with export_center:
+        st.write("Choose an export format:")
 
+        # ---------- TXT REPORT ----------
         export_sections = []
         run_names = []
 
@@ -137,16 +139,45 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
 
         export_text = ("\n\n" + "=" * 60 + "\n\n").join(export_sections)
 
-        # Build filename like: Run 1, Run 2 Combined Results.txt
-        filename = f"{', '.join(run_names)} Combined Results.txt"
+        filename = f"{', '.join(run_names)} Full Combined Report.txt"
 
         st.download_button(
-            label="Export Multi-Run Report",
+            "Export TXT Report",
             data=export_text,
             file_name=filename,
             mime="text/plain",
             use_container_width=True,
         )
+
+        # ---------- CSV ----------
+        combined_df = pd.concat(
+            [run["data"].assign(Run=run["name"]) for run in runs],
+            ignore_index=True
+        )
+
+        st.download_button(
+            "Export CSV Data",
+            data=combined_df.to_csv(index=False),
+            file_name=f"{run['name']}.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+        # ---------- TSV ----------
+        st.download_button(
+            "Export TSV Data",
+            data=combined_df.to_csv(index=False, sep="\t"),
+            file_name=f"{run['name']}.tsv",
+            mime="text/tab-separated-values",
+            use_container_width=True,
+        )
+
+    export_left, export_center, export_right = st.columns([2,3,2])
+
+    with export_center:
+
+        if st.button("Export Multi-Run Report", use_container_width=True):
+            _export_comparison_dialog(runs)
 
 # ---------------------------------------------------------------------------
 # View mode selector

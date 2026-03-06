@@ -202,6 +202,37 @@ def _render_data_table(run: dict, show_divider: bool = True) -> None:
     if show_divider:
         st.markdown("---")
 
+@st.dialog("Export Run")
+def _export_run_dialog(run: dict):
+
+    st.write("Choose an export format:")
+
+    # TXT report
+    st.download_button(
+        "Export TXT Report",
+        data=_build_export_text(run),
+        file_name=f"{run['name']} Full Report.txt",
+        mime="text/plain",
+        use_container_width=True,
+    )
+
+    # CSV export
+    st.download_button(
+        "Export CSV Data",
+        data=run["data"].to_csv(index=False),
+        file_name=f"{run['name']}.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+    # TSV export
+    st.download_button(
+        "Export TSV Data",
+        data=run["data"].to_csv(index=False, sep="\t"),
+        file_name=f"{run['name']}.tsv",
+        mime="text/tab-separated-values",
+        use_container_width=True,
+    )
 
 def _render_action_buttons(run: dict) -> None:
     """
@@ -217,20 +248,14 @@ def _render_action_buttons(run: dict) -> None:
     btn1, btn2, btn3 = st.columns(3)
 
     with btn1:
-        st.button("Save This Run", use_container_width=True)
+        st.button("Save Run", use_container_width=True)
 
     with btn2:
-        export_text = _build_export_text(run)
-        st.download_button(
-            label="Export This Run",
-            data=export_text,
-            file_name=f"{run['name']}.txt",
-            mime="text/plain",
-            use_container_width=True,
-        )
+        if st.button("Export Run", use_container_width=True):
+            _export_run_dialog(run)
 
     with btn3:
-        if st.button("Delete This Run", use_container_width=True):
+        if st.button("Delete Run", use_container_width=True):
             st.session_state.analysis_runs = [
                 r for r in st.session_state.analysis_runs
                 if r["id"] != run["id"]
