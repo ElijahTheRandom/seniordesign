@@ -44,7 +44,12 @@ SESSION STATE WRITTEN:
 
 import os
 import pprint
+import sys
+import os
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+from pathlib import Path
+import sys
 import pandas as pd
 import streamlit as st
 from streamlit_aggrid_range import aggrid_range
@@ -52,10 +57,11 @@ from streamlit_aggrid_range import aggrid_range
 from utils.helpers import apply_grid_selection_to_filters
 from logic.run_manager import (
     validate_numeric,
-    create_run,
     build_error_message,
     build_success_message,
 )
+from class_templates.message_structure import Message
+from backend_handler import BackendHandler
 
 
 # ---------------------------------------------------------------------------
@@ -88,7 +94,11 @@ def render_homepage(base_dir: str, error_modal, success_modal) -> None:
     with right_col:
         _render_analysis_config(edited_table, error_modal, success_modal)
 
-
+_REPO_ROOT = Path(__file__).resolve().parents[2]        # /app/
+_BACKEND_ROOT = _REPO_ROOT / "Backend"                  # /app/Backend/
+for _p in (str(_REPO_ROOT), str(_BACKEND_ROOT)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 # ---------------------------------------------------------------------------
 # Left column — Data Input Panel
 # ---------------------------------------------------------------------------
@@ -413,23 +423,23 @@ def _render_analysis_config(
 
     st.markdown("---")
 
-    mean, median, mode, variance, std_dev, percentiles, \
-        pearson, spearman, regression, chi_square, binomial, variation = \
+    mean, median, mode, variance, std, percentiles, \
+        pearson, spearman, least_squares_regression, chi_squared, binomial, variation = \
         _render_computation_options(data_ready, col1, col2)
 
     st.markdown("---")
 
     hist, box, scatter, line, heatmap = _render_visualization_options(
-        data_ready, mean, median, mode, variance, std_dev, percentiles,
-        pearson, spearman, regression, chi_square, binomial, variation
+        data_ready, mean, median, mode, variance, std, percentiles,
+        pearson, spearman, least_squares_regression, chi_squared, binomial, variation
     )
 
     st.markdown("---")
     st.markdown('<div class="run-analysis-anchor"></div>', unsafe_allow_html=True)
 
     computation_selected = any([
-        mean, median, mode, variance, std_dev, percentiles,
-        pearson, spearman, regression, chi_square, binomial, variation
+        mean, median, mode, variance, std, percentiles,
+        pearson, spearman, least_squares_regression, chi_squared, binomial, variation
     ])
 
     _handle_run_analysis(
@@ -439,9 +449,9 @@ def _render_analysis_config(
         col1=col1,
         col2=col2,
         mean=mean, median=median, mode=mode,
-        variance=variance, std_dev=std_dev, percentiles=percentiles,
-        pearson=pearson, spearman=spearman, regression=regression,
-        chi_square=chi_square, binomial=binomial, variation=variation,
+        variance=variance, std=std, percentiles=percentiles,
+        pearson=pearson, spearman=spearman, least_squares_regression=least_squares_regression,
+        chi_squared=chi_squared, binomial=binomial, variation=variation,
         hist=hist, box=box, scatter=scatter, line=line, heatmap=heatmap,
         error_modal=error_modal,
         success_modal=success_modal,
@@ -556,24 +566,24 @@ def _render_computation_options(
     c1, c2 = st.columns(2)
 
     with c1:
-        mean       = st.checkbox("Mean",                disabled=disable_one_col,  key=f"mean_c1_{k1}")
-        median     = st.checkbox("Median",              disabled=disable_one_col,  key=f"median_c1_{k1}")
-        mode       = st.checkbox("Mode",                disabled=disable_one_col,  key=f"mode_c1_{k1}")
-        variance   = st.checkbox("Variance",            disabled=disable_one_col,  key=f"variance_c1_{k1}")
-        std_dev    = st.checkbox("Standard Deviation",  disabled=disable_one_col,  key=f"std_dev_c1_{k1}")
-        percentiles = st.checkbox("Percentiles",        disabled=disable_one_col,  key=f"percentiles_c1_{k1}")
+        mean        = st.checkbox("Mean",                disabled=disable_one_col,  key=f"mean_c1_{k1}")
+        median      = st.checkbox("Median",              disabled=disable_one_col,  key=f"median_c1_{k1}")
+        mode        = st.checkbox("Mode",                disabled=disable_one_col,  key=f"mode_c1_{k1}")
+        variance    = st.checkbox("Variance",            disabled=disable_one_col,  key=f"variance_c1_{k1}")
+        std         = st.checkbox("Standard Deviation",  disabled=disable_one_col,  key=f"std_c1_{k1}")
+        percentiles = st.checkbox("Percentiles",         disabled=disable_one_col,  key=f"percentiles_c1_{k1}")
 
     with c2:
-        pearson    = st.checkbox("Pearson's Correlation",     disabled=disable_two_cols, key=f"pearson_c2_{k2}")
-        spearman   = st.checkbox("Spearman's Rank",           disabled=disable_two_cols, key=f"spearman_c2_{k2}")
-        regression = st.checkbox("Least Squares Regression",  disabled=disable_two_cols, key=f"regression_c2_{k2}")
-        chi_square = st.checkbox("Chi-Square Test",           disabled=disable_one_col,  key=f"chi_square_c2_{k1}")
-        binomial   = st.checkbox("Binomial Distribution",     disabled=disable_one_col,  key=f"binomial_c2_{k1}")
-        variation  = st.checkbox("Coefficient of Variation",  disabled=disable_one_col,  key=f"variation_c2_{k1}")
+        pearson                = st.checkbox("Pearson's Correlation",     disabled=disable_two_cols, key=f"pearson_c2_{k2}")
+        spearman               = st.checkbox("Spearman's Rank",           disabled=disable_two_cols, key=f"spearman_c2_{k2}")
+        least_squares_regression = st.checkbox("Least Squares Regression",  disabled=disable_two_cols, key=f"least_squares_regression_c2_{k2}")
+        chi_squared            = st.checkbox("Chi-Square Test",           disabled=disable_one_col,  key=f"chi_squared_c2_{k1}")
+        binomial               = st.checkbox("Binomial Distribution",     disabled=disable_one_col,  key=f"binomial_c2_{k1}")
+        variation              = st.checkbox("Coefficient of Variation",  disabled=disable_one_col,  key=f"variation_c2_{k1}")
 
     return (
-        mean, median, mode, variance, std_dev, percentiles,
-        pearson, spearman, regression, chi_square, binomial, variation
+        mean, median, mode, variance, std, percentiles,
+        pearson, spearman, least_squares_regression, chi_squared, binomial, variation
     )
 
 
@@ -682,23 +692,23 @@ def _handle_run_analysis(
                              checkboxes, keyed by name (mean, median, etc.)
     """
     # Unpack method flags
-    mean       = method_flags.get("mean", False)
-    median     = method_flags.get("median", False)
-    mode       = method_flags.get("mode", False)
-    variance   = method_flags.get("variance", False)
-    std_dev    = method_flags.get("std_dev", False)
-    percentiles = method_flags.get("percentiles", False)
-    pearson    = method_flags.get("pearson", False)
-    spearman   = method_flags.get("spearman", False)
-    regression = method_flags.get("regression", False)
-    chi_square = method_flags.get("chi_square", False)
-    binomial   = method_flags.get("binomial", False)
-    variation  = method_flags.get("variation", False)
-    hist       = method_flags.get("hist", False)
-    box        = method_flags.get("box", False)
-    scatter    = method_flags.get("scatter", False)
-    line       = method_flags.get("line", False)
-    heatmap    = method_flags.get("heatmap", False)
+    mean                   = method_flags.get("mean", False)
+    median                 = method_flags.get("median", False)
+    mode                   = method_flags.get("mode", False)
+    variance               = method_flags.get("variance", False)
+    std                    = method_flags.get("std", False)
+    percentiles            = method_flags.get("percentiles", False)
+    pearson                = method_flags.get("pearson", False)
+    spearman               = method_flags.get("spearman", False)
+    least_squares_regression = method_flags.get("least_squares_regression", False)
+    chi_squared            = method_flags.get("chi_squared", False)
+    binomial               = method_flags.get("binomial", False)
+    variation              = method_flags.get("variation", False)
+    hist                   = method_flags.get("hist", False)
+    box                    = method_flags.get("box", False)
+    scatter                = method_flags.get("scatter", False)
+    line                   = method_flags.get("line", False)
+    heatmap                = method_flags.get("heatmap", False)
 
     run_clicked = st.button(
         "Run Analysis",
@@ -738,9 +748,10 @@ def _handle_run_analysis(
     # for validation and run creation logic
     method_flags = {
         "mean": mean, "median": median, "mode": mode,
-        "variance": variance, "std_dev": std_dev, "percentiles": percentiles,
-        "pearson": pearson, "spearman": spearman, "regression": regression,
-        "chi_square": chi_square, "binomial": binomial, "variation": variation,
+        "variance": variance, "std": std, "percentiles": percentiles,
+        "pearson": pearson, "spearman": spearman,
+        "least_squares_regression": least_squares_regression,
+        "chi_squared": chi_squared, "binomial": binomial, "variation": variation,
         "hist": hist, "box": box, "scatter": scatter,
         "line": line, "heatmap": heatmap,
         "viz_hist":    st.session_state.get("viz_hist", False),
@@ -758,15 +769,47 @@ def _handle_run_analysis(
         error_modal.open()
         return
 
-    # --- Create the run (logic/run_manager.py) ---
-    run = create_run(
-        parsed_data=parsed_data,
-        edited_table=edited_table,
-        col1=col1,
-        col2=col2,
-        method_flags=method_flags,
-        run_count=len(st.session_state.analysis_runs),
+    # --- Build methods list: only flags whose key is a known backend method ID ---
+    methods = [
+    {"id": flag_name, "params": {}}
+        for flag_name, flag_value in method_flags.items()
+        if flag_value
+    ]
+
+    # --- Construct the Message and dispatch to BackendHandler ---
+    selected_cols = list(parsed_data.columns)
+    selected_rows = list(parsed_data.index.tolist())
+    dataset_id = (
+        st.session_state.uploaded_file.name
+        if st.session_state.get("uploaded_file")
+        else "unknown"
     )
+
+    request = Message(
+        dataset_id=dataset_id,
+        dataset_version=1,
+        metadata={
+            "columns": selected_cols,
+            "dataset_id": dataset_id,
+        },
+        selection={
+            "cols": selected_cols,
+            "rows": [selected_rows],
+        },
+        methods=methods,
+        data=parsed_data.values.tolist(),
+    )
+
+    result_message = BackendHandler().handle_request(request)
+
+    run_count = len(st.session_state.analysis_runs) + 1
+    run = {
+        "id":             f"run_{run_count}",
+        "name":           f"Run {run_count}",
+        "methods":        methods,         # list of method dicts with id and params
+        "result_message": result_message,  # Message object — contains data, methods, results, selection
+        "table":          edited_table,    # full unsliced DataFrame for display in results.py
+    }
 
     st.session_state.analysis_runs.append(run)
     st.session_state.modal_message = build_success_message(run)
