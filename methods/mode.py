@@ -1,4 +1,4 @@
-import numpy as np
+import statistics
 
 class Mode:
     def __init__(self, data, metadata, params=None):
@@ -46,8 +46,7 @@ class Mode:
         
         # Placeholder for the main computation logic
         try:
-            data_array = np.asarray(self.data, dtype = float)
-            mode_value = float(np.mode(data_array))
+            mode_value = float(statistics.mode(self.data))
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 
