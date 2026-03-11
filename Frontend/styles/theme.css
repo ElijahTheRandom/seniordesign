@@ -265,22 +265,22 @@ html, body {
 }
 
 [data-testid="stAppViewContainer"]::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.04);
+    background: transparent;
 }
 
 [data-testid="stAppViewContainer"]::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.6);
     border-radius: 10px;
 }
 
 [data-testid="stAppViewContainer"]::-webkit-scrollbar-thumb:hover {
-    background: rgb(255, 255, 255);
+    background: rgba(255, 255, 255, 0.85);
 }
 
 /* Firefox */
 [data-testid="stAppViewContainer"] {
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.85) rgba(255, 255, 255, 0.04);
+    scrollbar-color: rgba(255, 255, 255, 0.6) transparent;;
 }
 
 /* ==========================================================================
@@ -1417,7 +1417,7 @@ iframe[title="streamlit_aggrid_range"] {
    ========================================================================== */
 
 /* Kill the link icon inside modal title */
-div[data-testid="stModal"] h3 > a {
+div[data-testid="stDialog"] h3 > a {
     display: none !important;
 }
 
@@ -1426,7 +1426,7 @@ div[data-baseweb="stMarkdownContainer"] h3 a {
 }
 
 /* Backdrop covers full page including sidebar */
-div[data-testid="stModal"] {
+div[data-testid="stDialog"] {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -1437,7 +1437,7 @@ div[data-testid="stModal"] {
     animation: fadeInModal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
-div[data-testid="stModal"] * {
+div[data-testid="stDialog"] * {
     animation: fadeInModal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
@@ -1452,19 +1452,42 @@ div[data-baseweb="modal"] button[aria-label="Close"] {
 }
 
 /* Hide scrollbar inside modal */
-div[data-testid="stModal"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar {
+div[data-testid="stDialog"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar {
     width: 0px !important;
     height: 0px !important;
 }
 
-div[data-testid="stModal"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar-button {
+div[data-testid="stDialog"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar-button {
     display: none !important;
 }
 
-div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
+div[data-testid="stDialog"] div[data-testid="stVerticalBlock"] {
     scrollbar-width: none !important;
 }
 
+div[data-testid="stDialog"] button[aria-label="Close"] {
+    transition: background-color 0.15s ease-in-out !important;
+    color: rgba(255,255,255,0.7) !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 6px !important;
+}
+
+/* Hover effect like sidebar toggle */
+div[data-testid="stDialog"] button[aria-label="Close"]:hover {
+    background-color: rgba(228, 120, 29, 0.20) !important;
+}
+
+/* Prevent ugly focus ring */
+div[data-testid="stDialog"] button[aria-label="Close"]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Hide Streamlit dialog header */
+div[data-testid="stDialog"] header {
+    display: none !important;
+}
 
 /* ==========================================================================
   16. Analysis Cards (Pinterest-style stat grid)
@@ -1658,6 +1681,15 @@ div[data-testid="stSelectbox"] {
 
 .ag-theme-alpine .ag-root-wrapper {
     height: 480px !important;
+}
+
+.orange-box {
+    border: 1.5px solid rgba(228,120,29,0.6);
+    border-radius: 12px;
+    padding: 16px 18px;
+    background: linear-gradient(90deg, rgba(228,120,29,0.15), rgba(228,120,29,0.05));
+    margin-top: 12px;
+    margin-bottom: 18px;
 }
 
 /* ==========================================================================
