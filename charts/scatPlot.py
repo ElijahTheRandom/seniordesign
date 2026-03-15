@@ -55,17 +55,17 @@ class ScatPlot:
         }
 
     def _create_chart(self):
-        # Create and return a chart object (e.g., matplotlib Figure).
         fig = go.Figure()
 
         fig.add_trace(go.Scatter(
-            x = self.data[1],
+            x = self.data[0],
             y = self.data[1],
             mode = "markers",
             marker = dict(
-                color = "#ff6600",
-                size = 10
-            )
+                color = "#e4781d",
+                size = 15
+            ),
+            name = "Data Markers"
         ))
 
         fig.update_layout(
@@ -74,6 +74,9 @@ class ScatPlot:
             font = dict(color = "white"),
             title = ""
         )
+
+        fig.update_xaxes(gridcolor = "#4F4D4D")
+        fig.update_yaxes(gridcolor = "#4f4d4d")
 
         buffer = BytesIO()
         fig.write_image(buffer, format = "png")
