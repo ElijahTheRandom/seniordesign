@@ -257,6 +257,10 @@ class BackendHandler:
         )
         final_result_message.graphics = chart_results
 
+        # --- 4. Save complete message as JSON ---
+        self._save_run_json(final_result_message, run_folder)
+
+        # --- 5. Return the message ---
         return final_result_message
 
 
