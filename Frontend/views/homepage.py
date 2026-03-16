@@ -50,6 +50,7 @@ import streamlit as st
 from streamlit_aggrid_range import aggrid_range
 
 from utils.helpers import apply_grid_selection_to_filters
+from pathlib import Path
 from logic.run_manager import (
     validate_numeric,
     create_run,
@@ -57,6 +58,31 @@ from logic.run_manager import (
     build_success_message,
 )
 
+if "show_success_dialog" not in st.session_state:
+    st.session_state.show_success_dialog = False
+
+if "show_error_dialog" not in st.session_state:
+    st.session_state.show_error_dialog = False
+
+@st.dialog("Error")
+def error_dialog():
+    img_path = Path(__file__).parent.parent / "pages" / "assets" / "warningSquirrel.PNG"
+
+    col_img, col_text = st.columns([1, 1.5], gap="medium")
+    with col_img:
+        st.image(img_path, width=500)
+    with col_text:
+        st.markdown(st.session_state.modal_message)
+
+@st.dialog("Success")
+def success_dialog():
+    img_path = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
+
+    col_img, col_text = st.columns([1, 1.5], gap="medium")
+    with col_img:
+        st.image(img_path, width=500)
+    with col_text:
+        st.markdown(st.session_state.modal_message)
 
 # ---------------------------------------------------------------------------
 # Public interface
@@ -72,6 +98,15 @@ def render_homepage(base_dir: str, error_modal, success_modal) -> None:
         error_modal:  streamlit_modal.Modal instance for invalid-data errors.
         success_modal: streamlit_modal.Modal instance for run-created success.
     """
+
+    if st.session_state.get("show_success_dialog"):
+        success_dialog()
+        st.session_state.show_success_dialog = False
+
+    if st.session_state.get("show_error_dialog"):
+        error_dialog()
+        st.session_state.show_error_dialog = False
+
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown(
         "<hr style='margin: 0; border: none; height: 1px; "
@@ -86,7 +121,7 @@ def render_homepage(base_dir: str, error_modal, success_modal) -> None:
         edited_table = _render_data_panel(base_dir)
 
     with right_col:
-        _render_analysis_config(edited_table, error_modal, success_modal)
+        _render_analysis_config(edited_table)
 
 
 # ---------------------------------------------------------------------------
@@ -165,7 +200,7 @@ def _render_file_action_buttons(uploaded_file) -> None:
         temp_df = pd.read_csv(uploaded_file)
         st.session_state.edited_data_cache[file_key] = temp_df.copy()
 
-    col_remove, col_download, _ = st.columns([1, 1, 2])
+    col_download, col_remove, _ = st.columns([1, 1, 2])
 
     with col_remove:
         if st.button("Remove", key="remove_file_btn", use_container_width=True):
@@ -320,7 +355,7 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> None:
         grid_key: A unique key for this grid instance. Must be stable
                   across reruns for the same data to avoid grid flicker.
     """
-    records = df.to_dict("records")
+    records = df.where(pd.notna(df), other=None).to_dict("records")
     columns = [{"field": c} for c in df.columns]
 
     selection = aggrid_range(records, columns, key=grid_key)
@@ -331,6 +366,7 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> None:
 
     if selection:
         _display_selection_output(selection, df)
+        #st.info("Select computations and visualizations on the right, then click 'Run Analysis' to see results for the selected range.")
     else:
         st.info("Select a range of cells in the grid to see details here.")
 
@@ -388,9 +424,7 @@ def _display_selection_output(selection: list, df: pd.DataFrame) -> None:
 # ---------------------------------------------------------------------------
 
 def _render_analysis_config(
-    edited_table: pd.DataFrame | None,
-    error_modal,
-    success_modal
+    edited_table: pd.DataFrame | None
 ) -> None:
     """
     Render the analysis configuration panel: column/row selection,
@@ -442,9 +476,7 @@ def _render_analysis_config(
         variance=variance, std_dev=std_dev, percentiles=percentiles,
         pearson=pearson, spearman=spearman, regression=regression,
         chi_square=chi_square, binomial=binomial, variation=variation,
-        hist=hist, box=box, scatter=scatter, line=line, heatmap=heatmap,
-        error_modal=error_modal,
-        success_modal=success_modal,
+        hist=hist, box=box, scatter=scatter, line=line, heatmap=heatmap
     )
 
 
@@ -543,7 +575,12 @@ def _render_computation_options(
         (mean, median, mode, variance, std_dev, percentiles,
          pearson, spearman, regression, chi_square, binomial, variation)
     """
-    st.header("Computation Options", anchor=False)
+    header_col, btn_col = st.columns([4, 2], gap="small")
+    with header_col:
+        st.header("Computation Options", anchor=False)
+    with btn_col:
+        st.markdown("<div style='margin-top: 0.55rem;'></div>", unsafe_allow_html=True)
+        _user_defined_computation_options()
 
     disable_one_col = not data_ready or len(col1) < 1
     disable_two_cols = not data_ready or len(col1) < 2
@@ -576,6 +613,20 @@ def _render_computation_options(
         pearson, spearman, regression, chi_square, binomial, variation
     )
 
+def _user_defined_computation_options():
+    """
+    A placeholder function for future user-defined computational methods. The user
+    can click an "Add Method" button to open a form where they can input the name of the method,
+    a description, and the code to execute. The form data can then be validated and, if valid,
+    added to the list of able computations that the user can select for their analysis runs.
+    """
+
+    #Place holder button for adding user-defined methods
+    new_method_clicked = st.button(
+        "New Method",
+        key="add_method",
+        use_container_width=True
+    )
 
 # ============================================================================
 # ⭐ VISUALIZATION OPTIONS SELECTED BY USER
@@ -639,8 +690,6 @@ def _handle_run_analysis(
     computation_selected: bool,
     col1: list,
     col2: list,
-    error_modal,
-    success_modal,
     **method_flags,
 ) -> None:
     """
@@ -755,7 +804,8 @@ def _handle_run_analysis(
 
     if non_numeric_cells:
         st.session_state.modal_message = build_error_message(non_numeric_cells)
-        error_modal.open()
+        st.session_state.show_error_dialog = True
+        st.rerun()
         return
 
     # --- Create the run (logic/run_manager.py) ---
@@ -770,4 +820,6 @@ def _handle_run_analysis(
 
     st.session_state.analysis_runs.append(run)
     st.session_state.modal_message = build_success_message(run)
-    success_modal.open()
+    st.session_state.show_success_dialog = True
+    st.rerun()
+    return

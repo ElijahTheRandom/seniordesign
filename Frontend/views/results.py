@@ -65,9 +65,20 @@ def render_results(run: dict, base_dir: str) -> None:
         unsafe_allow_html=True
     )
 
-    st.header(f"Analysis Results — {run['name']}", anchor=False)
-    st.markdown("---")
+    st.markdown("""
+    <style>
+    div[data-testid="stAppViewContainer"] .block-container {
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+        padding-left: 0.5rem !important;
+        padding-right: 1rem !important;
+        padding-bottom: 0.5rem !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
+    st.header(f"Analysis Results — {run['name']}", anchor=False)
     _render_stat_cards(run)
     _render_visualizations(run)
     _render_data_table(run)
@@ -87,7 +98,7 @@ def render_results(run: dict, base_dir: str) -> None:
 # Rendered via stat cards using _render_stat_card(title, value, subtext)
 # ============================================================================
 
-def _render_stat_cards(run: dict) -> None:
+def _render_stat_cards(run: dict, show_divider: bool = True) -> None:
     """
     Compute and render all stat cards for the methods in this run.
 
@@ -123,7 +134,8 @@ def _render_stat_cards(run: dict) -> None:
 
         st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
 
-    st.markdown("---")
+    if show_divider:
+        st.markdown("---")
 
 
 def _render_stat_card(title: str, value: str, subtext: str = None) -> None:
@@ -148,7 +160,7 @@ def _render_stat_card(title: str, value: str, subtext: str = None) -> None:
     """, unsafe_allow_html=True)
 
 
-def _render_visualizations(run: dict) -> None:
+def _render_visualizations(run: dict, show_divider: bool = True) -> None:
     """
     Render the visualizations section if any were selected.
 
@@ -168,10 +180,11 @@ def _render_visualizations(run: dict) -> None:
     for viz in run["visualizations"]:
         st.info(f"{viz} visualization will be rendered here")
 
-    st.markdown("---")
+    if show_divider:
+        st.markdown("---")
 
 
-def _render_data_table(run: dict) -> None:
+def _render_data_table(run: dict, show_divider: bool = True) -> None:
     """
     Render the selected data table with a row/column summary caption.
 
@@ -185,8 +198,41 @@ def _render_data_table(run: dict) -> None:
     st.caption(
         f"Rows: {len(run['data'])}, Columns: {len(run['data'].columns)}"
     )
-    st.markdown("---")
+    
+    if show_divider:
+        st.markdown("---")
 
+@st.dialog("Export Run")
+def _export_run_dialog(run: dict):
+
+    st.write("Choose an export format:")
+
+    # TXT report
+    st.download_button(
+        "Export TXT Report",
+        data=_build_export_text(run),
+        file_name=f"{run['name']} Full Report.txt",
+        mime="text/plain",
+        use_container_width=True,
+    )
+
+    # CSV export
+    st.download_button(
+        "Export CSV Data",
+        data=run["data"].to_csv(index=False),
+        file_name=f"{run['name']}.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+    # TSV export
+    st.download_button(
+        "Export TSV Data",
+        data=run["data"].to_csv(index=False, sep="\t"),
+        file_name=f"{run['name']}.tsv",
+        mime="text/tab-separated-values",
+        use_container_width=True,
+    )
 
 def _render_action_buttons(run: dict) -> None:
     """
@@ -202,20 +248,14 @@ def _render_action_buttons(run: dict) -> None:
     btn1, btn2, btn3 = st.columns(3)
 
     with btn1:
-        st.button("Save This Run", use_container_width=True)
+        st.button("Save Run", use_container_width=True)
 
     with btn2:
-        export_text = _build_export_text(run)
-        st.download_button(
-            label="Export This Run",
-            data=export_text,
-            file_name=f"{run['name']}.txt",
-            mime="text/plain",
-            use_container_width=True,
-        )
+        if st.button("Export Run", use_container_width=True):
+            _export_run_dialog(run)
 
     with btn3:
-        if st.button("Delete This Run", use_container_width=True):
+        if st.button("Delete Run", use_container_width=True):
             st.session_state.analysis_runs = [
                 r for r in st.session_state.analysis_runs
                 if r["id"] != run["id"]
@@ -248,8 +288,22 @@ def _build_export_text(run: dict) -> str:
 
     if run["methods"]:
         lines.append("Methods Applied:")
+
         for m in run["methods"]:
-            lines.append(f"- {m}")
+            compute_fn = STAT_COMPUTERS.get(m)
+
+            if compute_fn:
+                cards = compute_fn(run["data"])
+
+                for card in cards:
+                    value = card[2]
+
+                    if len(card) == 4:
+                        subtext = card[3]
+                        lines.append(f"{m}: {value} ({subtext})")
+                    else:
+                        lines.append(f"{m}: {value}")
+
         lines.append("")
 
     if run.get("visualizations"):

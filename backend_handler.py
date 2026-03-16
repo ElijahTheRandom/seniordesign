@@ -1,4 +1,3 @@
-
 from methods.mean import Mean
 from methods.median import Median
 from methods.binomial import Binomial

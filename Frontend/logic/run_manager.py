@@ -148,14 +148,11 @@ def build_error_message(non_numeric_cells: list[dict]) -> str:
         A multi-line string suitable for display in the error modal.
     """
     preview = non_numeric_cells[:2]
-    lines = ["The following non-numeric data was found:"]
+    lines = ["**Invalid data found:**"]
     for cell in preview:
-        lines.append(
-            f" - Row: {cell['row']}, Column: {cell['column']}, "
-            f"Value: '{cell['value']}'"
-        )
+        lines.append(f"- Row {cell['row']}, Col '{cell['column']}': '{cell['value']}'")
     if len(non_numeric_cells) > 2:
-        lines.append(f" ...and {len(non_numeric_cells) - 2} more entries.")
+        lines.append(f"...and {len(non_numeric_cells) - 2} more entries.")
     return "\n".join(lines)
 
 # Success message sent to the user once their run tab has been generated and where to go
@@ -170,8 +167,8 @@ def build_success_message(run: dict) -> str:
         A short confirmation string for the success modal.
     """
     return (
-        f"Analysis '{run['name']}' has been successfully created!\n"
-        f"Please see the side bar for your analysis."
+        f"**'{run['name']}' has been successfully created!**\n"
+        f"- Please see the side bar for your analysis."
     )
 
 

@@ -7,7 +7,6 @@
     --ag-header-background-color: #1f1f1f;
     --ag-foreground-color: #e5e7eb;
     --ag-secondary-foreground-color: #9ca3af;
-    --ag-border-color: rgba(255, 255, 255, 0.08);
     --ag-row-border-color: rgba(255, 255, 255, 0.05);
     --ag-accent-color: #e4781d;
     --ag-inherited-accent-color: #e4781d;
@@ -20,11 +19,22 @@
     --ag-cell-editing-border: 1px solid #e4781d;
     --ag-input-focus-border: 1px solid #e4781d;
     --ag-column-hover-color: rgba(228, 120, 29, 0.08);
+    --ag-borders: 0px;
+    --ag-border-color: transparent;
+    /* height: 100%; */
 }
 
 /* Ensure the focused cell shares the same background as the selection. */
 .ag-theme-alpine .ag-cell-focus.ag-cell-range-selected {
     background-color: var(--ag-range-selection-background-color, rgba(33, 150, 243, 0.2)) !important;
+}
+
+.ag-theme-alpine .ag-root-wrapper {
+    border: none;
+}
+
+html, body {
+    background-color: transparent !important;
 }
 
 /* Header styling for a fully selected column. */
