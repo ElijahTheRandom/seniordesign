@@ -13,20 +13,10 @@ from methods.least_squares_regression import LeastSquaresRegression
 from methods.chisquared import ChiSquared
 from class_templates.message_structure import Message
 
-from concurrent.futures import ThreadPoolExecutor
+import queue
+import threading
+import uuid
 
-statistical_methods = {
-    "mean": Mean,
-    "median": Median,
-    "binomial": Binomial,
-    "std": StandardDeviation,
-    "least_squares_regression": LeastSquaresRegression,
-    "chi_squared": ChiSquared
-}
-
-chart_generation_methods = {
-    "chart_name": ChartName,
-}
 
 class BackendHandler:
     """
@@ -41,7 +31,18 @@ class BackendHandler:
     """
 
     def __init__(self):
-        pass
+        self.statistical_methods = {
+            "mean": Mean,
+            "median": Median,
+            "binomial": Binomial,
+            "std": StandardDeviation,
+            "least_squares_regression": LeastSquaresRegression,
+            "chi_squared": ChiSquared
+        }
+
+        self.chart_generation_methods = {
+            "chart_name": ChartName,
+        }
 
     def _package_results(self, message, results):
         """
@@ -90,7 +91,9 @@ class BackendHandler:
     
     def _threads_compute(self, method_requests, data, metadata, max_threads):
         """
-        Compute each method in its own thread and collect results
+        Compute each method via a task queue, dispatching work to up to
+        max_threads concurrent worker threads. Results are returned in the
+        same order as method_requests.
 
         :param self: self
         :param method_requests: List of (method_id, method_params) tuples
@@ -98,33 +101,48 @@ class BackendHandler:
         :param metadata: Metadata for computations
         :param max_threads: Maximum number of concurrent threads
         """
-        results = []
-        
-        with ThreadPoolExecutor(max_workers=max_threads) as executor:
-            futures = []
-            for method_id, method_params in method_requests:
-                if isinstance(data, dict) and method_id in data:
-                    method_data = data[method_id]
-                else:
-                    method_data = data
+        task_queue = queue.Queue()
+        results_lock = threading.Lock()
+        results = {}
 
-                if isinstance(metadata, dict) and method_id in metadata:
-                    method_metadata = metadata[method_id]
-                else:
-                    method_metadata = metadata
+        # Enqueue all tasks with their original index so order can be restored
+        for idx, (method_id, method_params) in enumerate(method_requests):
+            method_data = data[method_id] if isinstance(data, dict) and method_id in data else data
+            method_metadata = metadata[method_id] if isinstance(metadata, dict) and method_id in metadata else metadata
+            task_queue.put((idx, method_id, method_params, method_data, method_metadata))
 
-                futures.append(
-                    (method_id, method_params, executor.submit(self.worker, method_id, method_data, method_metadata, method_params))
-                )
+        # Add one sentinel (None) per thread to signal shutdown
+        num_threads = min(max_threads, len(method_requests)) if method_requests else 0
+        for _ in range(num_threads):
+            task_queue.put(None)
 
-            for method_id, method_params, future in futures:
+        def thread_worker():
+            while True:
+                task = task_queue.get()
+                if task is None:          # sentinel: no more work for this thread
+                    task_queue.task_done()
+                    break
+                idx, method_id, method_params, method_data, method_metadata = task
                 try:
-                    result = future.result()
+                    result = self.worker(method_id, method_data, method_metadata, method_params)
                 except Exception as exc:
                     result = self._generate_error_result(method_id, str(exc), method_params)
-                results.append(result)
+                with results_lock:
+                    results[idx] = result
+                task_queue.task_done()
 
-            return results
+        threads = [threading.Thread(target=thread_worker, daemon=True) for _ in range(num_threads)]
+        for t in threads:
+            t.start()
+
+        # Block until every task (including sentinels) has been marked done
+        task_queue.join()
+
+        for t in threads:
+            t.join()
+
+        # Return results in original request order
+        return [results[i] for i in range(len(method_requests))]
 
     def _generate_error_result(self, method_name, error_message, params):
         return {
@@ -247,20 +265,94 @@ class BackendHandler:
         return chart_results
 
 
+    def _create_run_folder(self, message):
+        """
+        Create a unique persistence folder for this run.
+
+        The folder is placed under results_cache/ and named with the
+        dataset id, version, a timestamp, and a short UUID to guarantee
+        uniqueness across concurrent or rapid-fire runs.
+
+        :param message: Message object (used for dataset_id / dataset_version)
+        :return: Absolute path to the newly created run folder
+        """
+        results_cache_dir = "results_cache"
+        os.makedirs(results_cache_dir, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        short_uid = uuid.uuid4().hex[:8]
+        folder_name = f"{message.dataset_id}_v{message.dataset_version}_{timestamp}_{short_uid}"
+        run_folder = os.path.join(results_cache_dir, folder_name)
+        os.makedirs(run_folder, exist_ok=True)
+
+        return run_folder
+
+    def _save_run_json(self, message, run_folder):
+        """
+        Serialize the completed message (including results and chart paths)
+        to a JSON file inside the run folder.
+
+        :param message: Fully populated Message object
+        :param run_folder: Path to the persistence folder for this run
+        :return: Path to the saved JSON file
+        """
+        results_dict = message.to_dict()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        json_filename = f"results_{timestamp}.json"
+        json_filepath = os.path.join(run_folder, json_filename)
+        with open(json_filepath, "w") as f:
+            json.dump(results_dict, f, indent=4, default=str)
+
+        return json_filepath
+
+
+    def _generate_charts(self, graphics_requests, data, metadata, results_folder):
+        # Generate charts based on the graphics requests and save them to the appropriate location
+        # Update the result message with the paths to the generated charts
+
+        chart_results = []
+        for graphic_request in graphics_requests:
+            chart_type = graphic_request.get("type")
+            chart_params = {k: v for k, v in graphic_request.items() if k != "type"}
+
+            # Update the path to save charts in the results folder
+            if "path" in chart_params:
+                original_filename = os.path.basename(chart_params["path"])
+                chart_params["path"] = os.path.join(results_folder, original_filename)
+
+            chart_class = self.chart_generation_methods.get(chart_type)
+            if chart_class:
+                chart_instance = chart_class(data, metadata, chart_params)
+                chart_result = chart_instance.create_graphic()
+                chart_results.append(chart_result)
+            else:
+                error_message = f"Chart type {chart_type} not found."
+                chart_results.append({
+                    "type": chart_type,
+                    "ok": False,
+                    "path": None,
+                    "error": error_message,
+                    "params_used": chart_params
+                })
+
+        return chart_results
+
+
     def handle_request(self, request):
-        # Extract method names, data, metadata, and parameters from the request
-        # for each method name, instantiate the corresponding class and compute the result
-        # Each corresponding computation should run in its own thread if available
-        # Max threads should be limited to 4 concurrent threads
+        """
+        Persistence flow
+        ----------------
+        1. Perform computations (threaded)
+        2. Create a unique persistence folder for this run
+        3. Generate charts, saving images into the persistence folder
+        4. Save the complete message (results + chart paths) as JSON
+        5. Return the message
+        """
 
-        # the output results should be packaged back into the message class
-        # then sent back to the caller
-
+        # --- 1. Computations ---
         methods, data, metadata = self._get_methods(request)
         method_requests = self._get_method_requests(methods)
-
-        max_threads = 4 #arbitrary limit, can be changed to a user configurable value later
-
+        max_threads = 4  # arbitrary limit, can be changed to a user configurable value later
         results = self._threads_compute(method_requests, data, metadata, max_threads)
         final_result_message = self._package_results(request, results)
 
@@ -282,7 +374,7 @@ class BackendHandler:
 
 
     def worker(self, method_name, data, metadata, params):
-        method_class = statistical_methods.get(method_name)
+        method_class = self.statistical_methods.get(method_name)
         if method_class:
             method_instance = method_class(data, metadata, params)
             return method_instance.compute()
