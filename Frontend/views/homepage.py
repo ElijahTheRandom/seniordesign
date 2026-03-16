@@ -68,9 +68,9 @@ if "show_error_dialog" not in st.session_state:
 def error_dialog():
     img_path = Path(__file__).parent.parent / "pages" / "assets" / "warningSquirrel.PNG"
 
-    col_img, col_text = st.columns([2, 2], gap="medium")  # proportional columns
+    col_img, col_text = st.columns([1, 1.5], gap="medium")
     with col_img:
-        st.image(img_path, width=600)
+        st.image(img_path, width=500)
     with col_text:
         st.markdown(st.session_state.modal_message)
 
@@ -78,10 +78,9 @@ def error_dialog():
 def success_dialog():
     img_path = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
 
-    # Columns: image on the left
-    col_img, col_text = st.columns([2, 2], gap="medium")  # proportional columns
+    col_img, col_text = st.columns([1, 1.5], gap="medium")
     with col_img:
-        st.image(img_path, width=600)
+        st.image(img_path, width=500)
     with col_text:
         st.markdown(st.session_state.modal_message)
 
@@ -356,7 +355,7 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> None:
         grid_key: A unique key for this grid instance. Must be stable
                   across reruns for the same data to avoid grid flicker.
     """
-    records = df.to_dict("records")
+    records = df.where(pd.notna(df), other=None).to_dict("records")
     columns = [{"field": c} for c in df.columns]
 
     selection = aggrid_range(records, columns, key=grid_key)
@@ -451,9 +450,6 @@ def _render_analysis_config(
     mean, median, mode, variance, std_dev, percentiles, \
         pearson, spearman, regression, chi_square, binomial, variation = \
         _render_computation_options(data_ready, col1, col2)
-
-    # Placement for user defined methods button
-    _user_defined_computation_options()
 
     st.markdown("---")
 
@@ -579,7 +575,12 @@ def _render_computation_options(
         (mean, median, mode, variance, std_dev, percentiles,
          pearson, spearman, regression, chi_square, binomial, variation)
     """
-    st.header("Computation Options", anchor=False)
+    header_col, btn_col = st.columns([4, 2], gap="small")
+    with header_col:
+        st.header("Computation Options", anchor=False)
+    with btn_col:
+        st.markdown("<div style='margin-top: 0.55rem;'></div>", unsafe_allow_html=True)
+        _user_defined_computation_options()
 
     disable_one_col = not data_ready or len(col1) < 1
     disable_two_cols = not data_ready or len(col1) < 2
@@ -622,7 +623,7 @@ def _user_defined_computation_options():
 
     #Place holder button for adding user-defined methods
     new_method_clicked = st.button(
-        "Add Method",
+        "New Method",
         key="add_method",
         use_container_width=True
     )

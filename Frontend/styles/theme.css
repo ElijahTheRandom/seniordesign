@@ -791,6 +791,15 @@ header[data-testid="stHeader"] > div:not(:first-child) {
     transform: none !important;
 }
 
+/* Ensure button text (rendered as <p> by Streamlit) is always visible */
+.main div[data-testid="stButton"] button p {
+    color: rgba(255, 255, 255, 0.9) !important;
+    -webkit-text-fill-color: rgba(255, 255, 255, 0.9) !important;
+    background: none !important;
+    background-clip: unset !important;
+    -webkit-background-clip: unset !important;
+}
+
 /* Download button variant */
 div[data-testid="stDownloadButton"] button {
     background-color: rgba(228, 120, 29, 0.12) !important;
@@ -1471,6 +1480,10 @@ div[data-testid="stDialog"] button[aria-label="Close"] {
     background: transparent !important;
     border: none !important;
     border-radius: 6px !important;
+    z-index: 1000000 !important;
+    position: absolute !important;
+    top: 12px !important;
+    right: 12px !important;
 }
 
 /* Hover effect like sidebar toggle */
@@ -1484,7 +1497,7 @@ div[data-testid="stDialog"] button[aria-label="Close"]:focus-visible {
     box-shadow: none !important;
 }
 
-/* Hide Streamlit dialog header */
+/* Hide Streamlit dialog header but keep close button accessible */
 div[data-testid="stDialog"] header {
     display: none !important;
 }
