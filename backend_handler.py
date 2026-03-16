@@ -197,7 +197,7 @@ class BackendHandler:
 
     def _generate_charts(self, graphics_requests, data, metadata, results_folder):
         # Generate charts based on the graphics requests and save them to the appropriate location
-        # Update the result message with the paths to the generated charts
+        # Update the result message with the paths to the generated charts 
 
         chart_results = []
         for graphic_request in graphics_requests:
