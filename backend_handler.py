@@ -155,6 +155,79 @@ class BackendHandler:
         }
 
 
+    def _create_run_folder(self, message):
+        """
+        Create a unique persistence folder for this run.
+
+        The folder is placed under results_cache/ and named with the
+        dataset id, version, a timestamp, and a short UUID to guarantee
+        uniqueness across concurrent or rapid-fire runs.
+
+        :param message: Message object (used for dataset_id / dataset_version)
+        :return: Absolute path to the newly created run folder
+        """
+        results_cache_dir = "results_cache"
+        os.makedirs(results_cache_dir, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        short_uid = uuid.uuid4().hex[:8]
+        folder_name = f"{message.dataset_id}_v{message.dataset_version}_{timestamp}_{short_uid}"
+        run_folder = os.path.join(results_cache_dir, folder_name)
+        os.makedirs(run_folder, exist_ok=True)
+
+        return run_folder
+
+    def _save_run_json(self, message, run_folder):
+        """
+        Serialize the completed message (including results and chart paths)
+        to a JSON file inside the run folder.
+
+        :param message: Fully populated Message object
+        :param run_folder: Path to the persistence folder for this run
+        :return: Path to the saved JSON file
+        """
+        results_dict = message.to_dict()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        json_filename = f"results_{timestamp}.json"
+        json_filepath = os.path.join(run_folder, json_filename)
+        with open(json_filepath, "w") as f:
+            json.dump(results_dict, f, indent=4, default=str)
+
+        return json_filepath
+
+
+    def _generate_charts(self, graphics_requests, data, metadata, results_folder):
+        # Generate charts based on the graphics requests and save them to the appropriate location
+        # Update the result message with the paths to the generated charts
+
+        chart_results = []
+        for graphic_request in graphics_requests:
+            chart_type = graphic_request.get("type")
+            chart_params = {k: v for k, v in graphic_request.items() if k != "type"}
+
+            # Update the path to save charts in the results folder
+            if "path" in chart_params:
+                original_filename = os.path.basename(chart_params["path"])
+                chart_params["path"] = os.path.join(results_folder, original_filename)
+
+            chart_class = self.chart_generation_methods.get(chart_type)
+            if chart_class:
+                chart_instance = chart_class(data, metadata, chart_params)
+                chart_result = chart_instance.create_graphic()
+                chart_results.append(chart_result)
+            else:
+                error_message = f"Chart type {chart_type} not found."
+                chart_results.append({
+                    "type": chart_type,
+                    "ok": False,
+                    "path": None,
+                    "error": error_message,
+                    "params_used": chart_params
+                })
+
+        return chart_results
+
+
     def _save_run_results(self, result):
         # create a local cache for the results of each run if a cache doesnt exist already
         # Save the results of each run to a folder within this cache with the dataset_id and dataset_version number 
