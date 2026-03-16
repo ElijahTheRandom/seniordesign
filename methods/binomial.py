@@ -12,7 +12,7 @@ class Binomial:
 
     def _applicable(self):
         # Check whether this statistic is valid for the given data selection
-        if self.data == None or len(self.data) == 0:
+        if self.data is None or len(self.data) == 0:
             return False
         return True
 
