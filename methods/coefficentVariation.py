@@ -2,7 +2,7 @@ import numpy as np
 from scipy.stats import variation
 from class_templates import message_structure
 
-class CoefficientVariation:
+class CoefficentVariation:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
         self.stat_id = "cv"

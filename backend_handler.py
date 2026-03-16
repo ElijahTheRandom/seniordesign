@@ -3,14 +3,9 @@ from datetime import datetime
 import os
 
 import json
-from class_templates.chart_generation import ChartName
-from methods.mean import Mean
-from methods.median import Median
-from methods.binomial import Binomial
-from methods.standardDeviation import StandardDeviation
-from methods.least_squares_regression import LeastSquaresRegression
-from methods.chisquared import ChiSquared
-from class_templates.message_structure import Message
+from methods.methods import methods_list
+from charts.charts import charts_list
+
 
 import queue
 import threading
@@ -30,18 +25,9 @@ class BackendHandler:
     """
 
     def __init__(self):
-        self.statistical_methods = {
-            "mean": Mean,
-            "median": Median,
-            "binomial": Binomial,
-            "std": StandardDeviation,
-            "least_squares_regression": LeastSquaresRegression,
-            "chi_squared": ChiSquared
-        }
+        self.statistical_methods = methods_list
 
-        self.chart_generation_methods = {
-            "chart_name": ChartName,
-        }
+        self.chart_generation_methods = charts_list
 
     def _package_results(self, message, results):
         """
@@ -200,7 +186,7 @@ class BackendHandler:
         # Update the result message with the paths to the generated charts 
 
         chart_results = []
-        for graphic_request in graphics_requests:
+        for idx, graphic_request in enumerate(graphics_requests):
             chart_type = graphic_request.get("type")
             chart_params = {k: v for k, v in graphic_request.items() if k != "type"}
 
@@ -208,6 +194,8 @@ class BackendHandler:
             if "path" in chart_params:
                 original_filename = os.path.basename(chart_params["path"])
                 chart_params["path"] = os.path.join(results_folder, original_filename)
+            else:
+                chart_params["path"] = os.path.join(results_folder, f"{chart_type}_{idx}.png")
 
             chart_class = self.chart_generation_methods.get(chart_type)
             if chart_class:
@@ -227,12 +215,36 @@ class BackendHandler:
         return chart_results
 
 
+    def _save_embedded_charts(self, results, run_folder):
+        """
+        Some methods (e.g. LeastSquaresRegression) produce a PNG chart and embed
+        it as a base64 string under result["value"]["chart"].  This step saves
+        those PNGs into the run folder and replaces the base64 payload with the
+        file path, matching the behaviour of the charts pipeline.
+        """
+        import base64
+        for result in results:
+            if not isinstance(result, dict):
+                continue
+            value = result.get("value")
+            if not isinstance(value, dict) or "chart" not in value:
+                continue
+            chart_data = value["chart"]
+            if not isinstance(chart_data, str):
+                continue
+            filename = f"{result.get('id', 'method_chart')}_chart.png"
+            filepath = os.path.join(run_folder, filename)
+            with open(filepath, "wb") as f:
+                f.write(base64.b64decode(chart_data))
+            value["chart"] = filepath
+
     def handle_request(self, request):
         """
         Persistence flow
         ----------------
         1. Perform computations (threaded)
         2. Create a unique persistence folder for this run
+        2.5 Save any charts embedded in method results as image files
         3. Generate charts, saving images into the persistence folder
         4. Save the complete message (results + chart paths) as JSON
         5. Return the message
@@ -247,6 +259,9 @@ class BackendHandler:
 
         # --- 2. Create unique persistence folder ---
         run_folder = self._create_run_folder(final_result_message)
+
+        # --- 2.5. Save embedded method charts (e.g. LSR) into the persistence folder ---
+        self._save_embedded_charts(final_result_message.results, run_folder)
 
         # --- 3. Generate charts into the persistence folder ---
         chart_results = self._generate_charts(
