@@ -257,6 +257,7 @@ class BackendHandler:
         file path, matching the behaviour of the charts pipeline.
         """
         import base64
+        import binascii
         for result in results:
             if not isinstance(result, dict):
                 continue
@@ -268,8 +269,13 @@ class BackendHandler:
                 continue
             filename = f"{result.get('id', 'method_chart')}_chart.png"
             filepath = os.path.join(run_folder, filename)
+            try:
+                decoded_chart = base64.b64decode(chart_data)
+            except (binascii.Error, ValueError):
+                # Invalid base64 payload; skip this chart instead of aborting the whole request.
+                continue
             with open(filepath, "wb") as f:
-                f.write(base64.b64decode(chart_data))
+                f.write(decoded_chart)
             value["chart"] = filepath
 
     def handle_request(self, request):
