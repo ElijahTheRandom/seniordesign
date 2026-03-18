@@ -828,8 +828,14 @@ def _handle_run_analysis(
     }
     _BACKEND_CHART_IDS = {"best_fit", "hor_bar", "pie_chart", "scat_plot", "vert_bar"}
 
+    # Default parameters for backend methods that require non-empty params.
+    # For example, the percentile method expects a list of cutoff values.
+    default_method_params = {
+        "percentile": [25, 50, 75],
+    }
+
     methods = [
-        {"id": k, "params": {}}
+        {"id": k, "params": default_method_params.get(k, {})}
         for k, v in method_flags.items()
         if v and k in _BACKEND_METHOD_IDS
     ]
