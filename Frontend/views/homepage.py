@@ -861,7 +861,7 @@ def _handle_run_analysis(
         },
         methods=methods,
         graphics=graphics,
-        data=parsed_data.values.tolist(),
+        data=[parsed_data[col].tolist() for col in parsed_data.columns],
     )
 
     result_message = BackendHandler().handle_request(request)
