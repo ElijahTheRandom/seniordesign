@@ -25,8 +25,9 @@ SESSION STATE USED:
     Write:  active_run_id, renaming_run_id, analysis_runs[i]["name"]
 """
 
-import streamlit as st
+from pdb import run
 
+import streamlit as st
 
 # ---------------------------------------------------------------------------
 # Public interface
@@ -40,42 +41,131 @@ def render_sidebar() -> None:
     Reads from and writes to st.session_state directly.
     """
     with st.sidebar:
+        st.markdown("<div style='margin-top: 2.5rem;'></div>", unsafe_allow_html=True)
         st.markdown("<hr class='sidebar-top-divider'>", unsafe_allow_html=True)
-        st.header("Navigation")
+        st.header("Page Navigation")
 
         _render_home_button()
+        _render_help_button()
+        _render_load_button()
 
         st.markdown("---")
         st.header("Analysis Runs")
 
-        for i, run in enumerate(st.session_state.analysis_runs):
-            _render_run_button(run)
+        # Render different UI based on compare mode
+        if st.session_state.get("compare_mode_active", False):
+            _render_compare_mode()
+        else:
+            _render_normal_mode()
 
         st.markdown("---")
-        _load_run_data(st.session_state.active_run_id)
 
 
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
 
-def _render_home_button() -> None:
+def _render_normal_mode() -> None:
     """
-    Render the Home navigation button.
+    Render the sidebar in normal mode: list of runs with a Compare button.
 
-    Styled as "primary" (active/highlighted) when no run is selected,
-    "secondary" (muted) when viewing a run. Clicking it sets
-    active_run_id to None, returning the user to the homepage.
+    This is the default mode where runs are displayed as navigation buttons.
     """
-    is_active = st.session_state.active_run_id is None
+    for i, run in enumerate(st.session_state.analysis_runs):
+        _render_run_button(run)
+
+    st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
+
+    if len(st.session_state.analysis_runs) < 2 and len(st.session_state.analysis_runs) > 0:
+        st.info("At least two runs must be generated before you can compare them.")
+    
+    # Show Compare button only if there are 2+ runs
+    if len(st.session_state.analysis_runs) >= 2:
+        if st.button(
+            "Compare Runs",
+            key="compare_runs_btn",
+            use_container_width=True,
+            type="secondary"
+        ):
+            st.session_state.compare_mode_active = True
+            st.session_state.selected_runs_for_comparison = []
+            st.session_state.show_comparison_view = False
+            st.rerun()
+
+
+def _render_compare_mode() -> None:
+    """
+    Render the sidebar in compare mode: checkboxes first, then action buttons.
+    """
+
+    # --- Checkboxes ---
+    for run in st.session_state.analysis_runs:
+        is_selected = run["id"] in st.session_state.selected_runs_for_comparison
+
+        new_selected = st.checkbox(
+            run["name"],
+            value=is_selected,
+            key=f"compare_checkbox_{run['id']}"
+        )
+
+        if new_selected != is_selected:
+            if new_selected:
+                st.session_state.selected_runs_for_comparison.append(run["id"])
+            else:
+                st.session_state.selected_runs_for_comparison.remove(run["id"])
+            st.rerun()
+
+    st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
+
+    # --- Side-by-side buttons UNDER checkboxes ---
+    compare_col, exit_col = st.columns([1, 1])
+
+    num_selected = len(st.session_state.selected_runs_for_comparison)
+    is_enabled = num_selected >= 2
+
+    with exit_col:
+        if st.button(
+            "Cancel",
+            key="exit_compare_mode",
+            use_container_width=True,
+            type="secondary"
+        ):
+            st.session_state.compare_mode_active = False
+            st.session_state.selected_runs_for_comparison = []
+            st.session_state.show_comparison_view = False
+            st.rerun()
+
+    with compare_col:
+        if st.button(
+            f"Compare",
+            key="start_comparison_btn",
+            use_container_width=True,
+            type="primary" if is_enabled else "secondary",
+            disabled=not is_enabled
+        ):
+            st.session_state.show_comparison_view = True
+            st.session_state.active_run_id = None
+            st.rerun()
+
+# ---------------------------------------------------------------------------
+# Private helpers
+# ---------------------------------------------------------------------------
+
+def _render_home_button() -> None:
+
+    is_active = st.session_state.get("current_view") == "home"
 
     if st.button(
-        "Home",
+        "Home Screen",
         key="nav_home",
         use_container_width=True,
         type="primary" if is_active else "secondary"
     ):
+        st.session_state.current_view = "home"
         st.session_state.active_run_id = None
+        st.session_state.compare_mode_active = False
+        st.session_state.show_comparison_view = False
+        st.session_state.show_help_view = False
         st.rerun()
 
 
@@ -99,7 +189,7 @@ def _render_run_button(run: dict) -> None:
     is_active = run["id"] == st.session_state.active_run_id
 
     # Row: run name button + rename icon, side by side
-    cols = st.columns([6, 1])
+    cols = st.columns([6, 2])
 
     with cols[0]:
         if st.button(
@@ -149,34 +239,62 @@ def _render_rename_form(run: dict) -> None:
         label_visibility="collapsed"
     )
 
-    save_col, cancel_col = st.columns(2)
+
+    save_col, cancel_col = st.columns([1, 1])  # You can tweak ratios here
 
     with save_col:
-        if st.button("Save", key=f"save_rename_{run['id']}"):
-            # Fall back to current name if user submits blank input
+        if st.button(
+            "Save",
+            key=f"save_rename_{run['id']}",
+            use_container_width=True,
+            type="secondary"  # Make it blend like Home button when inactive
+        ):
             run["name"] = new_name.strip() or run["name"]
             st.session_state["renaming_run_id"] = None
             st.rerun()
 
     with cancel_col:
-        if st.button("Cancel", key=f"cancel_rename_{run['id']}"):
+        if st.button(
+            "Cancel",
+            key=f"cancel_rename_{run['id']}",
+            use_container_width=True,
+            type="secondary"  # Same as above
+        ):
             st.session_state["renaming_run_id"] = None
             st.rerun()
 
 # Method that will allow the user to load the full data for a previous run by its ID
-def _load_run_data(run_id: str) -> dict:
-    """
-    Load the full data for a run by its ID.
+def _render_load_button() -> None:
 
-    This is a placeholder function. In a real implementation, this would
-    likely involve reading from disk or a database, since we don't want
-    to keep all run data in memory at all times.
+    is_active = st.session_state.get("current_view") == "load"
 
-    For now, it just returns the run dict from session state based on ID.
-    """
-    st.button(
-        "Load Run Data",
-        key=f"load_run_{run_id}",
+    if st.button(
+        "Load Previous Runs",
+        key="nav_load",
         use_container_width=True,
-        type="primary" if run_id == st.session_state.active_run_id else "secondary"
-    )
+        type="primary" if is_active else "secondary"
+    ):
+        st.session_state.current_view = "load"
+        st.session_state.active_run_id = None
+        st.session_state.compare_mode_active = False
+        st.session_state.show_comparison_view = False
+        st.session_state.show_help_view = False
+        st.rerun()
+
+# Method that will allow the user to view the help screen
+def _render_help_button() -> None:
+
+    is_active = st.session_state.get("current_view") == "help"
+
+    if st.button(
+        "Help Screen",
+        key="nav_help",
+        use_container_width=True,
+        type="primary" if is_active else "secondary"
+    ):
+        st.session_state.current_view = "help"
+        st.session_state.active_run_id = None
+        st.session_state.compare_mode_active = False
+        st.session_state.show_comparison_view = False
+        st.session_state.show_help_view = True
+        st.rerun()

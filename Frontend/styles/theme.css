@@ -29,6 +29,7 @@
  * 16.  Analysis Cards
  * 17.  Animations & Keyframes
  * 18.  Miscellaneous Fixes
+ * 19.  Radios
  */
 
 /* ==========================================================================
@@ -215,95 +216,108 @@ section[data-testid="stMain"] {
    3. Scrollbar
    ========================================================================== */
 
-/* Let the browser handle scrolling and apply custom scrollbar styles */
-html {
-    scrollbar-width: thin; /* Firefox */
-    height: auto !important;
+/* Let Streamlit manage layout height correctly */
+html, body {
+    height: 100% !important;
+    overflow-x: hidden !important;
+}
+
+/* Only browser scroll */
+body {
     overflow-y: auto !important;
 }
 
-/* Scrollbar size */
-html::-webkit-scrollbar,
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+/* Apply custom scrollbar ONLY to browser */
+body::-webkit-scrollbar {
+    width: 10px;
 }
 
-/* Scrollbar styling */
-html::-webkit-scrollbar-track,
-::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
+body::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.5);
     border-radius: 10px;
 }
 
-/* Scrollbar thumb */
-html::-webkit-scrollbar-thumb,
-::-webkit-scrollbar-thumb {
-    background: rgba(228, 120, 29, 0.5);
+/* Firefox */
+body {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.5) rgba(255, 255, 255, 0.05);
+}
+
+/* Remove browser scroll */
+html, body {
+    height: 100%;
+    overflow: hidden !important;
+}
+
+/* Force Streamlit root to scroll */
+[data-testid="stAppViewContainer"] {
+    height: 100vh !important;
+    overflow-y: auto !important;
+}
+
+/* Webkit browsers (Chrome, Edge, Safari) */
+[data-testid="stAppViewContainer"]::-webkit-scrollbar {
+    width: 10px;
+}
+
+[data-testid="stAppViewContainer"]::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+[data-testid="stAppViewContainer"]::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.6);
     border-radius: 10px;
 }
 
-/* Change in styling when hovered */
-html::-webkit-scrollbar-thumb:hover,
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(228, 120, 29, 0.7);
+[data-testid="stAppViewContainer"]::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.85);
+}
+
+/* Firefox */
+[data-testid="stAppViewContainer"] {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.6) transparent;;
 }
 
 /* ==========================================================================
    4. Layout & Spacing
    ========================================================================== */
 
-/* Let the browser own scrolling — kill Streamlit's nested scroll containers */
-body {
-    height: auto !important;
-    overflow-y: auto !important;
-}
-
-/* Force main content area to be scrollable to prevent elements from being cut off */
+/* Prevent Streamlit containers from creating their own scroll contexts */
 section[data-testid="stAppViewContainer"],
 section[data-testid="stMain"] {
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-}
-
-/* Allow other containers to expand naturally */
-div[data-testid="stAppViewBlockContainer"],
-div[data-testid="stVerticalBlock"],
-div[data-testid="stVerticalBlockBorderWrapper"],
-div[data-testid="stMainBlockContainer"],
-.block-container {
     overflow: visible !important;
+    height: auto !important;
 }
 
-/* Remove Streamlit's default 100% height and overflow:hidden on various containers to allow natural content flow and browser scrolling */
-div[data-testid="stVerticalBlock"],
-div[data-testid="stVerticalBlockBorderWrapper"] {
-    gap: 0rem !important;
-    margin-top: 0rem !important;
-    padding-top: 0rem !important;
-    height: auto !important;
+/* Fix vertical block spacing without breaking Streamlit layout */
+div[data-testid="stVerticalBlock"] > div:empty {
+    display: none !important;
+}
+
+div[data-testid="stVerticalBlock"] {
+    gap: 0.5rem !important;
+}
+
+/* Prevent initial vertical stretching glitch */
+section[data-testid="stMain"] > div:first-child {
     min-height: auto !important;
-    max-height: none !important;
-}
-
-/* Allow main app containers to grow naturally with content and not be constrained to 100% viewport height */
-section[data-testid="stAppViewContainer"],
-section[data-testid="stMain"],
-div[data-testid="stAppViewBlockContainer"] {
     height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
 }
 
 /* Main block container padding and height adjustments */
 .block-container {
     height: auto !important;
-    min-height: 0 !important;
+    min-height: auto !important;
     max-height: none !important;
-    padding-top: 2.8rem;
+    padding-top: 1.5rem !important;
     padding-left: 1rem;
     padding-right: 1rem;
-    padding-bottom: 1.5rem !important;
+    padding-bottom: 2rem !important;
 }
 
 div[data-testid="stMainBlockContainer"],
@@ -311,15 +325,12 @@ div[data-testid="stAppViewBlockContainer"] {
     padding: 0 !important;
 }
 
-section[data-testid="stAppViewContainer"] > div:first-child {
-    padding-bottom: 0 !important;
-}
-
 /* Allow columns to size independently (don't stretch to match tallest) */
 div[data-testid="column"] {
     align-self: flex-start !important;
     min-width: 0 !important;
     flex: 1 1 0 !important;
+    overflow: visible !important;
 }
 
 /* Column card styling */
@@ -391,6 +402,37 @@ section[data-testid="stSidebar"] {
     z-index: 1 !important;
 }
 
+/* ===== Hover (like dropdown) ===== */
+div[data-baseweb="input"] > div:first-child:hover {
+    border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Remove ANY red/error borders from Streamlit wrapper */
+div.stTextInput > div {
+    border: 1.5px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 10px !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Hover (like dropdown) */
+div.stTextInput > div:hover {
+    border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Focus = ORANGE GLOW */
+div.stTextInput:focus-within > div {
+    border: 1.5px solid rgba(228, 120, 29, 0.55) !important;
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.5),
+        0 0 18px rgba(228, 120, 29, 0.25),
+        inset 0 1px 3px rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Remove ALL outlines */
+div.stTextInput * {
+    outline: none !important;
+}
+
 /* Pull the custom <hr> divider up to align with main-page lines */
 .sidebar-top-divider {
     margin-top: 0rem !important;
@@ -409,10 +451,10 @@ section[data-testid="stSidebar"][aria-expanded="false"] {
 
 /* ===== OPEN STATE ===== */
 section[data-testid="stSidebar"][aria-expanded="true"] {
-    width: 380px !important;
-    min-width: 380px !important;
-    max-width: 380px !important;
-    flex: 0 0 380px !important;
+    width: 385px !important;
+    min-width: 385px !important;
+    max-width: 385px !important;
+    flex: 0 0 385px !important;
     overflow: hidden !important;
 }
 
@@ -537,6 +579,14 @@ div[data-testid="stFileUploader"] button {
     font-weight: 400 !important;
 }
 
+/* Make sidebar match full scroll height */
+section[data-testid="stSidebar"] {
+    position: sticky !important;
+    top: 0 !important;
+    align-self: flex-start !important;
+    height: 100vh !important;
+}
+
 /* ==========================================================================
    6. Sidebar Navigation Buttons
    ========================================================================== */
@@ -592,6 +642,22 @@ section[data-testid="stSidebar"] button:has(span:contains("✏️")):hover {
 /* Sidebar nav hover slide animation */
 section[data-testid="stSidebar"] div[data-testid="stButton"] button:hover {
     animation: button-hover 0.3s ease !important;
+}
+
+/* Active Home button (orange highlight, pulse) */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="primary"] {
+    background-color: rgba(228, 120, 29, 0.12) !important;
+    border-left: 3px solid #e4781d !important;
+    color: #ffffff !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    animation: pulse-glow 3s ease-in-out infinite !important;
+}
+
+/* Hover for all secondary buttons */
+section[data-testid="stSidebar"] div[data-testid="stButton"] button[kind="secondary"]:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: #ffffff !important;
 }
 
 /* ==========================================================================
@@ -725,6 +791,15 @@ header[data-testid="stHeader"] > div:not(:first-child) {
     transform: none !important;
 }
 
+/* Ensure button text (rendered as <p> by Streamlit) is always visible */
+.main div[data-testid="stButton"] button p {
+    color: rgba(255, 255, 255, 0.9) !important;
+    -webkit-text-fill-color: rgba(255, 255, 255, 0.9) !important;
+    background: none !important;
+    background-clip: unset !important;
+    -webkit-background-clip: unset !important;
+}
+
 /* Download button variant */
 div[data-testid="stDownloadButton"] button {
     background-color: rgba(228, 120, 29, 0.12) !important;
@@ -777,85 +852,75 @@ button {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* ==========================================================================
-   9. Checkboxes
+/* ==========================================================================  
+   Checkboxes  
    ========================================================================== */
 
-/* Box border color */
-div[data-testid="stCheckbox"] span {
-    background-color: #262730 !important;
-    border-radius: 4px;
-    border-color: #e4781d !important;
-}
-
-/* Base checkbox */
-div[data-testid="stCheckbox"] > label > div:first-child {
-    background-color: #262730;
-    border: 1px solid #e4781d;
-    border-radius: 4px;
-    width: 18px;
-    height: 18px;
-    transition: all 0.15s ease;
-}
-
-/* Checkbox hovering */
-div[data-testid="stCheckbox"] > label > div:first-child:hover {
-    border-color: #d66b1d;
-    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.4);
-}
-
-/* State when checkbox is filled */
-div[data-testid="stCheckbox"] > label > input:checked + div:first-child {
-    background-color: #e4781d;
-    border-color: #e4781d;
-}
-
-/* SVG check icon */
+/* Base box */
 label[data-baseweb="checkbox"] span {
-    border-color: #e4781d !important;
+    background-color: #1f2128 !important;
+    border: 1.5px solid rgba(228, 120, 29, 0.45) !important;
+    border-radius: 8px !important;
+    width: 20px !important;
+    height: 20px !important;
+    transition: 
+        background-color 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease,
+        transform 0.15s ease;
 }
 
-label[data-baseweb="checkbox"] svg {
-    stroke: #e4781d !important;
-    fill: none !important;
-}
-
-label[data-baseweb="checkbox"] input:checked + span svg {
-    fill: #e4781d !important;
-    stroke: #e4781d !important;
-}
-
+/* HOVER (correct target) */
 label[data-baseweb="checkbox"]:hover span {
-    border-color: #f08c2e !important;
+    border-color: rgba(228, 120, 29, 0.75) !important;
+    box-shadow: 0 0 0 3px rgba(228, 120, 29, 0.18) !important;
+    transform: scale(1);
 }
 
+/* Checked */
+label[data-baseweb="checkbox"] input:checked + span {
+    background-color: #c86a1a !important;   /* muted orange */
+    border-color: #c86a1a !important;
+    box-shadow: 0 0 6px rgba(200, 106, 26, 0.35);
+}
+
+/* Smooth check animation */
+label[data-baseweb="checkbox"] input:checked + span {
+    animation: checkbox-pop 0.18s ease-out;
+}
+
+/* Check icon */
+label[data-baseweb="checkbox"] svg {
+    transform: scale(0.2) !important;
+}
+
+/* Force icon wrapper smaller than box */
+label[data-baseweb="checkbox"] span > div {
+    width: 60% !important;
+    height: 60% !important;
+}
+
+/* Ensure svg fills the wrapper */
+label[data-baseweb="checkbox"] span > div svg {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Focus ring */
 label[data-baseweb="checkbox"] input:focus-visible + span {
+    box-shadow: 0 0 0 3px rgba(200, 106, 26, 0.35) !important;
     outline: none !important;
-    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.55) !important;
 }
 
-/* Disabled state */
+/* Label text smoothing */
+div[data-testid="stCheckbox"] label {
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
+/* Disabled */
 div[data-testid="stCheckbox"]:has(input:disabled) {
-    opacity: 0.4 !important;
-    cursor: not-allowed !important;
-}
-
-div[data-testid="stCheckbox"]:has(input:disabled) label {
-    cursor: not-allowed !important;
-}
-
-div[data-testid="stCheckbox"]:has(input:disabled) > label > div:first-child {
-    background-color: #1a1a1a !important;
-    border-color: #555555 !important;
-}
-
-div[data-testid="stCheckbox"]:has(input:disabled) span {
-    color: #666666 !important;
-}
-
-/* Animation when checked and unchecked */
-div[data-testid="stCheckbox"] input:checked + div:first-child {
-    animation: checkbox-check 0.3s ease !important;
+    opacity: 0.45;
 }
 
 
@@ -919,6 +984,18 @@ div[data-baseweb="select"] > div {
         inset 0 1px 2px rgba(255, 255, 255, 0.05) !important;
     color: #ffffff !important;
     transition: all 0.2s ease !important;
+}
+
+/* Target the clear (X) icon inside multiselect */
+div[data-baseweb="select"] svg {
+    color: #e4781d !important;
+    fill: #e4781d !important;
+}
+
+/* Optional: slightly brighter on hover */
+div[data-baseweb="select"] svg:hover {
+    color: #ff8c2a !important;
+    fill: #ff8c2a !important;
 }
 
 div[data-baseweb="select"] > div:hover {
@@ -1174,22 +1251,18 @@ div[data-testid="stAlert"] svg {
 /* ==========================================================================
   14. AG Grid
    ========================================================================== */
-
-/* Allow grid to grow to natural height */
-.ag-theme-streamlit {
-    height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
+div[class*="ag-theme"] .ag-root-wrapper {
+    border: none !important;
+    box-shadow: none !important;
 }
 
 /* CSS custom properties — applied via class so they cascade to all cells */
-.ag-theme-streamlit {
+.ag-theme-alpine {
     --ag-background-color: #141414 !important;
     --ag-odd-row-background-color: #141414 !important;
     --ag-header-background-color: #1f1f1f !important;
     --ag-foreground-color: #e5e7eb !important;
     --ag-secondary-foreground-color: #9ca3af !important;
-    --ag-border-color: rgba(255, 255, 255, 0.08) !important;
     --ag-row-border-color: rgba(255, 255, 255, 0.05) !important;
     --ag-accent-color: #e4781d !important;
     --ag-inherited-accent-color: #e4781d !important;
@@ -1214,10 +1287,10 @@ div[data-testid="stAlert"] svg {
 }
 
 /* Container */
-.ag-theme-streamlit {
+.ag-theme-alpine {
     background: linear-gradient(145deg, rgba(25, 25, 25, 0.7), rgba(15, 15, 15, 0.5)) !important;
-    border-radius: 14px !important;
-    border: 1px solid rgba(228, 120, 29, 0.2) !important;
+    border-radius: 0px !important;
+    border: 0px solid rgba(228, 120, 29, 0.2) !important;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6),
                 0 4px 16px rgba(0, 0, 0, 0.4),
                 inset 0 1px 0 rgba(255, 255, 255, 0.05),
@@ -1226,7 +1299,7 @@ div[data-testid="stAlert"] svg {
 }
 
 /* Header and it's styling*/
-.ag-theme-streamlit .ag-header {
+.ag-theme-alpine .ag-header {
     background: linear-gradient(135deg, rgba(228, 120, 29, 0.2), rgba(228, 120, 29, 0.1)) !important;
     border-bottom: 2px solid rgba(228, 120, 29, 0.4) !important;
     font-weight: 600 !important;
@@ -1234,7 +1307,7 @@ div[data-testid="stAlert"] svg {
     box-shadow: 0 2px 8px rgba(228, 120, 29, 0.15) !important;
 }
 
-.ag-theme-streamlit .ag-header-cell {
+.ag-theme-alpine .ag-header-cell {
     color: rgba(255, 255, 255, 0.95) !important;
     font-weight: 600 !important;
     font-size: 14px !important;
@@ -1243,29 +1316,29 @@ div[data-testid="stAlert"] svg {
     border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
-.ag-theme-streamlit .ag-header-cell:hover {
+.ag-theme-alpine .ag-header-cell:hover {
     background: rgba(228, 120, 29, 0.15) !important;
 }
 
 /* Rows */
-.ag-theme-streamlit .ag-row {
+.ag-theme-alpine .ag-row {
     background: rgba(20, 20, 20, 0.4) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
     transition: all 0.2s ease !important;
 }
 
-.ag-theme-streamlit .ag-row-even {
+.ag-theme-alpine .ag-row-even {
     background: rgba(25, 25, 25, 0.4) !important;
 }
 
-.ag-theme-streamlit .ag-row:hover {
+.ag-theme-alpine .ag-row:hover {
     background: rgba(228, 120, 29, 0.08) !important;
     transform: translateX(2px) !important;
     box-shadow: inset 3px 0 0 rgba(228, 120, 29, 0.6) !important;
 }
 
 /* Cells */
-.ag-theme-streamlit .ag-cell {
+.ag-theme-alpine .ag-cell {
     color: rgba(255, 255, 255, 0.9) !important;
     padding: 10px 12px !important;
     font-size: 13px !important;
@@ -1274,85 +1347,86 @@ div[data-testid="stAlert"] svg {
 
 /* Selected rows */
 .ag-theme-streamlit .ag-row-selected,
-.ag-theme-streamlit .ag-row.ag-row-selected,
-.ag-theme-streamlit .ag-row-selected:before,
-.ag-theme-streamlit .ag-row-selected:hover,
-.ag-theme-streamlit .ag-row-selected.ag-row-hover {
+.ag-theme-alpine .ag-row.ag-row-selected,
+.ag-theme-alpine .ag-row-selected:before,
+.ag-theme-alpine .ag-row-selected:hover,
+.ag-theme-alpine .ag-row-selected.ag-row-hover {
     background-color: rgba(228, 120, 29, 0.15) !important;
     background: rgba(228, 120, 29, 0.15) !important;
     border-left: 3px solid rgba(228, 120, 29, 0.8) !important;
 }
 
 /* Range selection */
-.ag-theme-streamlit .ag-cell-range-selected,
-.ag-theme-streamlit .ag-cell-range-selected:not(.ag-cell-inline-editing),
-.ag-theme-streamlit .ag-cell.ag-cell-range-selected,
-.ag-theme-streamlit .ag-cell-range-selected-1:not(.ag-cell-inline-editing),
-.ag-theme-streamlit .ag-cell-range-selected-2:not(.ag-cell-inline-editing),
-.ag-theme-streamlit .ag-cell-range-selected-3:not(.ag-cell-inline-editing),
-.ag-theme-streamlit .ag-cell-range-selected-4:not(.ag-cell-inline-editing) {
+.ag-theme-alpine .ag-cell-range-selected,
+.ag-theme-alpine .ag-cell-range-selected:not(.ag-cell-inline-editing),
+.ag-theme-alpine .ag-cell.ag-cell-range-selected,
+.ag-theme-alpine .ag-cell-range-selected-1:not(.ag-cell-inline-editing),
+.ag-theme-alpine .ag-cell-range-selected-2:not(.ag-cell-inline-editing),
+.ag-theme-alpine .ag-cell-range-selected-3:not(.ag-cell-inline-editing),
+.ag-theme-alpine .ag-cell-range-selected-4:not(.ag-cell-inline-editing) {
     background-color: rgba(228, 120, 29, 0.2) !important;
     background: rgba(228, 120, 29, 0.2) !important;
 }
 
 .ag-theme-streamlit .ag-cell-range-selected:not(.ag-cell-inline-editing),
-.ag-theme-streamlit .ag-cell-range-top,
-.ag-theme-streamlit .ag-cell-range-right,
-.ag-theme-streamlit .ag-cell-range-bottom,
-.ag-theme-streamlit .ag-cell-range-left {
+.ag-theme-alpine .ag-cell-range-top,
+.ag-theme-alpine .ag-cell-range-right,
+.ag-theme-alpine .ag-cell-range-bottom,
+.ag-theme-alpine .ag-cell-range-left {
     border-color: rgba(228, 120, 29, 0.6) !important;
 }
 
 /* Focus cell */
-.ag-theme-streamlit .ag-cell-focus:not(.ag-cell-range-single-cell),
-.ag-theme-streamlit .ag-cell.ag-cell-focus,
-.ag-theme-streamlit .ag-cell-focus {
+.ag-theme-alpine .ag-cell-focus:not(.ag-cell-range-single-cell),
+.ag-theme-alpine .ag-cell.ag-cell-focus,
+.ag-theme-alpine .ag-cell-focus {
     border: 2px solid #e4781d !important;
     outline: none !important;
 }
 
 /* Cell editing */
-.ag-theme-streamlit .ag-cell-inline-editing {
+.ag-theme-alpine .ag-cell-inline-editing {
     background: rgba(228, 120, 29, 0.1) !important;
     border: 2px solid rgba(228, 120, 29, 0.6) !important;
 }
 
 /* Checkboxes in grid */
-.ag-theme-streamlit .ag-checkbox-input-wrapper {
+.ag-theme-alpine .ag-checkbox-input-wrapper {
     background: rgba(255, 255, 255, 0.08) !important;
     border: 2px solid rgba(228, 120, 29, 0.6) !important;
     border-radius: 4px !important;
     transition: all 0.2s ease !important;
 }
 
-.ag-theme-streamlit .ag-checkbox-input-wrapper.ag-checked {
+.ag-theme-alpine .ag-checkbox-input-wrapper.ag-checked {
     background: linear-gradient(135deg, rgba(228, 120, 29, 0.8), rgba(228, 120, 29, 0.6)) !important;
     border-color: rgba(228, 120, 29, 0.9) !important;
 }
 
-.ag-theme-streamlit .ag-checkbox-input-wrapper:hover {
+.ag-theme-alpine .ag-checkbox-input-wrapper:hover {
     background: rgba(228, 120, 29, 0.15) !important;
     box-shadow: 0 0 8px rgba(228, 120, 29, 0.3) !important;
 }
 
 /* Range handle */
-.ag-theme-streamlit .ag-fill-handle,
-.ag-theme-streamlit .ag-range-handle {
+.ag-theme-alpine .ag-fill-handle,
+.ag-theme-alpine .ag-range-handle {
     background-color: #e4781d !important;
 }
 
-/* Prevent nested scrollbars */
-.block-container {
-    overflow: visible !important;
+.ag-theme-alpine .ag-root-wrapper {
+    border: none !important;
 }
-
+iframe[title="streamlit_aggrid_range"] {
+    border: none !important;
+}
 
 /* ==========================================================================
   15. Modals/Popups
    ========================================================================== */
 
 /* Kill the link icon inside modal title */
-div[data-testid="stModal"] h3 > a {
+div[data-testid="stDialog"] h3 > a {
     display: none !important;
 }
 
@@ -1361,7 +1435,7 @@ div[data-baseweb="stMarkdownContainer"] h3 a {
 }
 
 /* Backdrop covers full page including sidebar */
-div[data-testid="stModal"] {
+div[data-testid="stDialog"] {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -1372,7 +1446,7 @@ div[data-testid="stModal"] {
     animation: fadeInModal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
-div[data-testid="stModal"] * {
+div[data-testid="stDialog"] * {
     animation: fadeInModal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
@@ -1387,19 +1461,46 @@ div[data-baseweb="modal"] button[aria-label="Close"] {
 }
 
 /* Hide scrollbar inside modal */
-div[data-testid="stModal"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar {
+div[data-testid="stDialog"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar {
     width: 0px !important;
     height: 0px !important;
 }
 
-div[data-testid="stModal"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar-button {
+div[data-testid="stDialog"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar-button {
     display: none !important;
 }
 
-div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
+div[data-testid="stDialog"] div[data-testid="stVerticalBlock"] {
     scrollbar-width: none !important;
 }
 
+div[data-testid="stDialog"] button[aria-label="Close"] {
+    transition: background-color 0.15s ease-in-out !important;
+    color: rgba(255,255,255,0.7) !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 6px !important;
+    z-index: 1000000 !important;
+    position: absolute !important;
+    top: 12px !important;
+    right: 12px !important;
+}
+
+/* Hover effect like sidebar toggle */
+div[data-testid="stDialog"] button[aria-label="Close"]:hover {
+    background-color: rgba(228, 120, 29, 0.20) !important;
+}
+
+/* Prevent ugly focus ring */
+div[data-testid="stDialog"] button[aria-label="Close"]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Hide Streamlit dialog header but keep close button accessible */
+div[data-testid="stDialog"] header {
+    display: none !important;
+}
 
 /* ==========================================================================
   16. Analysis Cards (Pinterest-style stat grid)
@@ -1548,6 +1649,12 @@ div[data-testid="stModal"] div[data-testid="stVerticalBlock"] {
     100% { transform: translateX(0); }
 }
 
+@keyframes checkbox-pop {
+    0%   { transform: scale(0.85); }
+    60%  { transform: scale(1.08); }
+    100% { transform: scale(1); }
+}
+
 /* Apply fade-in to main content block */
 .main .block-container,
 .main .block-container > div {
@@ -1570,4 +1677,61 @@ div[data-testid="stCheckbox"],
 div[data-testid="stMultiSelect"],
 div[data-testid="stSelectbox"] {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.ag-theme-alpine,
+.ag-theme-alpine * {
+    box-sizing: border-box !important;
+}
+
+.ag-theme-alpine .ag-header {
+    box-shadow: none !important;
+}
+
+.ag-theme-alpine {
+    box-shadow: none !important;
+}
+
+.ag-theme-alpine .ag-root-wrapper {
+    height: 480px !important;
+}
+
+.orange-box {
+    border: 1.5px solid rgba(228,120,29,0.6);
+    border-radius: 12px;
+    padding: 16px 18px;
+    background: linear-gradient(90deg, rgba(228,120,29,0.15), rgba(228,120,29,0.05));
+    margin-top: 12px;
+    margin-bottom: 18px;
+}
+
+/* ==========================================================================
+  19. Radios
+   ========================================================================== */
+/* Style the outer circle */
+div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child {
+    border: 1px solid #555 !important;
+    background-color: #2a2a2a !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Remove the inner white dot */
+div[data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child > div {
+    display: none !important;
+}
+
+/* Selected state – circle fill */
+div[data-testid="stRadio"]
+label[data-baseweb="radio"]:has(input[type="radio"]:checked)
+> div:first-child {
+    background-color: #e4781d !important;
+    border-color: #e4781d !important;
+    box-shadow: 0 0 4px rgba(204, 85, 0, 0.4);
+}
+
+/* Hover effect (circle only) */
+div[data-testid="stRadio"]
+label[data-baseweb="radio"]:hover
+> div:first-child {
+    border-color: #e4781d !important;
 }

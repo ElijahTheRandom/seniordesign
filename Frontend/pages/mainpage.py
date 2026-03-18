@@ -9,6 +9,7 @@ Wires the application together. All behaviour lives in:
     views/sidebar.py       — sidebar navigation
     views/homepage.py      — data input and analysis config
     views/results.py       — analysis results display
+    views/comparison.py    — multi-run comparison view
 """
 
 import os
@@ -38,6 +39,9 @@ from utils.helpers  import render_modal_content
 from views.sidebar  import render_sidebar
 from views.homepage import render_homepage
 from views.results  import render_results
+from views.comparison import render_comparison
+from views.help_statistical_methods import render_help_statistical_methods
+from views.load_previous_runs import render_load_previous_runs
 
 # ---------------------------------------------------------------------------
 # Page config — must be the very first Streamlit call
@@ -76,12 +80,22 @@ success_modal = Modal("Success!",         key="success_modal") # When the user h
 render_sidebar() # Fires up the sidebar and all of its functions, buttons, etc.
 
 # ---------------------------------------------------------------------------
-# Main content — route to homepage or selected run
+# Main content — route to homepage, selected run, or comparison
 # ---------------------------------------------------------------------------
 
-# Grabs the run id to see where the user is and creates their results if they're on a certain page
-# Otherwise, they're on the homescreen
-if st.session_state.active_run_id:
+# Route based on current state:
+#   1. If help view is active → show statistical methods help page
+#   2. If comparison view is active → show comparison of selected runs
+#   3. If a single run is selected → show its results
+#   4. If load previous runs view is active → show load previous runs page
+#   5. Otherwise → show homepage
+if st.session_state.get("current_view") == "help":
+    render_help_statistical_methods()
+elif st.session_state.get("current_view") == "load":
+    render_load_previous_runs()
+elif st.session_state.get("show_comparison_view", False) and st.session_state.get("selected_runs_for_comparison"):
+    render_comparison(st.session_state.selected_runs_for_comparison, BASE_DIR)
+elif st.session_state.active_run_id:
     run = next(
         (r for r in st.session_state.analysis_runs
          if r["id"] == st.session_state.active_run_id),

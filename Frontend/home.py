@@ -868,7 +868,7 @@ st.markdown("""
 div[data-testid="stButton"] button span,
 div[data-testid="stButton"] button div span,
 div[data-testid="stButton"] button * {
-    font-weight: 600 !important;
+    font-weight: 545 !important;
 }
 </style>
 """, unsafe_allow_html=True)
