@@ -26,7 +26,7 @@ STAT DISPATCH TABLE (module-level):
     To add a new statistic, write one _compute_*() function and add
     one entry to STAT_COMPUTERS. The rendering loop never changes.
 
-    Each compute function receives run["data"] (a DataFrame) and
+    Each compute function receives run["table"] (a DataFrame) and
     returns a list of card tuples:
         ("stat", title_html, value_str)           — 3-tuple
         ("stat", title_html, value_str, subtext)  — 4-tuple
@@ -37,11 +37,18 @@ SESSION STATE READ:
 SESSION STATE WRITTEN:
     active_run_id, analysis_runs (on delete)
 """
+import sys
+import os
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+from pathlib import Path
+import sys
 import streamlit as st
 import pandas as pd
 
 from utils.helpers import df_to_ascii_table
+from frontend_handler import handle_result
+
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +64,8 @@ def render_results(run: dict, base_dir: str) -> None:
                                   methods, visualizations }
         base_dir: Absolute path to the frontend directory.
     """
+    run = handle_result(run)
+
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown(
         "<hr style='margin: 0; border: none; height: 1px; "
@@ -94,7 +103,7 @@ def render_results(run: dict, base_dir: str) -> None:
 # Variables:
 #   - run["methods"] (list of selected method names)
 #   - STAT_COMPUTERS[method_name] (dispatch table mapping to compute functions)
-#   - run["data"] (DataFrame passed to compute functions)
+#   - run["table"] (DataFrame passed to compute functions)
 # Rendered via stat cards using _render_stat_card(title, value, subtext)
 # ============================================================================
 
@@ -110,12 +119,7 @@ def _render_stat_cards(run: dict, show_divider: bool = True) -> None:
     Cards are laid out in a Pinterest-style grid of 3 columns with
     breathing room between rows.
     """
-    cards = []
-
-    for method in run["methods"]:
-        compute_fn = STAT_COMPUTERS.get(method)
-        if compute_fn:
-            cards.extend(compute_fn(run["data"]))
+    cards = run.get("cards", [])
 
     if not cards:
         return
@@ -194,9 +198,9 @@ def _render_data_table(run: dict, show_divider: bool = True) -> None:
     st.subheader("Selected Data", anchor=False)
     st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
 
-    st.dataframe(run["data"], use_container_width=True)
+    st.dataframe(run["table"], use_container_width=True)
     st.caption(
-        f"Rows: {len(run['data'])}, Columns: {len(run['data'].columns)}"
+        f"Rows: {len(run['table'])}, Columns: {len(run['table'].columns)}"
     )
     
     if show_divider:
@@ -313,139 +317,7 @@ def _build_export_text(run: dict) -> str:
         lines.append("")
 
     lines.append("Selected Data:")
-    lines.append(df_to_ascii_table(run["data"]))
+    lines.append(df_to_ascii_table(run["table"]))
 
     return "\n".join(lines)
 
-
-# ---------------------------------------------------------------------------
-# Stat compute functions
-# ---------------------------------------------------------------------------
-# Each function receives the run's DataFrame and returns a list of card
-# tuples. The 3-tuple form is ("stat", title, value). The 4-tuple form
-# is ("stat", title, value, subtext).
-#
-# WHY SEPARATE FUNCTIONS INSTEAD OF elif BRANCHES:
-#   - Each stat is independently readable and testable
-#   - Adding a new stat = one new function + one dict entry
-#   - The rendering loop (in _render_stat_cards) never needs to change
-#   - The dispatch table below makes the full list of supported stats
-#     visible at a glance
-# ---------------------------------------------------------------------------
-
-def _compute_mean(data: pd.DataFrame) -> list:
-    # Placeholder: Replace with backend call to compute mean for selected data
-    return [
-        ("stat", "<b>Mean</b>", f"{data[col].mean():.2f}")
-        for col in data.select_dtypes(include=["number"]).columns
-    ]
-
-
-def _compute_median(data: pd.DataFrame) -> list:
-    # Placeholder: Replace with backend call to compute median for selected data
-    return [
-        ("stat", "<b>Median</b>", f"{data[col].median():.2f}")
-        for col in data.select_dtypes(include=["number"]).columns
-    ]
-
-
-def _compute_mode(data: pd.DataFrame) -> list:
-    # Placeholder: Replace with backend call to compute mode for selected data
-    cards = []
-    for col in data.select_dtypes(include=["number"]).columns:
-        mode_val = data[col].mode()
-        display = f"{mode_val.iloc[0]:.2f}" if len(mode_val) > 0 else "N/A"
-        cards.append(("stat", "<b>Mode</b>", display))
-    return cards
-
-
-def _compute_variance(data: pd.DataFrame) -> list:
-    # Placeholder: Replace with backend call to compute variance for selected data
-    return [
-        ("stat", "<b>Variance</b>", f"{data[col].var():.2f}")
-        for col in data.select_dtypes(include=["number"]).columns
-    ]
-
-
-def _compute_std_dev(data: pd.DataFrame) -> list:
-    # Placeholder: Replace with backend call to compute std dev for selected data
-    return [
-        ("stat", "<b>Std Dev</b>", f"{data[col].std():.2f}")
-        for col in data.select_dtypes(include=["number"]).columns
-    ]
-
-def _compute_percentiles(data: pd.DataFrame) -> list:
-    # Placeholder: Replace with backend call to compute percentiles for selected data
-    cards = [] 
-    for col in data.select_dtypes(include=["number"]).columns:
-        p25 = data[col].quantile(0.25)
-        p50 = data[col].quantile(0.50)
-        p75 = data[col].quantile(0.75)
-        cards.append((
-            "stat",
-            "<b>Percentiles</b>",
-            f"{p25:.1f} / {p50:.1f} / {p75:.1f}",
-            "25th / 50th / 75th",
-        ))
-    return cards
-
-
-def _compute_variation(data: pd.DataFrame) -> list:
-    # Placeholder: Replace with backend call to compute coefficient of variation for selected data
-    cards = []
-    for col in data.select_dtypes(include=["number"]).columns:
-        mean_val = data[col].mean()
-        std_val  = data[col].std()
-        cv = (std_val / mean_val * 100) if mean_val != 0 else 0
-        cards.append(("stat", "<b>Coeff. of Variation</b>", f"{cv:.2f}%"))
-    return cards
-
-
-# --- Placeholder stats ---
-
-def _compute_chi_square(data: pd.DataFrame) -> list:
-    # Placeholder: Replace with backend call to compute chi-square for selected data
-    return [("stat", "<b>Chi-Square</b>", "12.24", "p-value: 0.032")]
-
-
-def _compute_pearson(data: pd.DataFrame) -> list:
-    # Placeholder: Replace with backend call to compute Pearson's correlation for selected data
-    return [("stat", "<b>Pearson's Corr.</b>", "0.87", "Strong positive")]
-
-
-def _compute_spearman(data: pd.DataFrame) -> list:
-    # Placeholder: Replace with backend call to compute Spearman's rank correlation for selected data
-    return [("stat", "<b>Spearman's Rank</b>", "0.82", "Strong correlation")]
-
-
-def _compute_regression(data: pd.DataFrame) -> list:
-    # Placeholder: Replace with backend call to compute regression for selected data
-    return [("stat", "<b>Regression</b>", "0.76", "Good fit")]
-
-
-def _compute_binomial(data: pd.DataFrame) -> list:
-    # Placeholder: Replace with backend call to compute binomial probability for selected data
-    return [("stat", "<b>Binomial Prob</b>", "0.68", "n=10, p=0.5")]
-
-
-# ---------------------------------------------------------------------------
-# Dispatch table
-# ---------------------------------------------------------------------------
-# Maps method name strings (as stored in run["methods"]) to their
-# compute functions. This is the ONLY place you touch when adding a
-# new computation method — write the function above, add one line here.
-
-STAT_COMPUTERS: dict[str, callable] = {
-    "Mean":               _compute_mean,
-    "Median":             _compute_median,
-    "Mode":               _compute_mode,
-    "Variance":           _compute_variance,
-    "Standard Deviation": _compute_std_dev,
-    "Percentiles":        _compute_percentiles,
-    "Variation":          _compute_variation,
-    "Chi-Square":         _compute_chi_square,
-    "Pearson":            _compute_pearson,
-    "Spearman":           _compute_spearman,
-    "Regression":         _compute_regression,
-    "Binomial":           _compute_binomial,
-}
