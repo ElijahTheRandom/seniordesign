@@ -2,7 +2,7 @@ import numpy as np
 from scipy.stats import variation
 from class_templates import message_structure
 
-class CoefficentVariation:
+class CoefficientVariation:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
         self.stat_id = "coefficient_variation"
@@ -62,3 +62,7 @@ class CoefficentVariation:
         # Generate a chart or visualization object for the computed results
         # No graph generated for the coefficient of variation calculation
         pass
+
+
+# Backwards compatibility: preserve the old misspelled class name
+CoefficentVariation = CoefficientVariation
