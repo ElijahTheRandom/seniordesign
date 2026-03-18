@@ -37,6 +37,11 @@ def handle_result(run: dict) -> dict:
     for result in run["result_message"].results:
         if result.get("ok"):
             display_name = _ID_TO_DISPLAY.get(result['id'], result['id'])
-            cards.append(("stat", f"<b>{display_name}</b>", f"{result['value']:.2f}"))
+            value = result.get("value")
+            if isinstance(value, (int, float)):
+                value_str = f"{value:.2f}"
+            else:
+                value_str = str(value)
+            cards.append(("stat", f"<b>{display_name}</b>", value_str))
     run["cards"] = cards
     return run
