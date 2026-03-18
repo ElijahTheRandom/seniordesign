@@ -1,6 +1,7 @@
 
 from datetime import datetime
 import os
+import re
 
 import json
 from methods.methods import methods_list
@@ -139,6 +140,37 @@ class BackendHandler:
             "params_used": params or {}
         }
 
+    def _sanitize_for_filename(self, value, default="dataset", max_length=100):
+        """
+        Sanitize an arbitrary value so it is safe to use as a filename component.
+
+        - Converts the value to string.
+        - Strips any directory components.
+        - Replaces characters not in [A-Za-z0-9._-] with underscores.
+        - Truncates the result to max_length characters.
+        - Falls back to `default` if the result is empty after sanitization.
+        """
+        if value is None:
+            return default
+
+        # Ensure we are working with a string representation
+        text = str(value)
+
+        # Strip any directory components
+        text = os.path.basename(text)
+
+        # Allow only safe characters; replace others with "_"
+        text = re.sub(r"[^A-Za-z0-9._-]", "_", text)
+
+        # Enforce maximum length
+        if len(text) > max_length:
+            text = text[:max_length]
+
+        # Avoid empty names
+        if not text:
+            return default
+
+        return text
 
     def _create_run_folder(self, message):
         """
@@ -156,7 +188,9 @@ class BackendHandler:
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         short_uid = uuid.uuid4().hex[:8]
-        folder_name = f"{message.dataset_id}_v{message.dataset_version}_{timestamp}_{short_uid}"
+        safe_dataset_id = self._sanitize_for_filename(getattr(message, "dataset_id", None))
+        safe_dataset_version = self._sanitize_for_filename(getattr(message, "dataset_version", None), default="v", max_length=50)
+        folder_name = f"{safe_dataset_id}_v{safe_dataset_version}_{timestamp}_{short_uid}"
         run_folder = os.path.join(results_cache_dir, folder_name)
         os.makedirs(run_folder, exist_ok=True)
 
