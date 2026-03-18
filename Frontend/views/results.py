@@ -40,9 +40,10 @@ SESSION STATE WRITTEN:
 import sys
 import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.append(_PROJECT_ROOT)
 from pathlib import Path
-import sys
 import streamlit as st
 import pandas as pd
 
