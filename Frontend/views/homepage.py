@@ -127,7 +127,7 @@ def render_homepage(base_dir: str, error_modal, success_modal) -> None:
         edited_table = _render_data_panel(base_dir)
 
     with right_col:
-        _render_analysis_config(edited_table)
+        _render_analysis_config(edited_table, error_modal, success_modal)
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]        # /app/
 _BACKEND_ROOT = _REPO_ROOT / "Backend"                  # /app/Backend/
@@ -434,7 +434,9 @@ def _display_selection_output(selection: list, df: pd.DataFrame) -> None:
 # ---------------------------------------------------------------------------
 
 def _render_analysis_config(
-    edited_table: pd.DataFrame | None
+    edited_table: pd.DataFrame | None,
+    error_modal=None,
+    success_modal=None,
 ) -> None:
     """
     Render the analysis configuration panel: column/row selection,
@@ -798,18 +800,15 @@ def _handle_run_analysis(
     # Consolidate all computation + visualization flags into one dict
     # for validation and run creation logic
     method_flags = {
+        # Statistical methods — keys match backend methods_list exactly
         "mean": mean, "median": median, "mode": mode,
-        "variance": variance, "std": std, "percentiles": percentiles,
+        "variance": variance, "standard_deviation": std, "percentile": percentiles,
         "pearson": pearson, "spearman": spearman,
         "least_squares_regression": least_squares_regression,
-        "chi_squared": chi_squared, "binomial": binomial, "variation": variation,
-        "hist": hist, "box": box, "scatter": scatter,
-        "line": line, "heatmap": heatmap,
-        "viz_hist":    st.session_state.get("viz_hist", False),
-        "viz_box":     st.session_state.get("viz_box", False),
-        "viz_scatter": st.session_state.get("viz_scatter", False),
-        "viz_line":    st.session_state.get("viz_line", False),
-        "viz_heatmap": st.session_state.get("viz_heatmap", False),
+        "chisquared": chi_squared, "binomial": binomial, "coefficient_variation": variation,
+        # Charts — keys match backend charts_list exactly
+        "pie_chart": hist, "vert_bar": box, "hor_bar": scatter,
+        "scat_plot": line, "best_fit": heatmap,
     }
 
     # --- Validate numeric data (logic/run_manager.py) ---
@@ -821,11 +820,23 @@ def _handle_run_analysis(
         st.rerun()
         return
 
-    # --- Build methods list: only flags whose key is a known backend method ID ---
+    # --- Build methods and graphics lists using canonical backend IDs ---
+    _BACKEND_METHOD_IDS = {
+        "binomial", "chisquared", "coefficient_variation", "least_squares_regression",
+        "mean", "median", "mode", "pearson", "percentile", "spearman",
+        "standard_deviation", "variance",
+    }
+    _BACKEND_CHART_IDS = {"best_fit", "hor_bar", "pie_chart", "scat_plot", "vert_bar"}
+
     methods = [
-    {"id": flag_name, "params": {}}
-        for flag_name, flag_value in method_flags.items()
-        if flag_value
+        {"id": k, "params": {}}
+        for k, v in method_flags.items()
+        if v and k in _BACKEND_METHOD_IDS
+    ]
+    graphics = [
+        {"type": k}
+        for k, v in method_flags.items()
+        if v and k in _BACKEND_CHART_IDS
     ]
 
     # --- Construct the Message and dispatch to BackendHandler ---
@@ -849,6 +860,7 @@ def _handle_run_analysis(
             "rows": [selected_rows],
         },
         methods=methods,
+        graphics=graphics,
         data=parsed_data.values.tolist(),
     )
 
@@ -860,7 +872,8 @@ def _handle_run_analysis(
         "name":           f"Run {run_count}",
         "methods":        methods,         # list of method dicts with id and params
         "result_message": result_message,  # Message object — contains data, methods, results, selection
-        "table":          edited_table,    # full unsliced DataFrame for display in results.py
+        "table":          edited_table,    # full unsliced DataFrame for reference
+        "data":           parsed_data.reset_index(drop=True),  # user-selected cols/rows for display and export
     }
 
     st.session_state.analysis_runs.append(run)

@@ -5,7 +5,7 @@ from class_templates import message_structure
 class CoefficentVariation:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
-        self.stat_id = "cv"
+        self.stat_id = "coefficient_variation"
         self.data = data
         self.metadata = metadata
         self.params = params or {}

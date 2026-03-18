@@ -4,7 +4,7 @@ from scipy.stats import chisquare
 class ChiSquared:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
-        self.stat_id = "chi_squared"
+        self.stat_id = "chisquared"
         self.data = data
         self.metadata = metadata
         self.params = params or {}

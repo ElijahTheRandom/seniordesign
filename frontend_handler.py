@@ -7,22 +7,19 @@ each result into stat card tuples ready for results.py to render.
 PUBLIC INTERFACE:
     handle_result(run) -> run
 """
-from unittest import result
-
-
 _ID_TO_DISPLAY: dict[str, str] = {
-    "mean":                      "Mean",
-    "median":                    "Median",
-    "mode":                      "Mode",
-    "variance":                  "Variance",
-    "std":                       "Standard Deviation",
-    "percentiles":               "Percentiles",
-    "pearson":                   "Pearson's Correlation",
-    "spearman":                  "Spearman's Rank",
-    "least_squares_regression":  "Least Squares Regression",
-    "chi_squared":               "Chi-Square Test",
-    "binomial":                  "Binomial Distribution",
-    "variation":                 "Coefficient of Variation",
+    "mean":                     "Mean",
+    "median":                   "Median",
+    "mode":                     "Mode",
+    "variance":                 "Variance",
+    "standard_deviation":       "Standard Deviation",
+    "percentile":               "Percentile",
+    "pearson":                  "Pearson's Correlation",
+    "spearman":                 "Spearman's Rank",
+    "least_squares_regression": "Least Squares Regression",
+    "chisquared":               "Chi-Square Test",
+    "binomial":                 "Binomial Distribution",
+    "coefficient_variation":    "Coefficient of Variation",
 }
 
 def handle_result(run: dict) -> dict:

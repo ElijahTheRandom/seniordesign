@@ -7,3 +7,4 @@ Pillow
 streamlit-modal
 tabulate
 plotly
+kaleido==0.2.1
