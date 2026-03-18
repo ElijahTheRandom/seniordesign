@@ -126,11 +126,6 @@ def render_homepage(base_dir: str, error_modal, success_modal) -> None:
     with right_col:
         _render_analysis_config(edited_table, error_modal, success_modal)
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]        # /app/
-_BACKEND_ROOT = _REPO_ROOT / "Backend"                  # /app/Backend/
-for _p in (str(_REPO_ROOT), str(_BACKEND_ROOT)):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
 # ---------------------------------------------------------------------------
 # Left column — Data Input Panel
 # ---------------------------------------------------------------------------
