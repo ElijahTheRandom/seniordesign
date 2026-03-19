@@ -51,10 +51,22 @@ import pandas as pd
 
 from utils.helpers import df_to_ascii_table
 from frontend_handler import handle_result
+from logic.run_manager import build_success_save_message
 
 SAVED_RUNS_FILE = os.path.join(_PROJECT_ROOT, "results_cache", "saved_runs.json")
 
+if "show_success_save_dialog" not in st.session_state:
+    st.session_state.show_success_save_dialog = False
 
+@st.dialog("Saved Successfully")
+def success_dialog():
+    img_path = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
+
+    col_img, col_text = st.columns([1, 1.5], gap="medium")
+    with col_img:
+        st.image(img_path, width=500)
+    with col_text:
+        st.markdown(st.session_state.modal_message)
 
 # ---------------------------------------------------------------------------
 # Public interface
@@ -80,6 +92,17 @@ def render_results(run: dict, base_dir: str) -> None:
         "rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />",
         unsafe_allow_html=True
     )
+
+    if st.session_state.get("show_success_save_dialog"):
+        success_dialog()
+        st.session_state.show_success_save_dialog = False
+
+    if st.session_state.get("show_export_dialog"):
+        _export_run_dialog(run)
+        st.session_state.show_export_dialog = False
+
+    if "show_export_dialog" not in st.session_state:
+        st.session_state.show_export_dialog = False
 
     st.header(f"Analysis Results — {run['name']}", anchor=False)
     _render_stat_cards(run)
@@ -270,7 +293,8 @@ def _render_action_buttons(run: dict) -> None:
 
     with btn2:
         if st.button("Export Run", use_container_width=True):
-            _export_run_dialog(run)
+            st.session_state.show_export_dialog = True
+            st.rerun()
 
     with btn3:
         if st.button("Delete Run", use_container_width=True):
