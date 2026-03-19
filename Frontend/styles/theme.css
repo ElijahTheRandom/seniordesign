@@ -1662,7 +1662,6 @@ div[data-testid="stVerticalBlock"]:has(.run-card-marker):not(:has(div[data-testi
     border-color: rgba(228, 120, 29, 0.35);
     transform: translateY(-3px);
 }
-}
 
 /* ==========================================================================
   17. Animations & Keyframes
