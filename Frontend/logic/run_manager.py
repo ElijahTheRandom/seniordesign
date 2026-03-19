@@ -171,6 +171,20 @@ def build_success_message(run: dict) -> str:
         f"- Please see the side bar for your analysis."
     )
 
+def build_success_save_message(run: dict) -> str:
+    """
+    Build the user-facing success message after a run is saved.
+
+    Args:
+        run: The newly created run dict.
+
+    Returns:
+        A short confirmation string for the success modal.
+    """
+    return (
+        f"**'{run['name']}' has been successfully saved!**\n"
+        f"- Please see the Load Previous Runs section."
+    )
 
 # ---------------------------------------------------------------------------
 # Private helpers

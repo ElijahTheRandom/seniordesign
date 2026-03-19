@@ -13,6 +13,14 @@ PUBLIC INTERFACE:
 
 import streamlit as st
 
+st.markdown("""
+<style>
+div[data-testid="stAppViewContainer"] .block-container {
+    padding-left: 0.5rem !important;
+    padding-right: 1rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 def render_help_statistical_methods() -> None:
     """

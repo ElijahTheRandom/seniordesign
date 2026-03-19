@@ -108,13 +108,27 @@ def render_homepage(base_dir: str) -> None:
         error_dialog()
         st.session_state.show_error_dialog = False
 
-    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown(
         "<hr style='margin: 0; border: none; height: 1px; "
         "background: linear-gradient(90deg, transparent 0%, "
         "rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />",
         unsafe_allow_html=True
     )
+
+    st.markdown("""
+    <style>
+    div[data-testid="stAppViewContainer"] .block-container {
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+
+        padding-left: 0.5rem !important;
+        padding-right: 1rem !important;
+        padding-bottom: 0.5rem !important;
+        padding-top: -0.15rem !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
     left_col, right_col = st.columns([3, 2], gap="medium")
 
@@ -869,6 +883,8 @@ def _handle_run_analysis(
         "data":           parsed_data.reset_index(drop=True),  # user-selected cols/rows for display and export
     }
 
+    if "analysis_runs" not in st.session_state:
+        st.session_state.analysis_runs = []
     st.session_state.analysis_runs.append(run)
     st.session_state.modal_message = build_success_message(run)
     st.session_state.show_success_dialog = True
