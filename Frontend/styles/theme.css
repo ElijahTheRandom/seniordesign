@@ -1580,6 +1580,45 @@ div[data-testid="stDialog"] header {
     line-height: 1.4;
 }
 
+/* 🎯 ONLY containers inside run-card-wrapper */
+.run-card-wrapper > div[data-testid="stVerticalBlock"] {
+    background: linear-gradient(145deg, #2e2f34, #272a30);
+    border: 1px solid rgba(228, 120, 29, 0.15);
+    border-radius: 16px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.1),
+        0 8px 16px rgba(0, 0, 0, 0.15),
+        0 16px 32px rgba(0, 0, 0, 0.1);
+
+    transition: all 0.25s ease;
+}
+
+/* 🎯 Target ONLY inner containers (not the page) */
+div[data-testid="stVerticalBlock"]:has(.run-card-marker):not(:has(div[data-testid="stVerticalBlock"] .run-card-marker)) {
+    background: linear-gradient(145deg, #2e2f34, #272a30);
+    border: 1px solid rgba(228, 120, 29, 0.15);
+    border-radius: 12px;
+
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.1),
+        0 8px 16px rgba(0, 0, 0, 0.15),
+        0 16px 32px rgba(0, 0, 0, 0.1);
+
+    transition: all 0.25s ease;
+}
+
+/* Hover */
+div[data-testid="stVerticalBlock"]:has(.run-card-marker):not(:has(div[data-testid="stVerticalBlock"] .run-card-marker)):hover {
+    border-color: rgba(228, 120, 29, 0.35);
+    transform: translateY(-3px);
+}
+
 /* ==========================================================================
   17. Animations & Keyframes
    ========================================================================== */
@@ -1703,6 +1742,12 @@ div[data-testid="stSelectbox"] {
     background: linear-gradient(90deg, rgba(228,120,29,0.15), rgba(228,120,29,0.05));
     margin-top: 12px;
     margin-bottom: 18px;
+}
+
+div[data-testid="stAppViewContainer"] .block-container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    padding-bottom: 0.5rem !important;
 }
 
 /* ==========================================================================
