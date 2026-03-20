@@ -290,23 +290,17 @@ def _build_export_text(run: dict) -> str:
     """
     lines = [f"Analysis Results — {run['name']}", ""]
 
-    if run["methods"]:
+    if run.get("cards"):
         lines.append("Methods Applied:")
 
-        for m in run["methods"]:
-            compute_fn = STAT_COMPUTERS.get(m)
-
-            if compute_fn:
-                cards = compute_fn(run["data"])
-
-                for card in cards:
-                    value = card[2]
-
-                    if len(card) == 4:
-                        subtext = card[3]
-                        lines.append(f"{m}: {value} ({subtext})")
-                    else:
-                        lines.append(f"{m}: {value}")
+        for card in run["cards"]:
+            title  = card[1].replace("<b>", "").replace("</b>", "")
+            value  = card[2]
+            if len(card) == 4:
+                subtext = card[3]
+                lines.append(f"{title}: {value} ({subtext})")
+            else:
+                lines.append(f"{title}: {value}")
 
         lines.append("")
 
