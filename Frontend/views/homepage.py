@@ -370,7 +370,8 @@ def _render_grid_from_file(uploaded_file) -> pd.DataFrame:
             df = pd.read_csv(uploaded_file)
             st.session_state.edited_data_cache[file_key] = df
 
-        _display_aggrid(df, grid_key=f"grid_{file_key}")
+        df = _display_aggrid(df, grid_key=f"grid_{file_key}")
+        st.session_state.edited_data_cache[file_key] = df
         return df
 
     except Exception as e:
@@ -391,7 +392,7 @@ def _render_grid_from_cache() -> pd.DataFrame:
     """
     try:
         df = st.session_state.saved_table
-        _display_aggrid(df, grid_key="grid_cached")
+        df = _display_aggrid(df, grid_key="grid_cached")
         return df
 
     except Exception as e:
@@ -399,33 +400,55 @@ def _render_grid_from_cache() -> pd.DataFrame:
         return st.session_state.saved_table
 
 
-def _display_aggrid(df: pd.DataFrame, grid_key: str) -> None:
+def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
     """
-    Render the AG Grid Range component and display any selected ranges.
+    Render the AG Grid Range component and return the (possibly edited) DataFrame.
 
     After rendering the grid, syncs the cell selection into session state
     via apply_grid_selection_to_filters() so the right-column multiselects
     reflect what the user highlighted in the grid.
 
+    If the user edited any cells, the returned DataFrame contains the
+    updated values.
+
     Args:
         df:       The DataFrame to display.
         grid_key: A unique key for this grid instance. Must be stable
                   across reruns for the same data to avoid grid flicker.
+
+    Returns:
+        The DataFrame, updated with any cell edits.
     """
     records = df.where(pd.notna(df), other=None).to_dict("records")
     columns = [{"field": c} for c in df.columns]
 
-    selection = aggrid_range(records, columns, key=grid_key)
+    result = aggrid_range(records, columns, key=grid_key)
+
+    # The component returns {"selections": [...], "editedData": [...] | null}
+    if isinstance(result, dict):
+        selection = result.get("selections", [])
+        edited_data = result.get("editedData")
+    else:
+        # Fallback for old format (list of ranges)
+        selection = result
+        edited_data = None
+
+    # Apply cell edits back to the DataFrame
+    if edited_data is not None:
+        df = pd.DataFrame(edited_data, columns=df.columns)
+
     apply_grid_selection_to_filters(selection, df)
 
     st.markdown("")
-    st.caption("**Tip:** Click and drag to select a range of cells.")
+    st.caption("**Tip:** Click and drag to select a range of cells. "
+               "Double-click a cell to edit its value.")
 
     if selection:
         _display_selection_output(selection, df)
-        #st.info("Select computations and visualizations on the right, then click 'Run Analysis' to see results for the selected range.")
     else:
         st.info("Select a range of cells in the grid to see details here.")
+
+    return df
 
 
 def _display_selection_output(selection: list, df: pd.DataFrame) -> None:
