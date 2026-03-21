@@ -322,6 +322,7 @@ class BackendHandler:
 
         # --- 2. Create unique persistence folder ---
         run_folder = self._create_run_folder(final_result_message)
+        final_result_message.run_folder = run_folder
 
         # --- 2.5. Save embedded method charts (e.g. LSR) into the persistence folder ---
         self._save_embedded_charts(final_result_message.results, run_folder)

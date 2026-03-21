@@ -39,6 +39,8 @@ SESSION STATE WRITTEN:
 """
 import sys
 import os
+import json
+from datetime import datetime
 
 _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 if _PROJECT_ROOT not in sys.path:
@@ -49,6 +51,8 @@ import pandas as pd
 
 from utils.helpers import df_to_ascii_table
 from frontend_handler import handle_result
+
+SAVED_RUNS_FILE = os.path.join(_PROJECT_ROOT, "results_cache", "saved_runs.json")
 
 
 
@@ -251,7 +255,7 @@ def _render_action_buttons(run: dict) -> None:
     """
     Render the Save / Export / Delete action buttons at the bottom.
 
-    Save:   Placeholder (not yet implemented).
+    Save:   Persists the run to saved_runs.json and writes table CSV to cache.
     Export: Downloads a plain-text .txt report of the run's results.
     Delete: Removes the run from session state and navigates home.
 
@@ -261,7 +265,8 @@ def _render_action_buttons(run: dict) -> None:
     btn1, btn2, btn3 = st.columns(3)
 
     with btn1:
-        st.button("Save Run", use_container_width=True)
+        if st.button("Save Run", use_container_width=True):
+            _save_run(run)
 
     with btn2:
         if st.button("Export Run", use_container_width=True):
@@ -275,6 +280,71 @@ def _render_action_buttons(run: dict) -> None:
             ]
             st.session_state.active_run_id = None
             st.rerun()
+
+
+# ---------------------------------------------------------------------------
+# Save run logic
+# ---------------------------------------------------------------------------
+
+def _save_run(run: dict) -> None:
+    """
+    Persist a run so it can be reloaded from the Load Previous Runs page.
+
+    Steps:
+        1. Locate the run's cache folder (from result_message.run_folder).
+        2. Save the selected DataFrame as table.csv in that folder.
+        3. Add / update an entry in saved_runs.json at the project root.
+    """
+    result_message = run.get("result_message")
+    cache_folder = getattr(result_message, "run_folder", None) if result_message else None
+
+    if not cache_folder or not os.path.isdir(cache_folder):
+        st.error("Cannot save: no cache folder found for this run.")
+        return
+
+    # 1. Save the table as CSV so it can be reconstructed on load
+    table_path = os.path.join(cache_folder, "table.csv")
+    if isinstance(run.get("data"), pd.DataFrame):
+        run["data"].to_csv(table_path, index=False)
+
+    # 2. Read existing saved_runs.json (or start fresh)
+    saved_runs = _read_saved_runs()
+
+    # 3. Build the entry for this run
+    entry = {
+        "id": run["id"],
+        "name": run["name"],
+        "saved_at": datetime.now().isoformat(),
+        "cache_folder": cache_folder,
+        "dataset_id": getattr(result_message, "dataset_id", None),
+        "methods": run.get("methods", []),
+        "visualizations": run.get("visualizations", []),
+    }
+
+    # Replace if the same run id already exists, else append
+    saved_runs = [s for s in saved_runs if s["id"] != run["id"]]
+    saved_runs.append(entry)
+
+    _write_saved_runs(saved_runs)
+    st.success(f"Run \"{run['name']}\" saved successfully.")
+
+
+def _read_saved_runs() -> list:
+    """Read and return the list from saved_runs.json, or [] if missing."""
+    if not os.path.isfile(SAVED_RUNS_FILE):
+        return []
+    try:
+        with open(SAVED_RUNS_FILE, "r") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def _write_saved_runs(saved_runs: list) -> None:
+    """Atomically write the saved_runs list to saved_runs.json."""
+    with open(SAVED_RUNS_FILE, "w") as f:
+        json.dump(saved_runs, f, indent=2)
 
 
 # ---------------------------------------------------------------------------

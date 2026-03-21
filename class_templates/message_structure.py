@@ -2,7 +2,8 @@ import numpy as np
 
 class Message:
     def __init__(self, dataset_id=None, dataset_version=None, metadata=None,
-                 selection=None, methods=None, graphics=None, data=None, results=None):
+                 selection=None, methods=None, graphics=None, data=None, results=None,
+                 run_folder=None):
         self.dataset_id = dataset_id
         self.dataset_version = dataset_version
         self.metadata = metadata or []
@@ -19,6 +20,8 @@ class Message:
         self._data_np = None         # Cached numpy conversion
 
         self.results = results or []  # List of result dicts for each method
+
+        self.run_folder = run_folder  # Path to the results_cache folder for this run
 
     @property
     def data(self):
