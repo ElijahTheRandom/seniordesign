@@ -6,6 +6,7 @@ services:
       - "8501:8501"
     volumes:
       - senior_design_data:/app/data
+      - ./results_cache:/app/results_cache
 
 volumes:
   senior_design_data:

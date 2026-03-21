@@ -40,9 +40,10 @@ SESSION STATE WRITTEN:
 import sys
 import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.append(_PROJECT_ROOT)
 from pathlib import Path
-import sys
 import streamlit as st
 import pandas as pd
 
@@ -166,23 +167,26 @@ def _render_stat_card(title: str, value: str, subtext: str = None) -> None:
 
 def _render_visualizations(run: dict, show_divider: bool = True) -> None:
     """
-    Render the visualizations section if any were selected.
+    Render the visualizations section using chart images saved by the backend.
 
-    Currently shows placeholder info boxes. Each visualization type
-    listed in run["visualizations"] will display as a labeled stub,
-    ready to be replaced with real chart rendering in a future stage.
+    Reads result_message.graphics, which is populated by BackendHandler after
+    chart PNGs are generated into the results_cache run folder.
 
     Args:
-        run: The run dict containing the "visualizations" list.
+        run: The run dict containing "result_message" (a Message object).
     """
-    if not run.get("visualizations"):
+    graphics = getattr(run.get("result_message"), "graphics", None)
+    if not graphics:
         return
 
     st.subheader("Visualizations", anchor=False)
     st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
 
-    for viz in run["visualizations"]:
-        st.info(f"{viz} visualization will be rendered here")
+    for chart in graphics:
+        if chart.get("ok") and chart.get("path"):
+            st.image(chart["path"])
+        else:
+            st.error(f"{chart.get('type', 'Chart')}: {chart.get('error', 'Failed to generate')}")
 
     if show_divider:
         st.markdown("---")
@@ -198,9 +202,9 @@ def _render_data_table(run: dict, show_divider: bool = True) -> None:
     st.subheader("Selected Data", anchor=False)
     st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
 
-    st.dataframe(run["table"], use_container_width=True)
+    st.dataframe(run["data"], use_container_width=True)
     st.caption(
-        f"Rows: {len(run['table'])}, Columns: {len(run['table'].columns)}"
+        f"Rows: {len(run['data'])}, Columns: {len(run['data'].columns)}"
     )
     
     if show_divider:
@@ -290,24 +294,15 @@ def _build_export_text(run: dict) -> str:
     """
     lines = [f"Analysis Results — {run['name']}", ""]
 
-    if run["methods"]:
+    results = run.get("result_message") and run["result_message"].results
+    if results:
         lines.append("Methods Applied:")
-
-        for m in run["methods"]:
-            compute_fn = STAT_COMPUTERS.get(m)
-
-            if compute_fn:
-                cards = compute_fn(run["data"])
-
-                for card in cards:
-                    value = card[2]
-
-                    if len(card) == 4:
-                        subtext = card[3]
-                        lines.append(f"{m}: {value} ({subtext})")
-                    else:
-                        lines.append(f"{m}: {value}")
-
+        for result in results:
+            if not result.get("ok"):
+                continue
+            method_id = result.get("id", "unknown")
+            value     = result.get("value")
+            lines.append(f"  {method_id}: {value}")
         lines.append("")
 
     if run.get("visualizations"):
@@ -317,7 +312,7 @@ def _build_export_text(run: dict) -> str:
         lines.append("")
 
     lines.append("Selected Data:")
-    lines.append(df_to_ascii_table(run["table"]))
+    lines.append(df_to_ascii_table(run["data"]))
 
     return "\n".join(lines)
 

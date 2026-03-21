@@ -59,12 +59,27 @@ class VertBar:
     def _create_chart(self):
         pio.renderers.default = "vscode"
 
+        values = self.params.get("values")
+        if values is None:
+            data_array = np.asarray(self.data)
+            if data_array.ndim > 1:
+                values = data_array[0].tolist()
+            else:
+                values = data_array.tolist()
+
+        labels = self.params.get("labels")
+        if labels is None:
+            if isinstance(self.metadata, (list, tuple)) and len(self.metadata) == len(values):
+                labels = list(self.metadata)
+            else:
+                labels = [str(i) for i in range(len(values))]
+
         figure = go.Figure()
 
         figure.add_trace(go.Bar(
-            x = self.params,
-            y = self.data,
-            text = self.data,
+            x = labels,
+            y = values,
+            text = values,
             textposition = "outside",
             marker = dict(
                 color = "#e4781d",
@@ -96,7 +111,7 @@ class VertBar:
     def create_graphic(self):
         # Perform the statistical computation and return a standardized result dictionary
         _applicable = self._applicable()
-        if not _applicable:
+        if _applicable is not True:
             return self._generate_return_structure_error(_applicable)
         
         try:
@@ -106,7 +121,8 @@ class VertBar:
             if output_dir:
                 os.makedirs(output_dir, exist_ok=True)
 
-            chart.savefig(output_path, bbox_inches="tight")
+            with open(output_path, "wb") as f:
+                f.write(chart.getvalue())
         except Exception as exc:
             return self._generate_return_structure_error(str(exc))
 

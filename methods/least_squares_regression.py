@@ -1,3 +1,5 @@
+import base64
+
 import numpy as np
 import matplotlib.pyplot as plt
 from io import BytesIO
@@ -12,7 +14,7 @@ class LeastSquaresRegression:
 
     def _applicable(self):
         # Check whether this statistic is valid for the given data selection
-        if self.data == None or len(self.data) < 2 or len(self.data[0]) != len(self.data[1]):
+        if self.data is None or len(self.data) < 2 or len(self.data[0]) != len(self.data[1]):
             return False
         return True
 
@@ -46,27 +48,40 @@ class LeastSquaresRegression:
         # Placeholder for the main computation logic
 
         # Turn the xs and ys into np arrays
-        x = np.array(self.data[0], dtype = float)
-        y = np.array(self.data[1], dtype = float)
+        x = np.array(self.data[0], dtype=float)
+        y = np.array(self.data[1], dtype=float)
 
         # Calculate the slope and intercept with np
         slope, intercept = np.polyfit(x, y, 1)
 
-        # calculate the y values for the regression line
-        xFit = np.linspace(x.min(), x.max(), 200)
-        yFit = slope * x + intercept
-        yFit = np.linspace(y.min(), y.max(), 200)
+        # R-squared
+        y_pred = slope * x + intercept
+        ss_res = float(np.sum((y - y_pred) ** 2))
+        ss_tot = float(np.sum((y - np.mean(y)) ** 2))
+        r_squared = 1 - ss_res / ss_tot if ss_tot != 0 else 0.0
 
-        generatedImage = self.create_graphic(x, y, xFit, yFit)
-        
-        results = self._generate_return_structure(generatedImage)
+        # Line for the plot
+        xFit = np.linspace(x.min(), x.max(), 200)
+        yFit = slope * xFit + intercept
+
+        chart_b64 = self.create_graphic(x, y, xFit, yFit)
+
+        value = {
+            "slope": float(slope),
+            "intercept": float(intercept),
+            "r_squared": float(r_squared),
+            "equation": f"y = {slope:.4f}x + {intercept:.4f}",
+            "chart": chart_b64,
+        }
+
+        results = self._generate_return_structure(value)
         return results
 
     def create_graphic(self, xs, ys, xLine, yLine):
         # Generate a chart or visualization object for the computed results
-        # Plot
+        # Use the non-interactive Agg backend so this is safe to call from threads.
+        plt.switch_backend("Agg")
         fig = plt.figure()
-        plt.figure()
         plt.scatter(xs, ys)
         plt.plot(xLine, yLine)
         plt.xlabel("X")
@@ -79,4 +94,4 @@ class LeastSquaresRegression:
         plt.close(fig)
 
         buffer.seek(0)
-        return buffer.getvalue()
+        return base64.b64encode(buffer.getvalue()).decode("utf-8")
