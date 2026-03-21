@@ -46,7 +46,8 @@ class Mode:
         
         # Placeholder for the main computation logic
         try:
-            mode_value = float(statistics.mode(self.data))
+            flat = self.data.flatten() if hasattr(self.data, 'flatten') else self.data
+            mode_value = float(statistics.mode(flat))
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 

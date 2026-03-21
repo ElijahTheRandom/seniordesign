@@ -145,3 +145,15 @@ def initialize_session_state() -> None:
     # Tracks the previously selected columns so we can detect when the
     # user clears all columns (and reset one-column checkboxes).
     st.session_state.setdefault("last_cols_selected", [])
+
+    # ------------------------------------------------------------------
+    # Background Computation State
+    # ------------------------------------------------------------------
+
+    # When a computation is running in the background, this holds the
+    # concurrent.futures.Future.  None means idle.
+    st.session_state.setdefault("_compute_future", None)
+
+    # Metadata stashed at submission time so the result can be assembled
+    # into a run dict when the future completes.
+    st.session_state.setdefault("_compute_meta", None)

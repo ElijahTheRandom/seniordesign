@@ -43,11 +43,13 @@ SESSION STATE WRITTEN:
 """
 
 import os
-import pprint
 import sys
+import uuid
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 from pathlib import Path
+import time
+from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import streamlit as st
 from streamlit_aggrid_range import aggrid_range
@@ -57,9 +59,22 @@ from logic.run_manager import (
     validate_numeric,
     build_error_message,
     build_success_message,
+    VIZ_NAMES,
 )
 from class_templates.message_structure import Message
 from backend_handler import BackendHandler
+from frontend_handler import handle_result
+
+
+@st.cache_resource
+def _get_backend_handler():
+    return BackendHandler()
+
+@st.cache_resource
+def _get_executor():
+    """Single-thread pool for background computation."""
+    return ThreadPoolExecutor(max_workers=1)
+
 
 if "show_success_dialog" not in st.session_state:
     st.session_state.show_success_dialog = False
@@ -99,6 +114,51 @@ def render_homepage(base_dir: str) -> None:
         base_dir: Absolute path to the frontend directory. Used to
                   resolve asset paths passed down to child functions.
     """
+
+    # ------------------------------------------------------------------
+    # Background computation: poll for completion
+    # ------------------------------------------------------------------
+    future = st.session_state.get("_compute_future")
+    if future is not None:
+        if future.done():
+            # Computation finished — collect the result and build the run
+            meta = st.session_state._compute_meta
+            try:
+                result_message = future.result()
+            except Exception as exc:
+                # Computation failed — surface the error and reset
+                st.session_state._compute_future = None
+                st.session_state._compute_meta = None
+                st.session_state.modal_message = f"Computation failed: {exc}"
+                st.session_state.show_error_dialog = True
+                st.rerun()
+                return
+
+            run = {
+                "id":             meta["run_id"],
+                "name":           meta["run_name"],
+                "methods":        meta["methods"],
+                "visualizations": meta.get("visualizations", []),
+                "result_message": result_message,
+                "table":          meta["table"],
+                "data":           meta["data"],
+            }
+            handle_result(run)
+
+            st.session_state.analysis_runs.append(run)
+            st.session_state.modal_message = build_success_message(run)
+            st.session_state.show_success_dialog = True
+            st.session_state._compute_future = None
+            st.session_state._compute_meta = None
+            st.rerun()
+            return
+        else:
+            # Still computing — show a spinner and poll again shortly
+            st.markdown("<div style='margin-top: 4rem;'></div>", unsafe_allow_html=True)
+            with st.spinner("Running analysis… this won't take long."):
+                time.sleep(0.5)
+            st.rerun()
+            return
 
     if st.session_state.get("show_success_dialog"):
         success_dialog()
@@ -174,7 +234,7 @@ def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
 
     # Persist edits so they survive reruns
     if edited_table is not None:
-        st.session_state.saved_table = edited_table.copy()
+        st.session_state.saved_table = edited_table
 
     return edited_table
 
@@ -198,7 +258,7 @@ def _render_file_action_buttons(uploaded_file) -> None:
     if file_key not in st.session_state.edited_data_cache:
         uploaded_file.seek(0)
         temp_df = pd.read_csv(uploaded_file)
-        st.session_state.edited_data_cache[file_key] = temp_df.copy()
+        st.session_state.edited_data_cache[file_key] = temp_df
 
     col_download, col_remove, _ = st.columns([1, 1, 2])
 
@@ -304,16 +364,13 @@ def _render_grid_from_file(uploaded_file) -> pd.DataFrame:
             st.session_state.edited_data_cache = {}
 
         if file_key in st.session_state.edited_data_cache:
-            df = st.session_state.edited_data_cache[file_key].copy()
+            df = st.session_state.edited_data_cache[file_key]
         else:
             uploaded_file.seek(0)
             df = pd.read_csv(uploaded_file)
-            st.session_state.edited_data_cache[file_key] = df.copy()
+            st.session_state.edited_data_cache[file_key] = df
 
         _display_aggrid(df, grid_key=f"grid_{file_key}")
-
-        # Update cache with any edits made in the grid
-        st.session_state.edited_data_cache[file_key] = df.copy()
         return df
 
     except Exception as e:
@@ -333,13 +390,13 @@ def _render_grid_from_cache() -> pd.DataFrame:
         The restored DataFrame from session state.
     """
     try:
-        df = st.session_state.saved_table.copy()
+        df = st.session_state.saved_table
         _display_aggrid(df, grid_key="grid_cached")
         return df
 
     except Exception as e:
         st.error(f"Error displaying cached table: {e}")
-        return st.session_state.saved_table.copy()
+        return st.session_state.saved_table
 
 
 def _display_aggrid(df: pd.DataFrame, grid_key: str) -> None:
@@ -382,10 +439,6 @@ def _display_selection_output(selection: list, df: pd.DataFrame) -> None:
         selection: Raw list of range dicts from aggrid_range().
         df:        The DataFrame displayed in the grid.
     """
-    print("\n--- Selected Ranges ---")
-    pprint.pprint(selection)
-    print("-----------------------")
-
     st.markdown("---")
     st.markdown("**Selection Output**")
 
@@ -411,11 +464,6 @@ def _display_selection_output(selection: list, df: pd.DataFrame) -> None:
             continue
 
         subset = df.iloc[start: end + 1][valid_cols]
-
-        print(f"\n--- Range {idx + 1} Data ---")
-        print(subset.to_markdown(index=False, tablefmt="grid"))
-        print("----------------------")
-
         st.dataframe(subset, use_container_width=True)
 
 
@@ -454,17 +502,15 @@ def _render_analysis_config(
 
     st.markdown("---")
 
-    hist, box, scatter, line, heatmap = _render_visualization_options(
-        data_ready, mean, median, mode, variance, std, percentiles,
-        pearson, spearman, least_squares_regression, chi_squared, binomial, variation
-    )
+    hist, box, scatter, line, heatmap = _render_visualization_options(data_ready)
 
-    st.markdown("---")
+    st.markdown('---')
     st.markdown('<div class="run-analysis-anchor"></div>', unsafe_allow_html=True)
 
     computation_selected = any([
         mean, median, mode, variance, std, percentiles,
-        pearson, spearman, least_squares_regression, chi_squared, binomial, variation
+        pearson, spearman, least_squares_regression, chi_squared, binomial, variation,
+        hist, box, scatter, line, heatmap,
     ])
 
     _handle_run_analysis(
@@ -640,32 +686,21 @@ def _user_defined_computation_options():
 
 def _render_visualization_options(
     data_ready: bool,
-    *computation_flags: bool
 ) -> tuple:
     """
     Render the 5 visualization checkboxes.
 
-    Visualization options are only enabled when at least one computation
-    method is selected. If disabled, all viz session state flags are
-    forced to False to prevent stale checked state from a prior selection.
+    Charts can be selected independently of statistical methods.
 
     Args:
-        data_ready:         Whether a valid DataFrame is loaded.
-        *computation_flags: Unpacked boolean values from computation
-                            checkboxes (mean, median, ..., variation).
+        data_ready: Whether a valid DataFrame is loaded.
 
     Returns:
         Tuple of 5 booleans: (hist, box, scatter, line, heatmap)
     """
     st.header("Visualization Options", anchor=False)
 
-    disable_viz = not any(computation_flags)
-
-    # Force-clear viz state when no computation is selected,
-    # preventing "ghost" checked boxes from a previous run config
-    if disable_viz:
-        for key in ("viz_hist", "viz_box", "viz_scatter", "viz_line", "viz_heatmap"):
-            st.session_state[key] = False
+    disable_viz = not data_ready
 
     v1, v2 = st.columns(2)
 
@@ -750,11 +785,13 @@ def _handle_run_analysis(
     line                   = method_flags.get("line", False)
     heatmap                = method_flags.get("heatmap", False)
 
+    already_computing = st.session_state.get("_compute_future") is not None
+
     run_clicked = st.button(
         "Run Analysis",
         key="run_analysis",
         use_container_width=True,
-        disabled=not (data_ready and computation_selected)
+        disabled=not (data_ready and computation_selected) or already_computing
     )
 
     if not run_clicked:
@@ -826,11 +863,25 @@ def _handle_run_analysis(
         for k, v in method_flags.items()
         if v and k in _BACKEND_METHOD_IDS
     ]
-    graphics = [
-        {"type": k}
-        for k, v in method_flags.items()
-        if v and k in _BACKEND_CHART_IDS
-    ]
+    # Bar and pie charts can use a string column as labels and a numeric
+    # column as values.  Detect this from the DataFrame's dtypes and pass
+    # pre-separated labels/values so charts receive correctly typed data
+    # instead of a numpy array that upcasts everything to strings.
+    _LABEL_FRIENDLY_CHARTS = {"pie_chart", "vert_bar", "hor_bar"}
+
+    graphics = []
+    for k, v in method_flags.items():
+        if v and k in _BACKEND_CHART_IDS:
+            req = {"type": k}
+            if k in _LABEL_FRIENDLY_CHARTS:
+                num_cols = parsed_data.select_dtypes(include="number").columns.tolist()
+                str_cols = parsed_data.select_dtypes(exclude="number").columns.tolist()
+                if num_cols and str_cols:
+                    req["labels"] = parsed_data[str_cols[0]].astype(str).tolist()
+                    req["values"] = parsed_data[num_cols[0]].tolist()
+                elif num_cols:
+                    req["values"] = parsed_data[num_cols[0]].tolist()
+            graphics.append(req)
 
     # --- Construct the Message and dispatch to BackendHandler ---
     selected_cols = list(parsed_data.columns)
@@ -857,20 +908,18 @@ def _handle_run_analysis(
         data=[parsed_data[col].tolist() for col in parsed_data.columns],
     )
 
-    result_message = BackendHandler().handle_request(request)
-
+    # Submit computation to background thread so the UI stays responsive
     run_count = len(st.session_state.analysis_runs) + 1
-    run = {
-        "id":             f"run_{run_count}",
-        "name":           f"Run {run_count}",
-        "methods":        methods,         # list of method dicts with id and params
-        "result_message": result_message,  # Message object — contains data, methods, results, selection
-        "table":          edited_table,    # full unsliced DataFrame for reference
-        "data":           parsed_data.reset_index(drop=True),  # user-selected cols/rows for display and export
+    st.session_state._compute_meta = {
+        "run_id":    str(uuid.uuid4()),
+        "run_name":  f"Run {run_count}",
+        "methods":   methods,
+        "visualizations": [VIZ_NAMES[k] for k in _BACKEND_CHART_IDS if method_flags.get(k)],
+        "table":     edited_table,
+        "data":      parsed_data.reset_index(drop=True),
     }
-
-    st.session_state.analysis_runs.append(run)
-    st.session_state.modal_message = build_success_message(run)
-    st.session_state.show_success_dialog = True
+    st.session_state._compute_future = _get_executor().submit(
+        _get_backend_handler().handle_request, request
+    )
     st.rerun()
     return

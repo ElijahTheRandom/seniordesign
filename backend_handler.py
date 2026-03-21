@@ -4,8 +4,6 @@ import os
 import re
 
 import json
-from methods.methods import methods_list
-from charts.charts import charts_list
 
 
 import queue
@@ -26,9 +24,24 @@ class BackendHandler:
     """
 
     def __init__(self):
-        self.statistical_methods = methods_list
+        # Defer heavy imports (matplotlib, plotly, numpy, sklearn) until
+        # first use so they don't slow down app boot.
+        self._statistical_methods = None
+        self._chart_generation_methods = None
 
-        self.chart_generation_methods = charts_list
+    @property
+    def statistical_methods(self):
+        if self._statistical_methods is None:
+            from methods.methods import methods_list
+            self._statistical_methods = methods_list
+        return self._statistical_methods
+
+    @property
+    def chart_generation_methods(self):
+        if self._chart_generation_methods is None:
+            from charts.charts import charts_list
+            self._chart_generation_methods = charts_list
+        return self._chart_generation_methods
 
     def _package_results(self, message, results):
         """
@@ -216,15 +229,16 @@ class BackendHandler:
 
 
     def _generate_charts(self, graphics_requests, data, metadata, results_folder):
-        # Generate charts based on the graphics requests and save them to the appropriate location
-        # Update the result message with the paths to the generated charts 
+        # Generate charts in parallel threads — each chart writes to its own file
+        # so there are no shared-state conflicts.
 
-        chart_results = []
-        for idx, graphic_request in enumerate(graphics_requests):
+        results_lock = threading.Lock()
+        results_dict = {}
+
+        def _gen_one(idx, graphic_request):
             chart_type = graphic_request.get("type")
             chart_params = {k: v for k, v in graphic_request.items() if k != "type"}
 
-            # Update the path to save charts in the results folder
             if "path" in chart_params:
                 original_filename = os.path.basename(chart_params["path"])
                 chart_params["path"] = os.path.join(results_folder, original_filename)
@@ -235,18 +249,27 @@ class BackendHandler:
             if chart_class:
                 chart_instance = chart_class(data, metadata, chart_params)
                 chart_result = chart_instance.create_graphic()
-                chart_results.append(chart_result)
             else:
-                error_message = f"Chart type {chart_type} not found."
-                chart_results.append({
+                chart_result = {
                     "type": chart_type,
                     "ok": False,
                     "path": None,
-                    "error": error_message,
-                    "params_used": chart_params
-                })
+                    "error": f"Chart type {chart_type} not found.",
+                    "params_used": chart_params,
+                }
+            with results_lock:
+                results_dict[idx] = chart_result
 
-        return chart_results
+        threads = []
+        for idx, graphic_request in enumerate(graphics_requests):
+            t = threading.Thread(target=_gen_one, args=(idx, graphic_request), daemon=True)
+            threads.append(t)
+            t.start()
+
+        for t in threads:
+            t.join()
+
+        return [results_dict[i] for i in range(len(graphics_requests))]
 
 
     def _save_embedded_charts(self, results, run_folder):

@@ -65,7 +65,9 @@ def render_results(run: dict, base_dir: str) -> None:
                                   methods, visualizations }
         base_dir: Absolute path to the frontend directory.
     """
-    run = handle_result(run)
+    # Only compute cards if not already cached on the run
+    if "cards" not in run:
+        run = handle_result(run)
 
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown(
@@ -74,19 +76,6 @@ def render_results(run: dict, base_dir: str) -> None:
         "rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />",
         unsafe_allow_html=True
     )
-
-    st.markdown("""
-    <style>
-    div[data-testid="stAppViewContainer"] .block-container {
-        height: auto !important;
-        min-height: auto !important;
-        max-height: none !important;
-        padding-left: 0.5rem !important;
-        padding-right: 1rem !important;
-        padding-bottom: 0.5rem !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
 
     st.header(f"Analysis Results — {run['name']}", anchor=False)
     _render_stat_cards(run)
@@ -135,7 +124,10 @@ def _render_stat_cards(run: dict, show_divider: bool = True) -> None:
             if i + j < len(cards):
                 card = cards[i + j]
                 with cols[j]:
-                    _render_stat_card(*card[1:])  # unpack title, value, [subtext]
+                    if card[0] == "error":
+                        _render_error_card(card[1], card[2])
+                    else:
+                        _render_stat_card(*card[1:])  # unpack title, value, [subtext]
 
         st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
 
@@ -161,6 +153,19 @@ def _render_stat_card(title: str, value: str, subtext: str = None) -> None:
         <div class="analysis-title">{title}</div>
         <div class="analysis-value">{value}</div>
         {subtext_html}
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def _render_error_card(title: str, error_msg: str) -> None:
+    """
+    Render an error card for a method that could not compute.
+    Uses smaller text and a red accent to distinguish from success cards.
+    """
+    st.markdown(f"""
+    <div class="analysis-card-error">
+        <div class="analysis-title">{title}</div>
+        <div class="analysis-error-msg">{error_msg}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -295,18 +300,27 @@ def _build_export_text(run: dict) -> str:
     lines = [f"Analysis Results — {run['name']}", ""]
 
     if run.get("cards"):
-        lines.append("Methods Applied:")
+        stat_cards = [c for c in run["cards"] if c[0] == "stat"]
+        error_cards = [c for c in run["cards"] if c[0] == "error"]
 
-        for card in run["cards"]:
-            title  = card[1].replace("<b>", "").replace("</b>", "")
-            value  = card[2]
-            if len(card) == 4:
-                subtext = card[3]
-                lines.append(f"{title}: {value} ({subtext})")
-            else:
-                lines.append(f"{title}: {value}")
+        if stat_cards:
+            lines.append("Methods Applied:")
+            for card in stat_cards:
+                title  = card[1].replace("<b>", "").replace("</b>", "")
+                value  = card[2]
+                if len(card) == 4:
+                    subtext = card[3]
+                    lines.append(f"{title}: {value} ({subtext})")
+                else:
+                    lines.append(f"{title}: {value}")
+            lines.append("")
 
-        lines.append("")
+        if error_cards:
+            lines.append("Errors:")
+            for card in error_cards:
+                title = card[1].replace("<b>", "").replace("</b>", "")
+                lines.append(f"{title}: {card[2]}")
+            lines.append("")
 
     if run.get("visualizations"):
         lines.append("Visualizations Applied:")

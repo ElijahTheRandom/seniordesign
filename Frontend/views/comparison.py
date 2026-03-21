@@ -24,8 +24,6 @@ SESSION STATE WRITTEN:
     comparison_view_mode
 """
 
-from cProfile import run
-
 import streamlit as st
 import pandas as pd
 
@@ -36,16 +34,6 @@ from views.results import (
     _render_data_table,
     _build_export_text
 )
-
-st.markdown("""
-<style>
-.comparison-wrapper {
-    height: 75vh;
-    overflow-y: auto;
-    padding-right: 0.5rem;
-}
-</style>
-""", unsafe_allow_html=True)
 
 def _big_section_divider():
     st.markdown(
@@ -74,19 +62,6 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
         "rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />",
         unsafe_allow_html=True
     )
-
-    st.markdown("""
-    <style>
-    div[data-testid="stAppViewContainer"] .block-container {
-        height: auto !important;
-        min-height: auto !important;
-        max-height: none !important;
-        padding-left: 0.5rem !important;
-        padding-right: 1rem !important;
-        padding-bottom: 0.5rem !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
 
     # Get the actual run objects from session state
     runs = [
@@ -211,7 +186,6 @@ def _render_view_mode_selector() -> None:
 
     if selected_mode != st.session_state.get("comparison_view_mode", "side-by-side"):
         st.session_state.comparison_view_mode = selected_mode
-        st.rerun()
 
 # ---------------------------------------------------------------------------
 # Comparison layout renderers
@@ -244,13 +218,15 @@ def _render_side_by_side_comparison(runs: list, base_dir: str) -> None:
     _big_section_divider()
 
     # ---------- Row 3: Visualizations ----------
-    any_visualizations = any(run.get("visualizations") for run in runs)
+    any_visualizations = any(
+        getattr(run.get("result_message"), "graphics", None) for run in runs
+    )
 
     if any_visualizations:
         cols = st.columns(len(runs))
         for col, run in zip(cols, runs):
             with col:
-                if run.get("visualizations"):
+                if getattr(run.get("result_message"), "graphics", None):
                     _render_visualizations(run, show_divider=False)
                 else:
                     st.markdown(

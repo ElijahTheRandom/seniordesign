@@ -25,8 +25,6 @@ SESSION STATE USED:
     Write:  active_run_id, renaming_run_id, analysis_runs[i]["name"]
 """
 
-from pdb import run
-
 import streamlit as st
 
 # ---------------------------------------------------------------------------
@@ -113,7 +111,6 @@ def _render_compare_mode() -> None:
                 st.session_state.selected_runs_for_comparison.append(run["id"])
             else:
                 st.session_state.selected_runs_for_comparison.remove(run["id"])
-            st.rerun()
 
     st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
 
@@ -199,7 +196,6 @@ def _render_run_button(run: dict) -> None:
             type="primary" if is_active else "secondary"
         ):
             st.session_state.active_run_id = run["id"]
-            st.rerun()
 
     with cols[1]:
         if st.button(
@@ -251,7 +247,6 @@ def _render_rename_form(run: dict) -> None:
         ):
             run["name"] = new_name.strip() or run["name"]
             st.session_state["renaming_run_id"] = None
-            st.rerun()
 
     with cancel_col:
         if st.button(
@@ -261,7 +256,6 @@ def _render_rename_form(run: dict) -> None:
             type="secondary"  # Same as above
         ):
             st.session_state["renaming_run_id"] = None
-            st.rerun()
 
 # Method that will allow the user to load the full data for a previous run by its ID
 def _render_load_button() -> None:

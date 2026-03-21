@@ -15,20 +15,27 @@ class Message:
         self.methods = methods or []  # List of method dicts with 'id' and 'params'
         self.graphics = graphics or []  # List of graphic request dicts
 
-        self.data = data or []  # 2D list representing the raw data
+        self._data_raw = data or []  # Raw data (list); converted to numpy lazily
+        self._data_np = None         # Cached numpy conversion
 
         self.results = results or []  # List of result dicts for each method
 
-        #i want to go through each of these and convert to numpy arrays where applicable
-        self._to_numpy()
+    @property
+    def data(self):
+        """Lazily convert raw data to a numpy array on first access."""
+        if self._data_np is None and len(self._data_raw) > 0:
+            self._data_np = np.array(self._data_raw)
+        return self._data_np if self._data_np is not None else self._data_raw
 
-    def _to_numpy(self):
-        if self.data:
-            self.data = np.array(self.data)
-        if self.selection and "rows" in self.selection:
-            self.selection["rows"] = [np.array(r) for r in self.selection["rows"]]
-        if self.selection and "cols" in self.selection:
-            self.selection["cols"] = np.array(self.selection["cols"])
+    @data.setter
+    def data(self, value):
+        """Allow direct assignment (e.g. from deserialization)."""
+        if isinstance(value, np.ndarray):
+            self._data_np = value
+            self._data_raw = value
+        else:
+            self._data_raw = value
+            self._data_np = None
 
 
     def to_dict(self) -> dict:

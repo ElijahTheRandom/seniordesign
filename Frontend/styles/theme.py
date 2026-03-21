@@ -29,12 +29,25 @@ HOW IT WORKS:
 
 import os
 import streamlit as st
+from functools import lru_cache
 
 
 # Resolve the CSS file path relative to this module's location.
 # This means inject_styles() works correctly regardless of which
 # directory the app is launched from.
 _CSS_PATH = os.path.join(os.path.dirname(__file__), "theme.css")
+
+
+@lru_cache(maxsize=1)
+def _read_css() -> str:
+    """Read and cache the CSS file contents (once per process)."""
+    if not os.path.exists(_CSS_PATH):
+        raise FileNotFoundError(
+            f"Theme CSS not found at: {_CSS_PATH}\n"
+            f"Expected location: styles/theme.css"
+        )
+    with open(_CSS_PATH, "r", encoding="utf-8") as f:
+        return f.read()
 
 
 def inject_styles() -> None:
@@ -49,13 +62,4 @@ def inject_styles() -> None:
             path. This indicates the styles/ directory is missing or the
             file was renamed/deleted.
     """
-    if not os.path.exists(_CSS_PATH):
-        raise FileNotFoundError(
-            f"Theme CSS not found at: {_CSS_PATH}\n"
-            f"Expected location: styles/theme.css"
-        )
-
-    with open(_CSS_PATH, "r", encoding="utf-8") as f:
-        css = f.read()
-
-    st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+    st.markdown(f"<style>{_read_css()}</style>", unsafe_allow_html=True)

@@ -60,11 +60,13 @@ def validate_numeric(
         Returns an empty list if all data is valid or no numeric
         method is selected.
     """
-    # List of all of the currently possible numeric methods and plots
+    # List of all of the currently possible numeric methods and plots.
+    # Bar and pie charts are excluded — they can handle mixed data
+    # (a string label column + a numeric value column).
     numeric_methods = {
         "mean", "median", "mode", "standard_deviation", "variance",
         "pearson", "spearman", "least_squares_regression", "percentile", "coefficient_variation",
-        "pie_chart", "vert_bar", "hor_bar", "scat_plot", "best_fit",
+        "scat_plot", "best_fit",
     }
 
     # Determines if at least one selected method requires some form of validation

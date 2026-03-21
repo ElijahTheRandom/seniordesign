@@ -1580,6 +1580,50 @@ div[data-testid="stDialog"] header {
     line-height: 1.4;
 }
 
+/* Error card variant */
+.analysis-card-error {
+    background: linear-gradient(145deg, #2e2f34, #272a30);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.1),
+        0 8px 16px rgba(0, 0, 0, 0.15);
+    height: 100%;
+    position: relative;
+}
+
+.analysis-card-error::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(239, 68, 68, 0.3),
+        transparent);
+}
+
+.analysis-card-error .analysis-title {
+    font-size: 0.8rem;
+    color: #b4b8c4;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.85;
+}
+
+.analysis-error-msg {
+    font-size: 0.9rem;
+    color: #f87171;
+    font-weight: 400;
+    line-height: 1.5;
+    word-wrap: break-word;
+}
+
 /* ==========================================================================
   17. Animations & Keyframes
    ========================================================================== */
@@ -1734,4 +1778,22 @@ div[data-testid="stRadio"]
 label[data-baseweb="radio"]:hover
 > div:first-child {
     border-color: #e4781d !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Results / Comparison view — layout overrides
+   --------------------------------------------------------------------------- */
+div[data-testid="stAppViewContainer"] .block-container {
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    padding-left: 0.5rem !important;
+    padding-right: 1rem !important;
+    padding-bottom: 0.5rem !important;
+}
+
+.comparison-wrapper {
+    height: 75vh;
+    overflow-y: auto;
+    padding-right: 0.5rem;
 }
