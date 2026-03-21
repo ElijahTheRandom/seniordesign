@@ -62,9 +62,9 @@ def validate_numeric(
     """
     # List of all of the currently possible numeric methods and plots
     numeric_methods = {
-        "mean", "median", "mode", "std_dev", "variance",
-        "pearson", "spearman", "regression", "percentiles", "variation",
-        "viz_hist", "viz_box", "viz_scatter", "viz_line", "viz_heatmap",
+        "mean", "median", "mode", "standard_deviation", "variance",
+        "pearson", "spearman", "least_squares_regression", "percentile", "coefficient_variation",
+        "pie_chart", "vert_bar", "hor_bar", "scat_plot", "best_fit",
     }
 
     # Determines if at least one selected method requires some form of validation
@@ -211,25 +211,25 @@ def _collect_selected(
 
 # Maps the internal method keys to how they're displayed for the user
 METHOD_NAMES: dict[str, str] = {
-    "mean":       "Mean",
-    "median":     "Median",
-    "mode":       "Mode",
-    "variance":   "Variance",
-    "std_dev":    "Standard Deviation",
-    "percentiles": "Percentiles",
-    "pearson":    "Pearson",
-    "spearman":   "Spearman",
-    "regression": "Regression",
-    "chi_square": "Chi-Square",
-    "binomial":   "Binomial",
-    "variation":  "Variation",
+    "mean":                     "Mean",
+    "median":                   "Median",
+    "mode":                     "Mode",
+    "variance":                 "Variance",
+    "standard_deviation":       "Standard Deviation",
+    "percentile":               "Percentile",
+    "pearson":                  "Pearson",
+    "spearman":                 "Spearman",
+    "least_squares_regression": "Least Squares Regression",
+    "chisquared":               "Chi-Square",
+    "binomial":                 "Binomial",
+    "coefficient_variation":    "Coefficient of Variation",
 }
 
 # Maps the internal visualization key to how they're displayed for the user
 VIZ_NAMES: dict[str, str] = {
-    "hist":    "Pie Chart", # histogram = pie chart
-    "box":     "Vertical Bar Chart", # box chart = vertical bar chart
-    "scatter": "Horizontal Bar Chart", # I'm pretty sure these got flipped somehow?
-    "line":    "Scatter Plot", # I'm pretty sure these got flipped somehow?
-    "heatmap": "Line of Best Fit Scatter Plot", # heatmap = line of best fit
+    "pie_chart": "Pie Chart",
+    "vert_bar":  "Vertical Bar Chart",
+    "hor_bar":   "Horizontal Bar Chart",
+    "scat_plot": "Scatter Plot",
+    "best_fit":  "Line of Best Fit Scatter Plot",
 }

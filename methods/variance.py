@@ -10,7 +10,7 @@ class Variance:
 
     def _applicable(self):
         # Check whether this statistic is valid for the given data selection
-        if self.data == None or len(self.data) < 2:
+        if self.data is None or len(self.data) < 2:
             return False
         return True
 

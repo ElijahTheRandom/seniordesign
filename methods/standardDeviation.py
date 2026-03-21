@@ -4,7 +4,7 @@ from class_templates import message_structure
 class StandardDeviation:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
-        self.stat_id = "std"
+        self.stat_id = "standard_deviation"
         self.data = data
         self.metadata = metadata
         self.params = params or {}

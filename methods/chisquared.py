@@ -4,14 +4,14 @@ from scipy.stats import chisquare
 class ChiSquared:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
-        self.stat_id = "chi_squared"
+        self.stat_id = "chisquared"
         self.data = data
         self.metadata = metadata
         self.params = params or {}
 
     def _applicable(self):
         # Check whether this statistic is valid for the given data selection
-        if self.data == None or len(self.data) < 2 or len(self.data[0]) != len(self.data[1]) or np.sum(self.data[0]) != np.sum(self.data[1]):
+        if self.data is None or len(self.data) < 2 or len(self.data[0]) != len(self.data[1]) or np.sum(self.data[0]) != np.sum(self.data[1]):
             return False
         return True 
 

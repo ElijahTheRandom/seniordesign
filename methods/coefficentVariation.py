@@ -5,7 +5,7 @@ from class_templates import message_structure
 class CoefficientVariation:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
-        self.stat_id = "cv"
+        self.stat_id = "coefficient_variation"
         self.data = data
         self.metadata = metadata
         self.params = params or {}
@@ -62,3 +62,7 @@ class CoefficientVariation:
         # Generate a chart or visualization object for the computed results
         # No graph generated for the coefficient of variation calculation
         pass
+
+
+# Backwards compatibility: preserve the old misspelled class name
+CoefficentVariation = CoefficientVariation

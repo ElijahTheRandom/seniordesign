@@ -87,7 +87,7 @@ class ScatPlot:
     def create_graphic(self):
         # Perform the statistical computation and return a standardized result dictionary
         _applicable = self._applicable()
-        if not _applicable:
+        if _applicable is not True:
             return self._generate_return_structure_error(_applicable)
         
         try:
@@ -97,7 +97,8 @@ class ScatPlot:
             if output_dir:
                 os.makedirs(output_dir, exist_ok=True)
 
-            chart.savefig(output_path, bbox_inches="tight")
+            with open(output_path, "wb") as f:
+                f.write(chart.getvalue())
         except Exception as exc:
             return self._generate_return_structure_error(str(exc))
 

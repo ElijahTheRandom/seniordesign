@@ -76,15 +76,26 @@ class PieChart:
             return colors
     
     def _create_chart(self):
-        # Create and return a chart object (e.g., matplotlib Figure).
-        # Create and return a chart object (e.g., matplotlib Figure).
-        n = len(self.params)
+        labels = self.params.get("labels")
+        if labels is None:
+            if isinstance(self.metadata, (list, tuple)) and len(self.metadata) > 0:
+                labels = list(self.metadata)
+            else:
+                labels = [str(i) for i in range(len(self.data))]
 
-        colors = self.color_pallette(len(self.params))
+        values = self.params.get("values")
+        if values is None:
+            data_array = np.asarray(self.data)
+            if data_array.ndim > 1:
+                values = data_array[0].tolist()
+            else:
+                values = data_array.tolist()
+
+        colors = self.color_pallette(len(labels))
 
         fig = go.Figure(go.Pie(
-            labels = self.params,
-            values = self.data,
+            labels = labels,
+            values = values,
             hole = 0.45,
             marker = dict(colors = colors),
             textinfo = "percent+label",
@@ -109,7 +120,7 @@ class PieChart:
     def create_graphic(self):
         # Perform the statistical computation and return a standardized result dictionary
         _applicable = self._applicable()
-        if not _applicable:
+        if _applicable is not True:
             return self._generate_return_structure_error(_applicable)
         
         try:
@@ -119,7 +130,8 @@ class PieChart:
             if output_dir:
                 os.makedirs(output_dir, exist_ok=True)
 
-            chart.savefig(output_path, bbox_inches="tight")
+            with open(output_path, "wb") as f:
+                f.write(chart.getvalue())
         except Exception as exc:
             return self._generate_return_structure_error(str(exc))
 
