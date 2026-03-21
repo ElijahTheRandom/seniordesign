@@ -196,6 +196,10 @@ def _render_run_button(run: dict) -> None:
             type="primary" if is_active else "secondary"
         ):
             st.session_state.active_run_id = run["id"]
+            st.session_state.current_view = "home"
+            st.session_state.compare_mode_active = False
+            st.session_state.show_comparison_view = False
+            st.rerun()
 
     with cols[1]:
         if st.button(
