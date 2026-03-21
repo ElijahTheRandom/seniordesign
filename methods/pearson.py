@@ -10,10 +10,12 @@ class PearsonCoefficient:
         self.params = params or {}
 
     def _applicable(self):
-        # Check whether this statistic is valid for the given data selection
-        if self.data is None or len(self.data) < 2 or len(self.data[0]) != len(self.data[1]) or np.sum(self.data[0]) != np.sum(self.data[1]):
+        # Pearson requires exactly 2 columns of equal length
+        if self.data is None or len(self.data) < 2:
             return False
-        return True 
+        if len(self.data[0]) != len(self.data[1]):
+            return False
+        return True
 
     def _generate_return_structure(self, value):
         # Check whether this statistic is valid for the given data selection
@@ -40,16 +42,18 @@ class PearsonCoefficient:
         # Perform the statistical computation and return a standardized result dictionary
         _applicable = self._applicable()
         if not _applicable:
-            return self._generate_return_structure_error(_applicable)
+            return self._generate_return_structure_error(
+                "Pearson correlation requires exactly 2 columns of equal length"
+            )
         
-        # Placeholder for the main computation logic
+        try:
+            data1 = np.array(self.data[0], dtype=float)
+            data2 = np.array(self.data[1], dtype=float)
+            pearson_corr, p_value = pearsonr(data1, data2)
+        except Exception as e:
+            return self._generate_return_structure_error(str(e))
 
-        data1 = np.array(self.data[0])
-        data2 = np.array(self.data[1])
-
-        pearson_corr, p_value = pearsonr(data1, data2)
-        results = self._generate_return_structure(pearson_corr)
-        return results
+        return self._generate_return_structure(float(pearson_corr))
 
     def create_graphic(self, results):
         # Generate a chart or visualization object for the computed results

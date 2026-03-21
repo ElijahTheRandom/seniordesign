@@ -76,13 +76,6 @@ class PieChart:
             return colors
     
     def _create_chart(self):
-        labels = self.params.get("labels")
-        if labels is None:
-            if isinstance(self.metadata, (list, tuple)) and len(self.metadata) > 0:
-                labels = list(self.metadata)
-            else:
-                labels = [str(i) for i in range(len(self.data))]
-
         values = self.params.get("values")
         if values is None:
             data_array = np.asarray(self.data)
@@ -90,6 +83,17 @@ class PieChart:
                 values = data_array[0].tolist()
             else:
                 values = data_array.tolist()
+            try:
+                values = [float(v) for v in values]
+            except (ValueError, TypeError):
+                raise ValueError("Pie chart requires numeric data for values.")
+
+        labels = self.params.get("labels")
+        if labels is None:
+            if isinstance(self.metadata, (list, tuple)) and len(self.metadata) >= len(values):
+                labels = list(self.metadata[:len(values)])
+            else:
+                labels = [str(i) for i in range(len(values))]
 
         colors = self.color_pallette(len(labels))
 

@@ -11,8 +11,11 @@ class Binomial:
         self.params = params or {}
 
     def _applicable(self):
-        # Check whether this statistic is valid for the given data selection
-        if self.data is None or len(self.data) == 0:
+        # Binomial requires exactly 4 inputs: n, p, kMin, kMax
+        if self.data is None:
+            return False
+        arr = np.asarray(self.data).flatten()
+        if len(arr) < 3:
             return False
         return True
 
@@ -41,27 +44,36 @@ class Binomial:
         # Perform the statistical computation and return a standardized result dictionary
         _applicable = self._applicable()
         if not _applicable:
-            return self._generate_return_structure_error(_applicable)
+            return self._generate_return_structure_error(
+                "Binomial requires at least 3 values: n (trials), p (probability), kMin. "
+                "Optionally provide kMax as a 4th value."
+            )
         
-        # Placeholder for the main computation logic
+        try:
+            arr = np.asarray(self.data).flatten()
 
-        n = self.data[0]
-        p = self.data[1]
-        kMin = self.data[2]
-        kMax = self.data[3]
+            n = int(arr[0])
+            p = float(arr[1])
+            kMin = int(arr[2])
+            kMax = int(arr[3]) if len(arr) > 3 else n
 
-        if kMax is None:
-            kMax = n
-        
-        k = np.arange(kMin, kMax + 1)
-        table = {
-            "k": k,
-            "P(X = k)": binom.pmf(k, n, p),
-            "P(X <= k)": binom.cdf(k, n, p),
-            "P(X >= k)": binom.sf(k - 1, n, p)
-        }
+            if not (0 <= p <= 1):
+                return self._generate_return_structure_error(
+                    f"Probability p must be between 0 and 1, got {p}"
+                )
+            
+            k = np.arange(kMin, kMax + 1)
+            table = {
+                "k": k,
+                "P(X = k)": binom.pmf(k, n, p),
+                "P(X <= k)": binom.cdf(k, n, p),
+                "P(X >= k)": binom.sf(k - 1, n, p)
+            }
 
-        tableStructure = self.create_graphic(table)
+            tableStructure = self.create_graphic(table)
+        except Exception as e:
+            return self._generate_return_structure_error(str(e))
+
         results = self._generate_return_structure(tableStructure)
         return results
 

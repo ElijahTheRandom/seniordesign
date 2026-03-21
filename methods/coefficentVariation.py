@@ -14,7 +14,11 @@ class CoefficientVariation:
         # Check whether this statistic is valid for the given data selection
         if self.data is None or len(self.data) == 0:
             return False
-        elif np.mean(self.data) == 0: # Coefficient of variation is not defined when the mean is zero
+        try:
+            flat = np.asarray(self.data, dtype=float).flatten()
+            if len(flat) == 0 or np.mean(flat) == 0:
+                return False
+        except (ValueError, TypeError):
             return False
         return True
 
@@ -46,11 +50,13 @@ class CoefficientVariation:
         # Perform the statistical computation and return a standardized result dictionary
         _applicable = self._applicable()
         if not _applicable:
-            return self._generate_return_structure_error("No numerical data provided")
+            return self._generate_return_structure_error(
+                "Coefficient of variation is undefined for empty data or data with a mean of zero"
+            )
         
         # Main Computation Logic
         try:
-            data_array = np.asarray(self.data, dtype = float)
+            data_array = np.asarray(self.data, dtype = float).flatten()
             cv_value = float(variation(data_array))
         except Exception as e:
             return self._generate_return_structure_error(str(e))

@@ -36,43 +36,46 @@ class LeastSquaresRegression:
             "value": None,
             "error": error_message,
             "loss_of_precision": False,
-            "params_used": len(self.data[0]) + len(self.data[1])
+            "params_used": self.params
         }
 
     def compute(self):
         # Perform the statistical computation and return a standardized result dictionary
         _applicable = self._applicable()
         if not _applicable:
-            return self._generate_return_structure_error("There must be an equal collection of xs and ys in the dataset")
+            return self._generate_return_structure_error(
+                "Least Squares Regression requires exactly 2 columns of equal length"
+            )
         
-        # Placeholder for the main computation logic
+        try:
+            # Turn the xs and ys into np arrays
+            x = np.array(self.data[0], dtype=float)
+            y = np.array(self.data[1], dtype=float)
 
-        # Turn the xs and ys into np arrays
-        x = np.array(self.data[0], dtype=float)
-        y = np.array(self.data[1], dtype=float)
+            # Calculate the slope and intercept with np
+            slope, intercept = np.polyfit(x, y, 1)
 
-        # Calculate the slope and intercept with np
-        slope, intercept = np.polyfit(x, y, 1)
+            # R-squared
+            y_pred = slope * x + intercept
+            ss_res = float(np.sum((y - y_pred) ** 2))
+            ss_tot = float(np.sum((y - np.mean(y)) ** 2))
+            r_squared = 1 - ss_res / ss_tot if ss_tot != 0 else 0.0
 
-        # R-squared
-        y_pred = slope * x + intercept
-        ss_res = float(np.sum((y - y_pred) ** 2))
-        ss_tot = float(np.sum((y - np.mean(y)) ** 2))
-        r_squared = 1 - ss_res / ss_tot if ss_tot != 0 else 0.0
+            # Line for the plot
+            xFit = np.linspace(x.min(), x.max(), 200)
+            yFit = slope * xFit + intercept
 
-        # Line for the plot
-        xFit = np.linspace(x.min(), x.max(), 200)
-        yFit = slope * xFit + intercept
+            chart_b64 = self.create_graphic(x, y, xFit, yFit)
 
-        chart_b64 = self.create_graphic(x, y, xFit, yFit)
-
-        value = {
-            "slope": float(slope),
-            "intercept": float(intercept),
-            "r_squared": float(r_squared),
-            "equation": f"y = {slope:.4f}x + {intercept:.4f}",
-            "chart": chart_b64,
-        }
+            value = {
+                "slope": float(slope),
+                "intercept": float(intercept),
+                "r_squared": float(r_squared),
+                "equation": f"y = {slope:.4f}x + {intercept:.4f}",
+                "chart": chart_b64,
+            }
+        except Exception as e:
+            return self._generate_return_structure_error(str(e))
 
         results = self._generate_return_structure(value)
         return results

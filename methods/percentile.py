@@ -40,17 +40,21 @@ class Percentile:
         # Perform the statistical computation and return a standardized result dictionary
         _applicable = self._applicable()
         if not _applicable:
-            return self._generate_return_structure_error(_applicable)
+            return self._generate_return_structure_error("No numerical data provided")
         
-        # Placeholder for the main computation logic
+        try:
+            self.params = np.asarray(self.params)
+            if self.params.size == 0:
+                return self._generate_return_structure_error("No percentile values specified")
 
-        self.params = np.asarray(self.params)
+            flat_data = np.asarray(self.data, dtype=float).flatten()
 
-        percentiles = []
-
-        for i in range(len(self.params)):
-            appendPercentile = np.percentile(self.data, self.params[i])
-            percentiles.append(appendPercentile)
+            percentiles = []
+            for i in range(len(self.params)):
+                appendPercentile = float(np.percentile(flat_data, self.params[i]))
+                percentiles.append(appendPercentile)
+        except Exception as e:
+            return self._generate_return_structure_error(str(e))
 
         results = self._generate_return_structure(percentiles)
         return results

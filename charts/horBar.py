@@ -66,6 +66,10 @@ class HorBar:
                 values = data_array[0].tolist()
             else:
                 values = data_array.tolist()
+            try:
+                values = [float(v) for v in values]
+            except (ValueError, TypeError):
+                raise ValueError("Bar chart requires numeric data for values.")
 
         labels = self.params.get("labels")
         if labels is None:

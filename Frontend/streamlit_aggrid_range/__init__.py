@@ -57,7 +57,7 @@ def aggrid_range(data, columns, key=None):
     #
     # "default" is a special argument that specifies the initial return
     # value of the component before the user has interacted with it.
-    component_value = _component_func(rowData=data, columnDefs=columns, key=key, default=[])
+    component_value = _component_func(rowData=data, columnDefs=columns, key=key, default={"selections": [], "editedData": None})
 
     # We could modify the value here, but we just return it
     return component_value

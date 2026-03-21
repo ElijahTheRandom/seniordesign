@@ -18,6 +18,7 @@ const AgGridRange = (props) => {
     // State for grid api to access later
     const [gridApi, setGridApi] = useState(null)
     const [selectedColId, setSelectedColId] = useState(null)
+    const [hasEdits, setHasEdits] = useState(false)
     const [containerHeight, setContainerHeight] = useState(() => {
         if (typeof window === "undefined") return 600
         return Math.max(500, Math.min(800, Math.round(window.innerHeight * 0.6)))
@@ -104,7 +105,39 @@ const AgGridRange = (props) => {
             };
         });
 
-        Streamlit.setComponentValue(formattedRanges);
+        Streamlit.setComponentValue({
+            selections: formattedRanges,
+            editedData: null
+        });
+    }
+
+    // Handle cell value editing
+    const onCellValueChanged = (event) => {
+        if (!event.api) return;
+
+        // Collect all current row data after the edit
+        const updatedRows = [];
+        event.api.forEachNode(node => updatedRows.push({...node.data}));
+
+        // Get current selections
+        const cellRanges = event.api.getCellRanges() || [];
+        const formattedRanges = cellRanges.map((range) => {
+            let startRow = range.startRow ? range.startRow.rowIndex : 0;
+            let endRow = range.endRow ? range.endRow.rowIndex : 0;
+            if (startRow > endRow) {
+                const temp = startRow;
+                startRow = endRow;
+                endRow = temp;
+            }
+            const columns = range.columns.map((col) => col.colId);
+            return { startRow, endRow, columns };
+        });
+
+        setHasEdits(true);
+        Streamlit.setComponentValue({
+            selections: formattedRanges,
+            editedData: updatedRows
+        });
     }
 
     // Handle ESC key to clear selection
@@ -127,8 +160,15 @@ const AgGridRange = (props) => {
         sortable: false,
         filter: false,
         resizable: true,
+        editable: true,
         suppressHeaderMenuButton: true,
         suppressMenu: true,
+        valueParser: (params) => {
+            const val = params.newValue;
+            if (val === "" || val === null || val === undefined) return val;
+            const num = Number(val);
+            return isNaN(num) ? val : num;
+        },
     }), [])
 
     const onColumnHeaderClicked = (params) => {
@@ -163,6 +203,7 @@ const AgGridRange = (props) => {
                 enableRangeSelection={true}
                 onRangeSelectionChanged={onRangeSelectionChanged}
                 onColumnHeaderClicked={onColumnHeaderClicked}
+                onCellValueChanged={onCellValueChanged}
                 suppressRowClickSelection={true}
                 // Optional: extra settings for better UX
                 rowSelection="multiple"

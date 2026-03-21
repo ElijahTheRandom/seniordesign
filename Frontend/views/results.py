@@ -39,6 +39,8 @@ SESSION STATE WRITTEN:
 """
 import sys
 import os
+import json
+from datetime import datetime
 
 _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 if _PROJECT_ROOT not in sys.path:
@@ -49,6 +51,8 @@ import pandas as pd
 
 from utils.helpers import df_to_ascii_table
 from frontend_handler import handle_result
+
+SAVED_RUNS_FILE = os.path.join(_PROJECT_ROOT, "results_cache", "saved_runs.json")
 
 
 
@@ -65,7 +69,9 @@ def render_results(run: dict, base_dir: str) -> None:
                                   methods, visualizations }
         base_dir: Absolute path to the frontend directory.
     """
-    run = handle_result(run)
+    # Only compute cards if not already cached on the run
+    if "cards" not in run:
+        run = handle_result(run)
 
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown(
@@ -74,19 +80,6 @@ def render_results(run: dict, base_dir: str) -> None:
         "rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />",
         unsafe_allow_html=True
     )
-
-    st.markdown("""
-    <style>
-    div[data-testid="stAppViewContainer"] .block-container {
-        height: auto !important;
-        min-height: auto !important;
-        max-height: none !important;
-        padding-left: 0.5rem !important;
-        padding-right: 1rem !important;
-        padding-bottom: 0.5rem !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
 
     st.header(f"Analysis Results — {run['name']}", anchor=False)
     _render_stat_cards(run)
@@ -135,7 +128,10 @@ def _render_stat_cards(run: dict, show_divider: bool = True) -> None:
             if i + j < len(cards):
                 card = cards[i + j]
                 with cols[j]:
-                    _render_stat_card(*card[1:])  # unpack title, value, [subtext]
+                    if card[0] == "error":
+                        _render_error_card(card[1], card[2])
+                    else:
+                        _render_stat_card(*card[1:])  # unpack title, value, [subtext]
 
         st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
 
@@ -161,6 +157,19 @@ def _render_stat_card(title: str, value: str, subtext: str = None) -> None:
         <div class="analysis-title">{title}</div>
         <div class="analysis-value">{value}</div>
         {subtext_html}
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def _render_error_card(title: str, error_msg: str) -> None:
+    """
+    Render an error card for a method that could not compute.
+    Uses smaller text and a red accent to distinguish from success cards.
+    """
+    st.markdown(f"""
+    <div class="analysis-card-error">
+        <div class="analysis-title">{title}</div>
+        <div class="analysis-error-msg">{error_msg}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -246,7 +255,7 @@ def _render_action_buttons(run: dict) -> None:
     """
     Render the Save / Export / Delete action buttons at the bottom.
 
-    Save:   Placeholder (not yet implemented).
+    Save:   Persists the run to saved_runs.json and writes table CSV to cache.
     Export: Downloads a plain-text .txt report of the run's results.
     Delete: Removes the run from session state and navigates home.
 
@@ -256,7 +265,8 @@ def _render_action_buttons(run: dict) -> None:
     btn1, btn2, btn3 = st.columns(3)
 
     with btn1:
-        st.button("Save Run", use_container_width=True)
+        if st.button("Save Run", use_container_width=True):
+            _save_run(run)
 
     with btn2:
         if st.button("Export Run", use_container_width=True):
@@ -270,6 +280,71 @@ def _render_action_buttons(run: dict) -> None:
             ]
             st.session_state.active_run_id = None
             st.rerun()
+
+
+# ---------------------------------------------------------------------------
+# Save run logic
+# ---------------------------------------------------------------------------
+
+def _save_run(run: dict) -> None:
+    """
+    Persist a run so it can be reloaded from the Load Previous Runs page.
+
+    Steps:
+        1. Locate the run's cache folder (from result_message.run_folder).
+        2. Save the selected DataFrame as table.csv in that folder.
+        3. Add / update an entry in saved_runs.json at the project root.
+    """
+    result_message = run.get("result_message")
+    cache_folder = getattr(result_message, "run_folder", None) if result_message else None
+
+    if not cache_folder or not os.path.isdir(cache_folder):
+        st.error("Cannot save: no cache folder found for this run.")
+        return
+
+    # 1. Save the table as CSV so it can be reconstructed on load
+    table_path = os.path.join(cache_folder, "table.csv")
+    if isinstance(run.get("data"), pd.DataFrame):
+        run["data"].to_csv(table_path, index=False)
+
+    # 2. Read existing saved_runs.json (or start fresh)
+    saved_runs = _read_saved_runs()
+
+    # 3. Build the entry for this run
+    entry = {
+        "id": run["id"],
+        "name": run["name"],
+        "saved_at": datetime.now().isoformat(),
+        "cache_folder": cache_folder,
+        "dataset_id": getattr(result_message, "dataset_id", None),
+        "methods": run.get("methods", []),
+        "visualizations": run.get("visualizations", []),
+    }
+
+    # Replace if the same run id already exists, else append
+    saved_runs = [s for s in saved_runs if s["id"] != run["id"]]
+    saved_runs.append(entry)
+
+    _write_saved_runs(saved_runs)
+    st.success(f"Run \"{run['name']}\" saved successfully.")
+
+
+def _read_saved_runs() -> list:
+    """Read and return the list from saved_runs.json, or [] if missing."""
+    if not os.path.isfile(SAVED_RUNS_FILE):
+        return []
+    try:
+        with open(SAVED_RUNS_FILE, "r") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def _write_saved_runs(saved_runs: list) -> None:
+    """Atomically write the saved_runs list to saved_runs.json."""
+    with open(SAVED_RUNS_FILE, "w") as f:
+        json.dump(saved_runs, f, indent=2)
 
 
 # ---------------------------------------------------------------------------
@@ -295,18 +370,27 @@ def _build_export_text(run: dict) -> str:
     lines = [f"Analysis Results — {run['name']}", ""]
 
     if run.get("cards"):
-        lines.append("Methods Applied:")
+        stat_cards = [c for c in run["cards"] if c[0] == "stat"]
+        error_cards = [c for c in run["cards"] if c[0] == "error"]
 
-        for card in run["cards"]:
-            title  = card[1].replace("<b>", "").replace("</b>", "")
-            value  = card[2]
-            if len(card) == 4:
-                subtext = card[3]
-                lines.append(f"{title}: {value} ({subtext})")
-            else:
-                lines.append(f"{title}: {value}")
+        if stat_cards:
+            lines.append("Methods Applied:")
+            for card in stat_cards:
+                title  = card[1].replace("<b>", "").replace("</b>", "")
+                value  = card[2]
+                if len(card) == 4:
+                    subtext = card[3]
+                    lines.append(f"{title}: {value} ({subtext})")
+                else:
+                    lines.append(f"{title}: {value}")
+            lines.append("")
 
-        lines.append("")
+        if error_cards:
+            lines.append("Errors:")
+            for card in error_cards:
+                title = card[1].replace("<b>", "").replace("</b>", "")
+                lines.append(f"{title}: {card[2]}")
+            lines.append("")
 
     if run.get("visualizations"):
         lines.append("Visualizations Applied:")

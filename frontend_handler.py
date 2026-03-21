@@ -22,6 +22,23 @@ _ID_TO_DISPLAY: dict[str, str] = {
     "coefficient_variation":    "Coefficient of Variation",
 }
 
+def _format_value(value) -> str:
+    """Convert a result value to a human-readable string."""
+    if isinstance(value, (int, float)):
+        return f"{value:.2f}"
+    if isinstance(value, list):
+        formatted = [f"{float(v):.2f}" if isinstance(v, (int, float)) else str(v) for v in value]
+        return ", ".join(formatted)
+    # pandas DataFrame (e.g. binomial distribution table)
+    try:
+        import pandas as pd
+        if isinstance(value, pd.DataFrame):
+            return value.to_string(index=False, float_format="{:.4f}".format)
+    except Exception:
+        pass
+    return str(value)
+
+
 def handle_result(run: dict) -> dict:
     """
     Unpack result_message.results and attach card tuples to the run dict.
@@ -35,13 +52,13 @@ def handle_result(run: dict) -> dict:
     """
     cards = []
     for result in run["result_message"].results:
+        display_name = _ID_TO_DISPLAY.get(result['id'], result['id'])
         if result.get("ok"):
-            display_name = _ID_TO_DISPLAY.get(result['id'], result['id'])
             value = result.get("value")
-            if isinstance(value, (int, float)):
-                value_str = f"{value:.2f}"
-            else:
-                value_str = str(value)
+            value_str = _format_value(value)
             cards.append(("stat", f"<b>{display_name}</b>", value_str))
+        else:
+            error_msg = result.get("error") or "Computation failed"
+            cards.append(("error", f"<b>{display_name}</b>", str(error_msg)))
     run["cards"] = cards
     return run

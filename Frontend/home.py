@@ -2,8 +2,6 @@ import streamlit as st
 import streamlit.components.v1 as components
 import os
 
-# Debug print
-print("Loading homepage.py...") 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Set page configuration
@@ -13,130 +11,66 @@ st.set_page_config(
     layout="wide"
 )
 
-st.markdown(
-"""
+# All home page CSS in a single injection to minimize Streamlit component overhead
+st.markdown("""
 <style>
+/* Font */
 html, body, .stApp, * {
     font-family: "Source Sans Pro", sans-serif !important;
 }
-</style>
-""",
-unsafe_allow_html=True
-)
 
-# Hide Streamlit chrome
-st.markdown(
-    """
-    <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+/* Hide Streamlit chrome */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
 
-# Remove default padding/margin
-st.markdown(
-    """
-    <style>
-    /* Remove default Streamlit padding */
-    .block-container {
-        padding-top: 0rem;
-        padding-bottom: 0rem;
-        padding-left: 0rem;
-        padding-right: 0rem;
-        max-width: 100%;
-    }
-
-    section.main > div {
+/* Remove default padding/margin */
+.block-container {
+    padding-top: 0rem;
+    padding-bottom: 0rem;
+    padding-left: 0rem;
+    padding-right: 0rem;
+    max-width: 100%;
+}
+section.main > div {
     padding-top: 0rem !important;
-    }
-
-
-    /* Remove margin around body */
-    html, body {
-        margin: 0;
-        height: 100%;
-        width: 100%;
-        padding: 0;
-        background-color: white;
-    }
-
-    * {
-    font-family: "Source Sans Pro", sans-serif !important;
 }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# Prevent scrolling
-st.markdown(
-    """
-    <style>
-    /* Lock viewport completely */
-    html, body {
-        height: 100%;
-        overflow: hidden;
-        overscroll-behavior: none;
-    }
-
-    /* Kill Streamlit's internal scroll container */
-    .stApp,
-    .stAppViewContainer,
-    section.main {
-        height: 100vh !important;
-        overflow: hidden !important;
-    }
-
-    /* Prevent iframe from introducing scroll */
-    iframe {
-        overflow: hidden !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# More scroll blocking
-st.markdown("""
-<style>
-/* Kill all scrolling */
 html, body {
+    margin: 0;
     height: 100%;
-    overflow: hidden;
+    width: 100%;
+    padding: 0;
+    overflow: hidden !important;
+    overscroll-behavior: none;
+    background-color: #000000 !important;
 }
 
-/* Ensure Streamlit app does not scroll */
+/* Lock viewport / kill scrolling */
+.stApp,
+.stAppViewContainer,
+[data-testid="stAppViewContainer"],
+section.main,
+section.main > div {
+    height: 100vh !important;
+    overflow: hidden !important;
+}
 .stApp {
-    overflow: hidden;
+    background-color: #000000 !important;
 }
-
-/* Remove iframe padding */
 iframe {
+    overflow: hidden !important;
     border: none;
+}
+div[data-testid="stVerticalBlock"] {
+    overflow: hidden !important;
+    gap: 0rem !important;
+}
+div[data-testid="stVerticalBlock"] > div {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
-
-# Set black background
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background-color: #000000 !important;
-    }
-
-    html, body {
-        background-color: #000000 !important;
-        margin: 0;
-        padding: 0;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
 
 clicked = st.button( 
     "Get Started", 
@@ -148,42 +82,10 @@ clicked = st.button(
 if clicked: 
   st.switch_page("pages/mainpage.py")
 
-# Adjust spacing
-st.markdown(
-    """
-    <style>
-    /* Kill vertical gap added by Streamlit layout blocks */
-    div[data-testid="stVerticalBlock"] {
-        gap: 0rem !important;
-    }
-
-    /* Ensure no extra spacing sneaks in */
-    div[data-testid="stVerticalBlock"] > div {
-        margin-top: 0 !important;
-        padding-top: 0 !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
+# Button + layout CSS — single injection
 st.markdown("""
 <style>
-html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
-}
-
-.stApp,
-[data-testid="stAppViewContainer"],
-section.main,
-section.main > div {
-    height: 100vh;
-    overflow: hidden;
-}
-
+/* Iframe positioning */
 iframe {
     position: fixed;
     top: 0;
@@ -193,24 +95,9 @@ iframe {
     border: none;
     overflow: hidden;
 }
-</style>
-""", unsafe_allow_html=True)
 
-# REAL Streamlit button (must stay BEFORE the iframe)
-st.markdown( 
-    """ 
-    <style> 
-    :root {
-      --cta-width: 200px;
-    }
-    </style> 
-    """, 
-    unsafe_allow_html=True 
-    )
-
-# Button styling like Run Analysis
-st.markdown("""
-<style>
+/* CTA root */
+:root { --cta-width: 200px; }
 
 /* Force its own GPU layer permanently */
 div[data-testid="stButton"] {
@@ -220,119 +107,74 @@ div[data-testid="stButton"] {
     transform: translateX(-50%) translateZ(0);
     will-change: transform;
     z-index: 9999;
+    width: 220px !important;
+    max-width: 220px !important;
+    min-width: 220px !important;
+    transition: left 0.35s ease, top 0.35s ease;
+    opacity: 0;
+    animation: buttonFadeIn 1s ease-out forwards;
+    animation-delay: 1.2s;
+}
+div[data-testid="stButton"] > div {
+    width: 220px !important;
 }
 
 /* Button base */
 div[data-testid="stButton"] button {
-    background: linear-gradient(
-        135deg,
-        rgba(228,120,29,0.18),
-        rgba(228,120,29,0.10)
-    ) !important;
-
+    background: linear-gradient(135deg, rgba(228,120,29,0.18), rgba(228,120,29,0.10)) !important;
     border: 1.5px solid rgba(228,120,29,0.55) !important;
     border-radius: 10px !important;
     color: rgba(255,255,255,0.92) !important;
     font-weight: 600 !important;
     padding: 12px 20px !important;
-
-    box-shadow:
-        0 4px 12px rgba(0,0,0,0.35),
-        0 0 18px rgba(228,120,29,0.25),
-        inset 0 1px 2px rgba(255,255,255,0.05) !important;
-
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35), 0 0 18px rgba(228,120,29,0.25), inset 0 1px 2px rgba(255,255,255,0.05) !important;
     transition: transform 0.15s ease, box-shadow 0.2s ease;
-
     transform: translateZ(0);
     backface-visibility: hidden;
     will-change: transform;
 }
-
-/* Hover */
 div[data-testid="stButton"] button:hover {
     transform: translateY(-2px) translateZ(0);
-    box-shadow:
-        0 6px 20px rgba(0,0,0,0.45),
-        0 0 25px rgba(228,120,29,0.35) !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45), 0 0 25px rgba(228,120,29,0.35) !important;
 }
-
-/* ---- HARD OVERRIDE ALL CLICK / FOCUS STATES ---- */
 div[data-testid="stButton"] button,
 div[data-testid="stButton"] button:active,
 div[data-testid="stButton"] button:focus,
 div[data-testid="stButton"] button:focus-visible,
 div[data-testid="stButton"] button:visited {
-
-    background: linear-gradient(
-        135deg,
-        rgba(228,120,29,0.18),
-        rgba(228,120,29,0.10)
-    ) !important;
-
+    background: linear-gradient(135deg, rgba(228,120,29,0.18), rgba(228,120,29,0.10)) !important;
     border: 1.5px solid rgba(228,120,29,0.55) !important;
     color: rgba(255,255,255,0.92) !important;
-
-    box-shadow:
-        0 4px 12px rgba(0,0,0,0.35),
-        0 0 18px rgba(228,120,29,0.25),
-        inset 0 1px 2px rgba(255,255,255,0.05) !important;
-
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35), 0 0 18px rgba(228,120,29,0.25), inset 0 1px 2px rgba(255,255,255,0.05) !important;
     outline: none !important;
 }
-
-/* Optional subtle press effect */
 div[data-testid="stButton"] button:active {
     transform: translateY(1px) translateZ(0) !important;
 }
+
+/* Button fade-in animation */
+@keyframes buttonFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Font weight override */
+div[data-testid="stButton"] button span,
+div[data-testid="stButton"] button div span,
+div[data-testid="stButton"] button * {
+    font-weight: 545 !important;
+}
+
+/* Split-screen override */
+@media (max-width: 1150px) {
+    div[data-testid="stButton"] {
+        left: 22% !important;
+        top: 65% !important;
+        transform: translateX(-50%) !important;
+    }
+}
 </style>
 """, unsafe_allow_html=True)
-
-st.markdown(
-"""
-<style>
-@keyframes buttonFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(8px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-div[data-testid="stButton"] {
-  position: fixed !important;
-
-  /* Anchor point */
-  left: 54.5%;
-  top: 65%;
-
-  /* True centering */
-  transform: translateX(-50%);
-
-  width: 220px !important;
-  max-width: 220px !important;
-  min-width: 220px !important;
-  z-index: 9999;
-
-  transition: left 0.35s ease, top 0.35s ease;
-}
-
-/* Prevent Streamlit stretching */
-div[data-testid="stButton"] > div {
-  width: 220px !important;
-}
-
-div[data-testid="stButton"] {
-  opacity: 0;
-  animation: buttonFadeIn 1s ease-out forwards;
-  animation-delay: 1.2s;
-}
-</style>
-""",
-unsafe_allow_html=True
-)
 
 # HTML and CSS for the homepage all fake charts, layout, and movement, etc.
 components.html(
@@ -342,8 +184,10 @@ components.html(
 <head>
 <meta charset="UTF-8">
 
-<!-- LOAD SOURCE SANS PRO FOR THE IFRAME -->
-<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet">
+<!-- LOAD SOURCE SANS PRO ASYNC (non-blocking) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 
 <style>
 /* APPLY THE FONT TO EVERYTHING INSIDE THE IFRAME */
@@ -829,59 +673,3 @@ h1, p, .eyebrow {
 """,
 scrolling=False
 )
-
-st.markdown("""
-<style>
-/* FINAL SCROLL KILL — DO NOT DUPLICATE ELSEWHERE */
-
-/* Root */
-html, body {
-    height: 100%;
-    overflow: hidden !important;
-    overscroll-behavior: none;
-}
-
-/* Streamlit root containers */
-.stApp,
-[data-testid="stAppViewContainer"],
-section.main,
-section.main > div {
-    height: 100vh !important;
-    overflow: hidden !important;
-}
-
-/* Remove internal scrollbars */
-div[data-testid="stVerticalBlock"] {
-    overflow: hidden !important;
-}
-
-/* Iframes must never scroll */
-iframe {
-    overflow: hidden !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-/* NUCLEAR OVERRIDE – this will beat Streamlit */
-div[data-testid="stButton"] button span,
-div[data-testid="stButton"] button div span,
-div[data-testid="stButton"] button * {
-    font-weight: 545 !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-/* FINAL OVERRIDE — MOVE BUTTON IN SPLIT SCREEN */
-@media (max-width: 1150px) {
-    div[data-testid="stButton"] {
-        left: 22% !important;
-        top: 65% !important;
-        transform: translateX(-50%) !important;
-    }
-}
-</style>
-""", unsafe_allow_html=True)

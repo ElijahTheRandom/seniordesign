@@ -10,7 +10,11 @@ class Variance:
 
     def _applicable(self):
         # Check whether this statistic is valid for the given data selection
-        if self.data is None or len(self.data) < 2:
+        if self.data is None:
+            return False
+        import numpy as _np
+        flat = _np.asarray(self.data).flatten()
+        if len(flat) < 2:
             return False
         return True
 
@@ -39,12 +43,15 @@ class Variance:
         # Perform the statistical computation and return a standardized result dictionary
         _applicable = self._applicable()
         if not _applicable:
-            return self._generate_return_structure_error(_applicable)
+            return self._generate_return_structure_error("Variance requires at least 2 data points")
         
-        # Placeholder for the main computation logic
-        array = np.asarray(self.data, dtype = float)
+        try:
+            # Flatten 2D data (one column arrives as shape (1, N))
+            array = np.asarray(self.data, dtype = float).flatten()
+            variance = float(np.var(array, ddof = 1))
+        except Exception as e:
+            return self._generate_return_structure_error(str(e))
 
-        variance = float(np.var(array, ddof = 1))
         results = self._generate_return_structure(variance)
         return results
 
