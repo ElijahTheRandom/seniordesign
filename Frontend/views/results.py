@@ -294,15 +294,18 @@ def _build_export_text(run: dict) -> str:
     """
     lines = [f"Analysis Results — {run['name']}", ""]
 
-    results = run.get("result_message") and run["result_message"].results
-    if results:
+    if run.get("cards"):
         lines.append("Methods Applied:")
-        for result in results:
-            if not result.get("ok"):
-                continue
-            method_id = result.get("id", "unknown")
-            value     = result.get("value")
-            lines.append(f"  {method_id}: {value}")
+
+        for card in run["cards"]:
+            title  = card[1].replace("<b>", "").replace("</b>", "")
+            value  = card[2]
+            if len(card) == 4:
+                subtext = card[3]
+                lines.append(f"{title}: {value} ({subtext})")
+            else:
+                lines.append(f"{title}: {value}")
+
         lines.append("")
 
     if run.get("visualizations"):

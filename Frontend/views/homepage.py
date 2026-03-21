@@ -18,7 +18,7 @@ WHY THIS FILE EXISTS:
           in during Stage 6)
 
 PUBLIC INTERFACE:
-    render_homepage(base_dir, error_modal, success_modal)
+    render_homepage(base_dir)
 
 PRIVATE HELPERS:
     _render_data_panel(base_dir)          ← left column
@@ -91,15 +91,13 @@ def success_dialog():
 # Public interface
 # ---------------------------------------------------------------------------
 
-def render_homepage(base_dir: str, error_modal, success_modal) -> None:
+def render_homepage(base_dir: str) -> None:
     """
     Render the full homepage: data input (left) + analysis config (right).
 
     Args:
-        base_dir:     Absolute path to the frontend directory. Used to
-                      resolve asset paths passed down to child functions.
-        error_modal:  streamlit_modal.Modal instance for invalid-data errors.
-        success_modal: streamlit_modal.Modal instance for run-created success.
+        base_dir: Absolute path to the frontend directory. Used to
+                  resolve asset paths passed down to child functions.
     """
 
     if st.session_state.get("show_success_dialog"):
@@ -436,8 +434,7 @@ def _render_analysis_config(
 
     Args:
         edited_table:  The current DataFrame from the left panel, or None.
-        error_modal:   Modal to open when non-numeric data is detected.
-        success_modal: Modal to open when a run is created successfully.
+        **method_flags: Boolean values for all computation + viz checkboxes, keyed by name.
     """
     st.header("Analysis Configuration", anchor=False)
 
@@ -481,8 +478,6 @@ def _render_analysis_config(
         pearson=pearson, spearman=spearman, least_squares_regression=least_squares_regression,
         chi_squared=chi_squared, binomial=binomial, variation=variation,
         hist=hist, box=box, scatter=scatter, line=line, heatmap=heatmap,
-        error_modal=error_modal,
-        success_modal=success_modal,
     )
 
 

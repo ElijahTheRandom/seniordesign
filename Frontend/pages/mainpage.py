@@ -16,7 +16,6 @@ import os
 import sys
 
 import streamlit as st
-from streamlit_modal import Modal # we might switch from modal to something else soon but modal = popup
 
 # ---------------------------------------------------------------------------
 # Path setup — makes sibling packages importable from any launch directory
@@ -35,7 +34,6 @@ if FRONTEND_DIR not in sys.path:
 
 from state          import initialize_session_state
 from styles.theme   import inject_styles
-from utils.helpers  import render_modal_content
 from views.sidebar  import render_sidebar
 from views.homepage import render_homepage
 from views.results  import render_results
@@ -63,15 +61,6 @@ st.set_page_config(
 
 initialize_session_state() # Makes sure it starts on the main screen and not the last screen the user had pulled up
 inject_styles() # Keeps the customized look
-
-# ---------------------------------------------------------------------------
-# Modals — created here because mainpage connects both sides:
-#   render_homepage calls .open(); mainpage calls .is_open() to render.
-#   Must be rendered LAST — streamlit_modal's backdrop covers earlier content.
-# ---------------------------------------------------------------------------
-
-error_modal   = Modal("Invalid Analysis", key="error_modal") # When the user does stuff wrong
-success_modal = Modal("Success!",         key="success_modal") # When the user has done an applicable calculation
 
 # ---------------------------------------------------------------------------
 # Sidebar — present on every page
@@ -104,24 +93,6 @@ elif st.session_state.active_run_id:
     if run:
         render_results(run, BASE_DIR)
 else:
-    render_homepage(BASE_DIR, error_modal, success_modal)
+    render_homepage(BASE_DIR)
 
-# ---------------------------------------------------------------------------
-# Modals (rendered last)
-# ---------------------------------------------------------------------------
 
-# Displays warning squirrel and all necessary error info
-if error_modal.is_open():
-    with error_modal.container():
-        render_modal_content(
-            os.path.join(BASE_DIR, "assets", "warningSquirrel.PNG"),
-            st.session_state.modal_message,
-        )
-
-# Displays success squirrel and how to get to your rendered info
-if success_modal.is_open():
-    with success_modal.container():
-        render_modal_content(
-            os.path.join(BASE_DIR, "assets", "huzzahAhSquirrel.png"),
-            st.session_state.modal_message,
-        )
