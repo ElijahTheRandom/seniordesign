@@ -122,7 +122,7 @@ def render_homepage(base_dir: str) -> None:
         edited_table = _render_data_panel(base_dir)
 
     with right_col:
-        _render_analysis_config(edited_table, error_modal, success_modal)
+        _render_analysis_config(edited_table)
 
 # ---------------------------------------------------------------------------
 # Left column — Data Input Panel
