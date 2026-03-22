@@ -237,6 +237,109 @@ div[data-testid="stAppViewContainer"] .block-container {
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+.card-buttons .stButton>button {
+    margin-top: 0;  /* remove spacing above buttons */
+}
+.card-wrapper {
+    background: linear-gradient(145deg, #2e2f34, #272a30);
+    border: 1px solid rgba(228, 120, 29, 0.15);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+/* Style the card */
+.analysis-card-container {
+    background: linear-gradient(145deg, #2e2f34, #272a30);
+    border: 1px solid rgba(228, 120, 29, 0.15);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Reduce spacing above buttons so they appear inside the card */
+.analysis-card-container .stButton>button {
+    margin-top: 0 !important;
+}
+
+/* Optional: columns inside the card */
+.analysis-card-container .css-1lcbmhc {  /* adjust if needed for your Streamlit version */
+    gap: 0.5rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+
+/* FULL-WIDTH CARD (matches analysis page) */
+.analysis-card {
+    background: linear-gradient(145deg, #2e2f34, #272a30);
+    border: 1px solid rgba(228, 120, 29, 0.15);
+    border-radius: 12px;
+
+    padding: 0.75rem 1.25rem;   /* MUCH thinner */
+    margin-bottom: 0.75rem;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.08),
+        0 6px 12px rgba(0, 0, 0, 0.12);
+
+    transition: all 0.2s ease;
+}
+
+.analysis-card:hover {
+    border-color: rgba(228, 120, 29, 0.35);
+    transform: translateY(-2px);
+}
+
+/* TOP SHINE */
+.analysis-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(228, 120, 29, 0.3),
+        transparent);
+}
+
+/* HOVER */
+.analysis-card:hover {
+    border-color: rgba(228, 120, 29, 0.35);
+    box-shadow:
+        0 8px 12px rgba(0, 0, 0, 0.15),
+        0 16px 24px rgba(0, 0, 0, 0.2),
+        0 24px 48px rgba(0, 0, 0, 0.15),
+        0 0 0 1px rgba(228, 120, 29, 0.2);
+    transform: translateY(-4px) scale(1.01);
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+div[data-testid="stAppViewContainer"] .block-container {
+    padding-left: 0.5rem !important;
+    padding-right: 1rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 def render_load_previous_runs() -> None:
     """
     Render the load previous runs page.
