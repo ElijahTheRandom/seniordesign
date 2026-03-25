@@ -58,6 +58,9 @@ SAVED_RUNS_FILE = os.path.join(_PROJECT_ROOT, "results_cache", "saved_runs.json"
 if "show_success_save_dialog" not in st.session_state:
     st.session_state.show_success_save_dialog = False
 
+if "modal_message" not in st.session_state:
+    st.session_state.modal_message = ""
+
 @st.dialog("Saved Successfully")
 def success_dialog():
     img_path = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
@@ -94,8 +97,8 @@ def render_results(run: dict, base_dir: str) -> None:
     )
 
     if st.session_state.get("show_success_save_dialog"):
-        success_dialog()
         st.session_state.show_success_save_dialog = False
+        success_dialog()
 
     if st.session_state.get("show_export_dialog"):
         _export_run_dialog(run)
@@ -350,8 +353,10 @@ def _save_run(run: dict) -> None:
     saved_runs.append(entry)
 
     _write_saved_runs(saved_runs)
-    st.success(f"Run \"{run['name']}\" saved successfully.")
 
+    st.session_state.modal_message = build_success_save_message(run)
+    st.session_state.show_success_save_dialog = True
+    st.rerun()
 
 def _read_saved_runs() -> list:
     """Read and return the list from saved_runs.json, or [] if missing."""
