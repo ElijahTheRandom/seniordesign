@@ -223,7 +223,7 @@ METHOD_NAMES: dict[str, str] = {
     "spearman":                 "Spearman",
     "least_squares_regression": "Least Squares Regression",
     "chisquared":               "Chi-Square",
-    "binomial":                 "Binomial",
+    #"binomial":                 "Binomial",
     "coefficient_variation":    "Coefficient of Variation",
 }
 
@@ -234,4 +234,5 @@ VIZ_NAMES: dict[str, str] = {
     "hor_bar":   "Horizontal Bar Chart",
     "scat_plot": "Scatter Plot",
     "best_fit":  "Line of Best Fit Scatter Plot",
+    "binomial": "Binomial"
 }

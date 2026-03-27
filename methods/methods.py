@@ -1,4 +1,4 @@
-from .binomial import Binomial
+#from .binomial import Binomial
 from .chisquared import ChiSquared
 from .coefficentVariation import CoefficentVariation
 from .least_squares_regression import LeastSquaresRegression
@@ -12,7 +12,7 @@ from .standardDeviation import StandardDeviation
 from .variance import Variance
 
 methods_list = {
-    "binomial": Binomial,
+    #"binomial": Binomial,
     "chisquared": ChiSquared,
     "coefficient_variation": CoefficentVariation,
     "least_squares_regression": LeastSquaresRegression,
