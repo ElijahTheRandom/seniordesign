@@ -67,13 +67,14 @@ class LeastSquaresRegression:
 
             chart_b64 = self.create_graphic(x, y, xFit, yFit)
 
-            value = {
-                "slope": float(slope),
-                "intercept": float(intercept),
-                "r_squared": float(r_squared),
-                "equation": f"y = {slope:.4f}x + {intercept:.4f}",
-                "chart": chart_b64,
-            }
+            #value = {
+            #    "slope": float(slope),
+            #    "intercept": float(intercept),
+            #    "r_squared": float(r_squared),
+            #    "equation": f"y = {slope:.4f}x + {intercept:.4f}",
+            #    "chart": chart_b64,
+            #}
+            value = [f"slope: {slope:.3f}", f"intercept: {intercept:.3f}"]
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 
