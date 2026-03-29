@@ -60,10 +60,21 @@ from logic.run_manager import (
     build_error_message,
     build_success_message,
     VIZ_NAMES,
+    METHOD_NAMES,
 )
 from class_templates.message_structure import Message
 from backend_handler import BackendHandler
 from frontend_handler import handle_result
+from custom_methods_loader import (
+    load_custom_methods_registry,
+    get_custom_display_names,
+    get_custom_input_types,
+    get_user_code,
+    validate_user_code,
+    save_custom_method,
+    update_custom_method,
+    delete_custom_method,
+)
 
 
 @st.cache_resource
@@ -520,7 +531,8 @@ def _render_analysis_config(
     st.markdown("---")
 
     mean, median, mode, variance, std, percentiles, \
-        pearson, spearman, least_squares_regression, chi_squared, binomial, variation = \
+        pearson, spearman, least_squares_regression, chi_squared, binomial, variation, \
+        custom_flags = \
         _render_computation_options(data_ready, col1, col2)
 
     st.markdown("---")
@@ -534,7 +546,7 @@ def _render_analysis_config(
         mean, median, mode, variance, std, percentiles,
         pearson, spearman, least_squares_regression, chi_squared, binomial, variation,
         hist, box, scatter, line, heatmap,
-    ])
+    ] + list(custom_flags.values()))
 
     _handle_run_analysis(
         edited_table=edited_table,
@@ -547,6 +559,7 @@ def _render_analysis_config(
         pearson=pearson, spearman=spearman, least_squares_regression=least_squares_regression,
         chi_squared=chi_squared, binomial=binomial, variation=variation,
         hist=hist, box=box, scatter=scatter, line=line, heatmap=heatmap,
+        custom_flags=custom_flags,
     )
 
 
@@ -645,12 +658,7 @@ def _render_computation_options(
         (mean, median, mode, variance, std_dev, percentiles,
          pearson, spearman, regression, chi_square, binomial, variation)
     """
-    header_col, btn_col = st.columns([4, 2], gap="small")
-    with header_col:
-        st.header("Computation Options", anchor=False)
-    with btn_col:
-        st.markdown("<div style='margin-top: 0.55rem;'></div>", unsafe_allow_html=True)
-        _user_defined_computation_options()
+    st.header("Computation Options", anchor=False)
 
     disable_one_col = not data_ready or len(col1) < 1
     disable_two_cols = not data_ready or len(col1) < 2
@@ -678,25 +686,485 @@ def _render_computation_options(
         binomial               = st.checkbox("Binomial Distribution",     disabled=disable_one_col,  key=f"binomial_c2_{k1}")
         variation              = st.checkbox("Coefficient of Variation",  disabled=disable_one_col,  key=f"variation_c2_{k1}")
 
+    # --- Custom methods ---
+    custom_flags = _render_custom_method_checkboxes(data_ready, col1)
+
     return (
         mean, median, mode, variance, std, percentiles,
-        pearson, spearman, least_squares_regression, chi_squared, binomial, variation
+        pearson, spearman, least_squares_regression, chi_squared, binomial, variation,
+        custom_flags,
     )
+
+
+def _render_custom_method_checkboxes(
+    data_ready: bool,
+    col1: list,
+) -> dict[str, bool]:
+    """
+    Render checkboxes for any user-defined custom methods.
+
+    Reads the custom_methods.json registry and renders one checkbox per
+    entry, respecting the method's input_type for disable logic.
+
+    Returns:
+        Dict mapping custom method ID → bool (checked/unchecked).
+    """
+    registry = load_custom_methods_registry()
+
+    st.markdown("**Custom Methods**")
+
+    if registry:
+        kc = st.session_state.get("checkbox_key_custom", 0)
+        k1 = st.session_state.checkbox_key_onecol
+        k2 = st.session_state.checkbox_key_twocol
+
+        flags = {}
+        cm1, cm2 = st.columns(2)
+        for idx, entry in enumerate(registry):
+            mid = entry["id"]
+            label = entry["display_name"]
+            itype = entry.get("input_type", "one_column")
+
+            if itype == "two_column":
+                disabled = not data_ready or len(col1) < 2
+                key_suffix = f"{k2}_{kc}"
+            else:
+                disabled = not data_ready or len(col1) < 1
+                key_suffix = f"{k1}_{kc}"
+
+            col_target = cm1 if idx % 2 == 0 else cm2
+            with col_target:
+                flags[mid] = st.checkbox(
+                    label, disabled=disabled, key=f"{mid}_{key_suffix}"
+                )
+    else:
+        flags = {}
+
+    # --- Management buttons always visible under Custom Methods ---
+    _user_defined_computation_options()
+
+    return flags
+
+_ONE_COL_TEMPLATE = """# 'data' is a list of lists (one per selected column).
+# Flatten to a single numeric array:
+import numpy as np
+arr = np.asarray(data, dtype=float).flatten()
+
+# --- Your computation here ---
+result = float(np.sum(arr ** 2))  # Example: sum of squares
+"""
+
+_TWO_COL_TEMPLATE = """# 'data' is a list of two lists: data[0] and data[1].
+import numpy as np
+x = np.asarray(data[0], dtype=float)
+y = np.asarray(data[1], dtype=float)
+
+# --- Your computation here ---
+result = float(np.dot(x, y))  # Example: dot product
+"""
+
+_PRESET_EXAMPLES = {
+    "Sum of Squares (one column)": (
+        "one_column",
+        """import numpy as np
+arr = np.asarray(data, dtype=float).flatten()
+result = float(np.sum(arr ** 2))""",
+    ),
+    "Geometric Mean (one column)": (
+        "one_column",
+        """import numpy as np
+from scipy.stats import gmean
+arr = np.asarray(data, dtype=float).flatten()
+result = float(gmean(arr[arr > 0]))""",
+    ),
+    "Weighted Average (two columns)": (
+        "two_column",
+        """import numpy as np
+values = np.asarray(data[0], dtype=float)
+weights = np.asarray(data[1], dtype=float)
+result = float(np.average(values, weights=weights))""",
+    ),
+    "Dot Product (two columns)": (
+        "two_column",
+        """import numpy as np
+x = np.asarray(data[0], dtype=float)
+y = np.asarray(data[1], dtype=float)
+result = float(np.dot(x, y))""",
+    ),
+}
+
+
+# ---------------------------------------------------------------------------
+# Helper: clear dialog-tracking session state so the next open is fresh
+# ---------------------------------------------------------------------------
+def _clear_cm_dialog_state():
+    for k in (
+        "_cm_prev_input_key", "_cm_prev_preset",
+        "custom_method_code_input",
+        "_cm_edit_code_input",
+        "_cm_edit_prev_input", "_cm_edit_prev_preset",
+        "_cm_edit_prev_method",
+    ):
+        st.session_state.pop(k, None)
+
+
+def _refresh_custom_registries():
+    """Push latest custom method names into frontend_handler and run_manager dicts."""
+    from frontend_handler import _ID_TO_DISPLAY
+    names = get_custom_display_names()
+    _ID_TO_DISPLAY.update(names)
+    METHOD_NAMES.update(names)
+
+
+def _after_method_change():
+    """Common post-save / post-delete housekeeping."""
+    _get_backend_handler().reload_methods()
+    _refresh_custom_registries()
+    st.session_state.checkbox_key_custom = (
+        st.session_state.get("checkbox_key_custom", 0) + 1
+    )
+    _clear_cm_dialog_state()
+
+
+# ========================= CREATE DIALOG ====================================
+
+@st.dialog("Create Custom Statistical Method", width="large")
+def _create_method_dialog():
+    """Dialog form for creating a new custom statistical method."""
+
+    st.markdown(
+        "Define your own statistical method. It will be saved and available "
+        "as a checkbox alongside the built-in methods."
+    )
+
+    method_name = st.text_input(
+        "Method Name",
+        placeholder="e.g. Geometric Mean",
+        key="custom_method_name_input",
+    )
+    description = st.text_area(
+        "Description",
+        placeholder="Briefly describe what this method computes.",
+        height=68,
+        key="custom_method_desc_input",
+    )
+
+    col_it, col_ot = st.columns(2)
+    with col_it:
+        input_type = st.selectbox(
+            "Input Type",
+            ["One Column", "Two Columns"],
+            key="custom_method_input_type",
+        )
+    with col_ot:
+        output_type = st.selectbox(
+            "Output Type",
+            ["Scalar (single number)", "List", "Dictionary"],
+            key="custom_method_output_type",
+        )
+
+    input_key = "one_column" if input_type == "One Column" else "two_column"
+    output_key = {"Scalar (single number)": "scalar", "List": "list", "Dictionary": "dictionary"}[output_type]
+
+    # Preset selector — filter to matching input type
+    preset_names = ["— None —"] + [
+        name for name, (itype, _) in _PRESET_EXAMPLES.items()
+        if itype == input_key
+    ]
+    selected_preset = st.selectbox(
+        "Load a preset example",
+        preset_names,
+        key="custom_method_preset",
+    )
+
+    # Determine the code template to show
+    if selected_preset != "— None —" and selected_preset in _PRESET_EXAMPLES:
+        default_code = _PRESET_EXAMPLES[selected_preset][1]
+    else:
+        default_code = _ONE_COL_TEMPLATE if input_key == "one_column" else _TWO_COL_TEMPLATE
+
+    # --- Reactive code editor: update when input type or preset changes ---
+    prev_input = st.session_state.get("_cm_prev_input_key", None)
+    prev_preset = st.session_state.get("_cm_prev_preset", None)
+    if prev_input is not None and (input_key != prev_input or selected_preset != prev_preset):
+        st.session_state["custom_method_code_input"] = default_code
+    st.session_state["_cm_prev_input_key"] = input_key
+    st.session_state["_cm_prev_preset"] = selected_preset
+
+    st.markdown("---")
+    st.markdown(
+        "**Compute Logic** — Write Python code that produces a `result` variable. "
+        "You have access to `data` (the selected columns) and `params` (dict). "
+        "`numpy` is imported as `np` in the generated file."
+    )
+    user_code = st.text_area(
+        "Code",
+        value=default_code,
+        height=220,
+        key="custom_method_code_input",
+    )
+
+    # --- Check Code button (live validation without saving) ---
+    if st.button("\U0001f50d Check Code", use_container_width=True):
+        issues = validate_user_code(user_code, input_key)
+        if not issues:
+            st.success("\u2705 No issues found — code looks good!")
+        else:
+            for issue in issues:
+                if issue.startswith("Hint:"):
+                    st.info(issue)
+                else:
+                    st.error(issue)
+
+    st.markdown("---")
+    save_col, cancel_col = st.columns(2)
+    with save_col:
+        if st.button("Save Method", use_container_width=True, type="primary"):
+            ok, msg = save_custom_method(
+                name=method_name,
+                description=description,
+                input_type=input_key,
+                output_type=output_key,
+                user_code=user_code,
+            )
+            if ok:
+                _after_method_change()
+                st.success(msg)
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error(msg)
+    with cancel_col:
+        if st.button("Cancel", use_container_width=True):
+            _clear_cm_dialog_state()
+            st.rerun()
+
+
+# ========================= EDIT DIALOG ======================================
+
+@st.dialog("Edit Custom Statistical Method", width="large")
+def _edit_method_dialog():
+    """Dialog to select an existing custom method and edit it."""
+    registry = load_custom_methods_registry()
+    if not registry:
+        st.info("No custom methods to edit.")
+        if st.button("Close", use_container_width=True):
+            st.rerun()
+        return
+
+    name_map = {e["display_name"]: e for e in registry}
+    selected_name = st.selectbox(
+        "Select method to edit",
+        list(name_map.keys()),
+        key="_cm_edit_selector",
+    )
+    entry = name_map[selected_name]
+    method_id = entry["id"]
+
+    # Detect when a different method is selected (or first open) and
+    # seed all form fields with that method's saved values so the
+    # text_area / inputs show the real data instead of stale state.
+    prev_method = st.session_state.get("_cm_edit_prev_method", None)
+    if prev_method != method_id:
+        existing_code = get_user_code(method_id) or (
+            _TWO_COL_TEMPLATE if entry["input_type"] == "two_column" else _ONE_COL_TEMPLATE
+        )
+        st.session_state["_cm_edit_code_input"] = existing_code
+        st.session_state["_cm_edit_name"] = entry["display_name"]
+        st.session_state["_cm_edit_desc"] = entry["description"]
+        st.session_state.pop("_cm_edit_prev_input", None)
+        st.session_state.pop("_cm_edit_prev_preset", None)
+        st.session_state["_cm_edit_prev_method"] = method_id
+
+    # Pre-populate fields from existing entry
+    new_name = st.text_input(
+        "Method Name",
+        value=entry["display_name"],
+        key="_cm_edit_name",
+    )
+    new_desc = st.text_area(
+        "Description",
+        value=entry["description"],
+        height=68,
+        key="_cm_edit_desc",
+    )
+
+    input_options = ["One Column", "Two Columns"]
+    current_input_idx = 0 if entry["input_type"] == "one_column" else 1
+    col_it, col_ot = st.columns(2)
+    with col_it:
+        input_type = st.selectbox(
+            "Input Type",
+            input_options,
+            index=current_input_idx,
+            key="_cm_edit_input_type",
+        )
+    output_options = ["Scalar (single number)", "List", "Dictionary"]
+    output_idx_map = {"scalar": 0, "list": 1, "dictionary": 2}
+    with col_ot:
+        output_type = st.selectbox(
+            "Output Type",
+            output_options,
+            index=output_idx_map.get(entry["output_type"], 0),
+            key="_cm_edit_output_type",
+        )
+
+    input_key = "one_column" if input_type == "One Column" else "two_column"
+    output_key = {"Scalar (single number)": "scalar", "List": "list", "Dictionary": "dictionary"}[output_type]
+
+    # Preset selector
+    preset_names = ["— None —"] + [
+        name for name, (itype, _) in _PRESET_EXAMPLES.items()
+        if itype == input_key
+    ]
+    selected_preset = st.selectbox(
+        "Load a preset example",
+        preset_names,
+        key="_cm_edit_preset",
+    )
+
+    # Determine code to show — prefer whatever is already in session state
+    # (set above on method switch), but react to preset / input_type changes.
+    current_code = st.session_state.get("_cm_edit_code_input", "")
+
+    if selected_preset != "— None —" and selected_preset in _PRESET_EXAMPLES:
+        target_code = _PRESET_EXAMPLES[selected_preset][1]
+    else:
+        target_code = current_code
+
+    # Reactive update when input type or preset changes
+    prev_input = st.session_state.get("_cm_edit_prev_input", None)
+    prev_preset = st.session_state.get("_cm_edit_prev_preset", None)
+    if prev_input is not None and (input_key != prev_input or selected_preset != prev_preset):
+        st.session_state["_cm_edit_code_input"] = target_code
+    st.session_state["_cm_edit_prev_input"] = input_key
+    st.session_state["_cm_edit_prev_preset"] = selected_preset
+
+    st.markdown("---")
+    st.markdown(
+        "**Compute Logic** — Write Python code that produces a `result` variable. "
+        "You have access to `data` (the selected columns) and `params` (dict). "
+        "`numpy` is imported as `np` in the generated file."
+    )
+    user_code = st.text_area(
+        "Code",
+        height=220,
+        key="_cm_edit_code_input",
+    )
+
+    # --- Check Code button (live validation without saving) ---
+    if st.button("\U0001f50d Check Code", use_container_width=True):
+        issues = validate_user_code(user_code, input_key)
+        if not issues:
+            st.success("\u2705 No issues found — code looks good!")
+        else:
+            for issue in issues:
+                if issue.startswith("Hint:"):
+                    st.info(issue)
+                else:
+                    st.error(issue)
+
+    st.markdown("---")
+    save_col, cancel_col = st.columns(2)
+    with save_col:
+        if st.button("Save Changes", use_container_width=True, type="primary"):
+            ok, msg = update_custom_method(
+                method_id=method_id,
+                name=new_name,
+                description=new_desc,
+                input_type=input_key,
+                output_type=output_key,
+                user_code=user_code,
+            )
+            if ok:
+                _after_method_change()
+                st.success(msg)
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error(msg)
+    with cancel_col:
+        if st.button("Cancel", use_container_width=True):
+            _clear_cm_dialog_state()
+            st.rerun()
+
+
+# ========================= DELETE DIALOG ====================================
+
+@st.dialog("Delete Custom Method", width="large")
+def _delete_method_dialog():
+    """Dialog to select and permanently delete a custom method."""
+    registry = load_custom_methods_registry()
+    if not registry:
+        st.info("No custom methods to delete.")
+        if st.button("Close", use_container_width=True):
+            st.rerun()
+        return
+
+    name_map = {e["display_name"]: e for e in registry}
+    selected_name = st.selectbox(
+        "Select method to delete",
+        list(name_map.keys()),
+        key="_cm_delete_selector",
+    )
+    entry = name_map[selected_name]
+
+    st.markdown("---")
+    st.markdown(f"**Method:** {entry['display_name']}")
+    st.markdown(f"**Description:** {entry['description']}")
+    st.markdown(f"**Input type:** {entry['input_type'].replace('_', ' ').title()}")
+    st.markdown(f"**Created:** {entry['created_at'][:10]}")
+
+    st.markdown("---")
+    st.warning(
+        "This will **permanently** delete the method, its generated code file, "
+        "and remove it from any saved analysis runs. This cannot be undone.",
+        icon="⚠️",
+    )
+
+    confirm = st.checkbox(
+        f"I confirm I want to delete **{entry['display_name']}**",
+        key="_cm_delete_confirm",
+    )
+
+    del_col, cancel_col = st.columns(2)
+    with del_col:
+        if st.button(
+            "Delete Permanently",
+            use_container_width=True,
+            type="primary",
+            disabled=not confirm,
+        ):
+            ok, msg = delete_custom_method(entry["id"])
+            if ok:
+                _after_method_change()
+                st.success(msg)
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error(msg)
+    with cancel_col:
+        if st.button("Cancel", use_container_width=True):
+            st.rerun()
+
+
+# ========================= THREE PERMANENT BUTTONS ==========================
 
 def _user_defined_computation_options():
     """
-    A placeholder function for future user-defined computational methods. The user
-    can click an "Add Method" button to open a form where they can input the name of the method,
-    a description, and the code to execute. The form data can then be validated and, if valid,
-    added to the list of able computations that the user can select for their analysis runs.
+    Render three permanent buttons for custom method management:
+    Create, Edit, and Delete.
     """
-
-    #Place holder button for adding user-defined methods
-    new_method_clicked = st.button(
-        "New Method",
-        key="add_method",
-        use_container_width=True
-    )
+    b1, b2, b3 = st.columns(3)
+    with b1:
+        if st.button("➕ Create", key="cm_create_btn", use_container_width=True):
+            _create_method_dialog()
+    with b2:
+        if st.button("✏️ Edit", key="cm_edit_btn", use_container_width=True):
+            _edit_method_dialog()
+    with b3:
+        if st.button("🗑️ Delete", key="cm_delete_btn", use_container_width=True):
+            _delete_method_dialog()
 
 # ============================================================================
 # ⭐ VISUALIZATION OPTIONS SELECTED BY USER
@@ -807,6 +1275,7 @@ def _handle_run_analysis(
     scatter                = method_flags.get("scatter", False)
     line                   = method_flags.get("line", False)
     heatmap                = method_flags.get("heatmap", False)
+    custom_flags           = method_flags.get("custom_flags", {})
 
     already_computing = st.session_state.get("_compute_future") is not None
 
@@ -857,6 +1326,8 @@ def _handle_run_analysis(
         "pie_chart": hist, "vert_bar": box, "hor_bar": scatter,
         "scat_plot": line, "best_fit": heatmap,
     }
+    # Merge custom method selections into method_flags
+    method_flags.update(custom_flags)
 
     # --- Validate numeric data (logic/run_manager.py) ---
     non_numeric_cells = validate_numeric(parsed_data, method_flags)
@@ -873,6 +1344,8 @@ def _handle_run_analysis(
         "mean", "median", "mode", "pearson", "percentile", "spearman",
         "standard_deviation", "variance",
     }
+    # Add all custom method IDs so they get dispatched to the backend
+    _BACKEND_METHOD_IDS.update(custom_flags.keys())
     _BACKEND_CHART_IDS = {"binomial", "best_fit", "hor_bar", "pie_chart", "scat_plot", "vert_bar"}
 
     # Default parameters for backend methods that require non-empty params.

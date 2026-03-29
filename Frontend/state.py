@@ -157,3 +157,10 @@ def initialize_session_state() -> None:
     # Metadata stashed at submission time so the result can be assembled
     # into a run dict when the future completes.
     st.session_state.setdefault("_compute_meta", None)
+
+    # ------------------------------------------------------------------
+    # Custom Methods State
+    # ------------------------------------------------------------------
+
+    # Key counter for custom method checkboxes (force reset like built-ins)
+    st.session_state.setdefault("checkbox_key_custom", 0)
