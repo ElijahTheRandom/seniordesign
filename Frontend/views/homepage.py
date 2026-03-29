@@ -1346,7 +1346,7 @@ def _handle_run_analysis(
     }
     # Add all custom method IDs so they get dispatched to the backend
     _BACKEND_METHOD_IDS.update(custom_flags.keys())
-    _BACKEND_CHART_IDS = {"best_fit", "hor_bar", "pie_chart", "scat_plot", "vert_bar"}
+    _BACKEND_CHART_IDS = {"binomial", "best_fit", "hor_bar", "pie_chart", "scat_plot", "vert_bar"}
 
     # Default parameters for backend methods that require non-empty params.
     # For example, the percentile method expects a list of cutoff values.
