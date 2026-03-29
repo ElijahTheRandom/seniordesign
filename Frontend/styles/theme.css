@@ -1976,3 +1976,51 @@ div[data-testid="stAppViewContainer"] .block-container {
     overflow-y: auto;
     padding-right: 0.5rem;
 }
+
+/* ==========================================================================
+   20. Dialog Selectbox Overrides
+   ==========================================================================
+   Inside st.dialog, the global selectbox rules crush the text with 2px
+   vertical padding and dark gradients hide the text color.  These overrides
+   force a readable, properly-sized dropdown inside every dialog.
+   ========================================================================== */
+
+div[data-testid="stDialog"] div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+    background: #262730 !important;
+    border-radius: 6px !important;
+    color: #ffffff !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    overflow: visible !important;
+}
+
+div[data-testid="stDialog"] div[data-testid="stSelectbox"] div[role="combobox"] {
+    padding: 10px 14px !important;
+    min-height: 44px !important;
+    height: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    overflow: visible !important;
+    border: 1px solid #e4781d !important;
+    border-radius: 6px !important;
+    box-shadow: 0 0 0 1px #e4781d !important;
+}
+
+/* The inner value-container that BaseWeb nests inside the combobox */
+div[data-testid="stDialog"] div[data-testid="stSelectbox"] div[role="combobox"] > div {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: unset !important;
+    padding: 0 !important;
+}
+
+div[data-testid="stDialog"] div[data-testid="stSelectbox"] div[data-baseweb="select"] span,
+div[data-testid="stDialog"] div[data-testid="stSelectbox"] div[role="combobox"] span {
+    color: #ffffff !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    font-size: 0.95rem !important;
+    line-height: normal !important;
+    position: static !important;
+}
