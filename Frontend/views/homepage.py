@@ -42,8 +42,6 @@ SESSION STATE WRITTEN:
     modal_message, analysis_runs, active_run_id
 """
 
-import base64
-import io
 import os
 import sys
 import uuid
@@ -56,16 +54,27 @@ import pandas as pd
 import streamlit as st
 from streamlit_aggrid_range import aggrid_range
 
-from utils.helpers import apply_grid_selection_to_filters, normalize_grid_selection
+from utils.helpers import apply_grid_selection_to_filters
 from logic.run_manager import (
     validate_numeric,
     build_error_message,
     build_success_message,
     VIZ_NAMES,
+    METHOD_NAMES,
 )
 from class_templates.message_structure import Message
 from backend_handler import BackendHandler
 from frontend_handler import handle_result
+from custom_methods_loader import (
+    load_custom_methods_registry,
+    get_custom_display_names,
+    get_custom_input_types,
+    get_user_code,
+    validate_user_code,
+    save_custom_method,
+    update_custom_method,
+    delete_custom_method,
+)
 
 
 @st.cache_resource
@@ -78,82 +87,11 @@ def _get_executor():
     return ThreadPoolExecutor(max_workers=1)
 
 
-_GIF_PATH = Path(__file__).parent.parent / "pages" / "assets" / "ThinkingAhSquirrel.GIF"
-
-
-def _show_loading_gif(caption: str = "Loading\u2026") -> None:
-    """Display the loading GIF centered on the page using base64 embedding."""
-    with open(_GIF_PATH, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode()
-    st.markdown(
-        f"""
-        <div style="display:flex; flex-direction:column; align-items:center; margin-top:4rem;">
-            <img src="data:image/gif;base64,{b64}" style="max-width:420px; width:100%;" />
-            <p style="color:#888; margin-top:1rem; font-size:1rem;">{caption}</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-class _ValidationError(Exception):
-    """Raised inside the background analysis job when data fails validation."""
-
-
-def _background_run(
-    parsed_data: pd.DataFrame,
-    method_flags: dict,
-    methods: list,
-    graphics: list,
-    dataset_id: str,
-    selected_cols: list,
-    selected_rows: list,
-    handle_request,
-):
-    """
-    Background job: validate → serialize → run backend.
-    Raises _ValidationError on bad data so the UI can show the error dialog.
-    """
-    non_numeric_cells = validate_numeric(parsed_data, method_flags)
-    if non_numeric_cells:
-        raise _ValidationError(build_error_message(non_numeric_cells))
-
-    request = Message(
-        dataset_id=dataset_id,
-        dataset_version=1,
-        metadata={"columns": selected_cols, "dataset_id": dataset_id},
-        selection={"cols": selected_cols, "rows": [selected_rows]},
-        methods=methods,
-        graphics=graphics,
-        data=[parsed_data[col].tolist() for col in parsed_data.columns],
-    )
-    return handle_request(request)
-
-
 if "show_success_dialog" not in st.session_state:
     st.session_state.show_success_dialog = False
 
 if "show_error_dialog" not in st.session_state:
     st.session_state.show_error_dialog = False
-
-@st.dialog("Please Wait")
-def _loading_dialog() -> None:
-    """Loading popup with animated GIF. Re-opens itself via st.rerun() until the
-    loading flag is cleared — giving a persistent dialog effect."""
-    caption = st.session_state.get("_loading_caption", "Loading\u2026")
-    with open(_GIF_PATH, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode()
-    col_img, col_text = st.columns([1, 1.5], gap="medium")
-    with col_img:
-        st.markdown(
-            f'<img src="data:image/gif;base64,{b64}" style="width:100%; border-radius:8px;" />',
-            unsafe_allow_html=True,
-        )
-    with col_text:
-        st.markdown(f"**{caption}**")
-    time.sleep(0.3)
-    st.rerun()
-
 
 @st.dialog("Error")
 def error_dialog():
@@ -189,47 +127,6 @@ def render_homepage(base_dir: str) -> None:
     """
 
     # ------------------------------------------------------------------
-    # CSV loading: poll for completion
-    # ------------------------------------------------------------------
-    if st.session_state.get("_csv_loading"):
-        csv_future = st.session_state.get("_csv_future")
-        if csv_future is None:
-            # Read bytes in main thread (UploadedFile is not thread-safe),
-            # then parse in background so the dialog actually renders first.
-            uf = st.session_state.get("uploaded_file")
-            try:
-                uf.seek(0)
-                raw = uf.read()
-            except Exception as exc:
-                st.session_state.modal_message = f"Failed to read file: {exc}"
-                st.session_state.show_error_dialog = True
-                st.session_state._csv_loading = False
-                st.rerun()
-                return
-            st.session_state._csv_future = _get_executor().submit(
-                lambda data: pd.read_csv(io.BytesIO(data)), raw
-            )
-        elif csv_future.done():
-            try:
-                df = csv_future.result()
-                uf = st.session_state.uploaded_file
-                file_key = f"{uf.name}_{uf.size}"
-                if "edited_data_cache" not in st.session_state:
-                    st.session_state.edited_data_cache = {}
-                st.session_state.edited_data_cache[file_key] = df
-            except Exception as exc:
-                st.session_state.modal_message = f"Failed to parse CSV: {exc}"
-                st.session_state.show_error_dialog = True
-            st.session_state._csv_loading = False
-            st.session_state._csv_future = None
-            st.rerun()
-            return
-        # Still loading (or just kicked off) — open the loading dialog.
-        # _loading_dialog() calls st.rerun() internally, keeping the loop going.
-        st.session_state._loading_caption = "Loading CSV data\u2026"
-        _loading_dialog()
-
-    # ------------------------------------------------------------------
     # Background computation: poll for completion
     # ------------------------------------------------------------------
     future = st.session_state.get("_compute_future")
@@ -239,14 +136,6 @@ def render_homepage(base_dir: str) -> None:
             meta = st.session_state._compute_meta
             try:
                 result_message = future.result()
-            except _ValidationError as ve:
-                # Validation failed — show error and reset
-                st.session_state._compute_future = None
-                st.session_state._compute_meta = None
-                st.session_state.modal_message = str(ve)
-                st.session_state.show_error_dialog = True
-                st.rerun()
-                return
             except Exception as exc:
                 # Computation failed — surface the error and reset
                 st.session_state._compute_future = None
@@ -275,10 +164,12 @@ def render_homepage(base_dir: str) -> None:
             st.rerun()
             return
         else:
-            # Still computing — open the loading dialog.
-            # _loading_dialog() calls st.rerun() internally, keeping the loop going.
-            st.session_state._loading_caption = "Running analysis\u2026 this won't take long."
-            _loading_dialog()
+            # Still computing — show a spinner and poll again shortly
+            st.markdown("<div style='margin-top: 4rem;'></div>", unsafe_allow_html=True)
+            with st.spinner("Running analysis… this won't take long."):
+                time.sleep(0.5)
+            st.rerun()
+            return
 
     if st.session_state.get("show_success_dialog"):
         success_dialog()
@@ -288,27 +179,13 @@ def render_homepage(base_dir: str) -> None:
         error_dialog()
         st.session_state.show_error_dialog = False
 
+    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown(
         "<hr style='margin: 0; border: none; height: 1px; "
         "background: linear-gradient(90deg, transparent 0%, "
         "rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />",
         unsafe_allow_html=True
     )
-
-    st.markdown("""
-    <style>
-    div[data-testid="stAppViewContainer"] .block-container {
-        height: auto !important;
-        min-height: auto !important;
-        max-height: none !important;
-
-        padding-left: 0.5rem !important;
-        padding-right: 1rem !important;
-        padding-bottom: 0.5rem !important;
-        padding-top: -0.15rem !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
 
     left_col, right_col = st.columns([3, 2], gap="medium")
 
@@ -347,7 +224,6 @@ def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
         if uploaded_file is not None:
             st.session_state.uploaded_file = uploaded_file
             st.session_state.has_file = True
-            st.session_state._csv_loading = True
             st.rerun()
 
         st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
@@ -435,8 +311,7 @@ def _clear_file_state() -> None:
         effectively forces a checkbox reset without needing to track each
         checkbox's individual state.
     """
-    for key in ("uploaded_file", "saved_table", "edited_data_cache",
-                 "_csv_loading", "_csv_future"):
+    for key in ("uploaded_file", "saved_table", "edited_data_cache"):
         st.session_state.pop(key, None)
 
     st.session_state.has_file = False
@@ -587,108 +462,43 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
     return df
 
 
-def _col_letter(n: int) -> str:
-    """Convert a 0-based column index to an Excel-style letter (A, B, …, Z, AA, …)."""
-    result = ""
-    while True:
-        result = chr(ord("A") + n % 26) + result
-        n = n // 26 - 1
-        if n < 0:
-            break
-    return result
-
-
 def _display_selection_output(selection: list, df: pd.DataFrame) -> None:
     """
-    Show selected ranges Excel-style: a reference bar + per-range labeled tables.
+    Show the selected cell ranges below the grid.
+
+    For each selected range, renders a labeled dataframe subset. Also
+    prints the raw selection metadata to the console for debugging.
+
+    Args:
+        selection: Raw list of range dicts from aggrid_range().
+        df:        The DataFrame displayed in the grid.
     """
     st.markdown("---")
+    st.markdown("**Selection Output**")
 
-    col_positions = {name: i for i, name in enumerate(df.columns)}
-
-    # Build structured info for every valid range
-    ranges_info = []
-    for rng in selection:
-        start = rng.get("startRow")
-        end   = rng.get("endRow")
-        cols  = rng.get("columns", [])
-        if start is None or end is None or not cols:
-            continue
-        start, end = int(start), int(end)
-        if start > end:
-            start, end = end, start
-        valid_cols = [c for c in cols if c in df.columns]
-        if not valid_cols:
-            continue
-        rows_0 = list(range(start, end + 1))
-        rows_1 = [r + 1 for r in rows_0]
-        subset = df.iloc[rows_0][valid_cols].copy()
-        subset.index = rows_1
-
-        # Build per-column cell references: A1:A7
-        refs = []
-        for col in valid_cols:
-            letter = _col_letter(col_positions.get(col, 0))
-            r0, r1 = rows_1[0], rows_1[-1]
-            refs.append(f"{letter}{r0}:{letter}{r1}" if r0 != r1 else f"{letter}{r0}")
-
-        ranges_info.append({
-            "cols":   valid_cols,
-            "rows_1": rows_1,
-            "subset": subset,
-            "refs":   refs,
-        })
-
-    if not ranges_info:
-        st.info("No valid cells in the current selection.")
-        return
-
-    # ── Reference bar (Excel Name Box style) ─────────────────────────────
-    all_refs = ",  ".join(r for ri in ranges_info for r in ri["refs"])
-    total_cells = sum(len(ri["rows_1"]) * len(ri["cols"]) for ri in ranges_info)
-    range_word  = "range" if len(ranges_info) == 1 else "ranges"
-
-    st.markdown(
-        f"""
-        <div style="
-            display: flex; align-items: center; gap: 0.75rem;
-            background: #1e1e1e; border: 1px solid #444;
-            border-radius: 6px; padding: 0.4rem 0.8rem; margin-bottom: 0.6rem;
-        ">
-            <span style="
-                background: #2d2d2d; border: 1px solid #555;
-                border-radius: 4px; padding: 0.15rem 0.5rem;
-                font-family: monospace; font-size: 0.82rem; color: #e4781d;
-                white-space: nowrap;
-            ">{all_refs}</span>
-            <span style="color: #888; font-size: 0.8rem;">
-                {total_cells} cell{'s' if total_cells != 1 else ''}
-                &nbsp;·&nbsp; {len(ranges_info)} {range_word}
-            </span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # ── Per-range labeled tables ──────────────────────────────────────────
-    for i, ri in enumerate(ranges_info):
-        ref_str  = ",  ".join(ri["refs"])
-        col_str  = ", ".join(ri["cols"])
-        row_str  = (
-            f"rows {ri['rows_1'][0]}–{ri['rows_1'][-1]}"
-            if len(ri["rows_1"]) > 1
-            else f"row {ri['rows_1'][0]}"
-        )
-        label = (
-            f"**Range {i + 1}** &nbsp; `{ref_str}` &nbsp; "
-            f"<span style='color:#888;font-size:0.82rem;'>{col_str} · {row_str} · "
-            f"{len(ri['rows_1'])} × {len(ri['cols'])}</span>"
-        )
-        st.markdown(label, unsafe_allow_html=True)
-        st.dataframe(ri["subset"], use_container_width=True)
-
-    with st.expander("Raw selection metadata", expanded=False):
+    with st.expander("Selected Ranges Metadata", expanded=False):
         st.json(selection)
+
+    for idx, rng in enumerate(selection):
+        st.write(f"**Range {idx + 1} Selection:**")
+
+        start_row = rng.get("startRow")
+        end_row = rng.get("endRow")
+        selected_cols = rng.get("columns", [])
+
+        if start_row is None or end_row is None or not selected_cols:
+            st.warning("Invalid selection data received.")
+            continue
+
+        start, end = int(start_row), int(end_row)
+        valid_cols = [c for c in selected_cols if c in df.columns]
+
+        if not valid_cols:
+            st.warning("Selected columns not found in current data.")
+            continue
+
+        subset = df.iloc[start: end + 1][valid_cols]
+        st.dataframe(subset, use_container_width=True)
 
 
 # ---------------------------------------------------------------------------
@@ -721,13 +531,13 @@ def _render_analysis_config(
     st.markdown("---")
 
     mean, median, mode, variance, std, percentiles, \
-        pearson, spearman, least_squares_regression, chi_squared, binomial, variation = \
+        pearson, spearman, least_squares_regression, chi_squared, binomial, variation, \
+        custom_flags = \
         _render_computation_options(data_ready, col1, col2)
 
     st.markdown("---")
 
-    col1 = st.session_state.get("current_cols", [])
-    hist, box, scatter, line, heatmap = _render_visualization_options(data_ready, col1)
+    hist, box, scatter, line, heatmap = _render_visualization_options(data_ready)
 
     st.markdown('---')
     st.markdown('<div class="run-analysis-anchor"></div>', unsafe_allow_html=True)
@@ -736,7 +546,7 @@ def _render_analysis_config(
         mean, median, mode, variance, std, percentiles,
         pearson, spearman, least_squares_regression, chi_squared, binomial, variation,
         hist, box, scatter, line, heatmap,
-    ])
+    ] + list(custom_flags.values()))
 
     _handle_run_analysis(
         edited_table=edited_table,
@@ -749,6 +559,7 @@ def _render_analysis_config(
         pearson=pearson, spearman=spearman, least_squares_regression=least_squares_regression,
         chi_squared=chi_squared, binomial=binomial, variation=variation,
         hist=hist, box=box, scatter=scatter, line=line, heatmap=heatmap,
+        custom_flags=custom_flags,
     )
 
 
@@ -847,12 +658,7 @@ def _render_computation_options(
         (mean, median, mode, variance, std_dev, percentiles,
          pearson, spearman, regression, chi_square, binomial, variation)
     """
-    header_col, btn_col = st.columns([4, 2], gap="small")
-    with header_col:
-        st.header("Computation Options", anchor=False)
-    with btn_col:
-        st.markdown("<div style='margin-top: 0.55rem;'></div>", unsafe_allow_html=True)
-        _user_defined_computation_options()
+    st.header("Computation Options", anchor=False)
 
     disable_one_col = not data_ready or len(col1) < 1
     disable_two_cols = not data_ready or len(col1) < 2
@@ -880,77 +686,485 @@ def _render_computation_options(
         binomial               = st.checkbox("Binomial Distribution",     disabled=disable_one_col,  key=f"binomial_c2_{k1}")
         variation              = st.checkbox("Coefficient of Variation",  disabled=disable_one_col,  key=f"variation_c2_{k1}")
 
-    # --- Conditional parameter inputs (appear inline when the method is checked) ---
-    if percentiles:
-        st.markdown("**Percentile Parameters**")
-        pcol, _ = st.columns([2, 1])
-        with pcol:
-            st.text_input(
-                "Values (comma-separated)",
-                value="25, 50, 75",
-                key="percentile_values_input",
-                placeholder="e.g. 10, 25, 50, 75, 90",
-                help="Enter any values between 0 and 100, separated by commas.",
-                disabled=disable_one_col,
-            )
-
-    if binomial:
-        if percentiles:
-            st.markdown("<div style='margin-top:0.25rem'></div>", unsafe_allow_html=True)
-        st.markdown("**Binomial Parameters**")
-        bn1, bn2, bn3, bn4 = st.columns(4)
-        with bn1:
-            st.number_input(
-                "n (trials)", min_value=1, max_value=100000,
-                value=10, step=1,
-                key="binomial_n",
-                help="Total number of trials.",
-                disabled=disable_one_col,
-            )
-        with bn2:
-            st.number_input(
-                "p (probability)", min_value=0.0, max_value=1.0,
-                value=0.5, step=0.01, format="%.4f",
-                key="binomial_p",
-                help="Probability of success on each trial (0 – 1).",
-                disabled=disable_one_col,
-            )
-        with bn3:
-            st.number_input(
-                "k min", min_value=0,
-                value=0, step=1,
-                key="binomial_k_min",
-                help="Minimum number of successes (start of k-range).",
-                disabled=disable_one_col,
-            )
-        with bn4:
-            st.number_input(
-                "k max", min_value=0,
-                value=10, step=1,
-                key="binomial_k_max",
-                help="Maximum number of successes (end of k-range).",
-                disabled=disable_one_col,
-            )
+    # --- Custom methods ---
+    custom_flags = _render_custom_method_checkboxes(data_ready, col1)
 
     return (
         mean, median, mode, variance, std, percentiles,
-        pearson, spearman, least_squares_regression, chi_squared, binomial, variation
+        pearson, spearman, least_squares_regression, chi_squared, binomial, variation,
+        custom_flags,
     )
+
+
+def _render_custom_method_checkboxes(
+    data_ready: bool,
+    col1: list,
+) -> dict[str, bool]:
+    """
+    Render checkboxes for any user-defined custom methods.
+
+    Reads the custom_methods.json registry and renders one checkbox per
+    entry, respecting the method's input_type for disable logic.
+
+    Returns:
+        Dict mapping custom method ID → bool (checked/unchecked).
+    """
+    registry = load_custom_methods_registry()
+
+    st.markdown("**Custom Methods**")
+
+    if registry:
+        kc = st.session_state.get("checkbox_key_custom", 0)
+        k1 = st.session_state.checkbox_key_onecol
+        k2 = st.session_state.checkbox_key_twocol
+
+        flags = {}
+        cm1, cm2 = st.columns(2)
+        for idx, entry in enumerate(registry):
+            mid = entry["id"]
+            label = entry["display_name"]
+            itype = entry.get("input_type", "one_column")
+
+            if itype == "two_column":
+                disabled = not data_ready or len(col1) < 2
+                key_suffix = f"{k2}_{kc}"
+            else:
+                disabled = not data_ready or len(col1) < 1
+                key_suffix = f"{k1}_{kc}"
+
+            col_target = cm1 if idx % 2 == 0 else cm2
+            with col_target:
+                flags[mid] = st.checkbox(
+                    label, disabled=disabled, key=f"{mid}_{key_suffix}"
+                )
+    else:
+        flags = {}
+
+    # --- Management buttons always visible under Custom Methods ---
+    _user_defined_computation_options()
+
+    return flags
+
+_ONE_COL_TEMPLATE = """# 'data' is a list of lists (one per selected column).
+# Flatten to a single numeric array:
+import numpy as np
+arr = np.asarray(data, dtype=float).flatten()
+
+# --- Your computation here ---
+result = float(np.sum(arr ** 2))  # Example: sum of squares
+"""
+
+_TWO_COL_TEMPLATE = """# 'data' is a list of two lists: data[0] and data[1].
+import numpy as np
+x = np.asarray(data[0], dtype=float)
+y = np.asarray(data[1], dtype=float)
+
+# --- Your computation here ---
+result = float(np.dot(x, y))  # Example: dot product
+"""
+
+_PRESET_EXAMPLES = {
+    "Sum of Squares (one column)": (
+        "one_column",
+        """import numpy as np
+arr = np.asarray(data, dtype=float).flatten()
+result = float(np.sum(arr ** 2))""",
+    ),
+    "Geometric Mean (one column)": (
+        "one_column",
+        """import numpy as np
+from scipy.stats import gmean
+arr = np.asarray(data, dtype=float).flatten()
+result = float(gmean(arr[arr > 0]))""",
+    ),
+    "Weighted Average (two columns)": (
+        "two_column",
+        """import numpy as np
+values = np.asarray(data[0], dtype=float)
+weights = np.asarray(data[1], dtype=float)
+result = float(np.average(values, weights=weights))""",
+    ),
+    "Dot Product (two columns)": (
+        "two_column",
+        """import numpy as np
+x = np.asarray(data[0], dtype=float)
+y = np.asarray(data[1], dtype=float)
+result = float(np.dot(x, y))""",
+    ),
+}
+
+
+# ---------------------------------------------------------------------------
+# Helper: clear dialog-tracking session state so the next open is fresh
+# ---------------------------------------------------------------------------
+def _clear_cm_dialog_state():
+    for k in (
+        "_cm_prev_input_key", "_cm_prev_preset",
+        "custom_method_code_input",
+        "_cm_edit_code_input",
+        "_cm_edit_prev_input", "_cm_edit_prev_preset",
+        "_cm_edit_prev_method",
+    ):
+        st.session_state.pop(k, None)
+
+
+def _refresh_custom_registries():
+    """Push latest custom method names into frontend_handler and run_manager dicts."""
+    from frontend_handler import _ID_TO_DISPLAY
+    names = get_custom_display_names()
+    _ID_TO_DISPLAY.update(names)
+    METHOD_NAMES.update(names)
+
+
+def _after_method_change():
+    """Common post-save / post-delete housekeeping."""
+    _get_backend_handler().reload_methods()
+    _refresh_custom_registries()
+    st.session_state.checkbox_key_custom = (
+        st.session_state.get("checkbox_key_custom", 0) + 1
+    )
+    _clear_cm_dialog_state()
+
+
+# ========================= CREATE DIALOG ====================================
+
+@st.dialog("Create Custom Statistical Method", width="large")
+def _create_method_dialog():
+    """Dialog form for creating a new custom statistical method."""
+
+    st.markdown(
+        "Define your own statistical method. It will be saved and available "
+        "as a checkbox alongside the built-in methods."
+    )
+
+    method_name = st.text_input(
+        "Method Name",
+        placeholder="e.g. Geometric Mean",
+        key="custom_method_name_input",
+    )
+    description = st.text_area(
+        "Description",
+        placeholder="Briefly describe what this method computes.",
+        height=68,
+        key="custom_method_desc_input",
+    )
+
+    col_it, col_ot = st.columns(2)
+    with col_it:
+        input_type = st.selectbox(
+            "Input Type",
+            ["One Column", "Two Columns"],
+            key="custom_method_input_type",
+        )
+    with col_ot:
+        output_type = st.selectbox(
+            "Output Type",
+            ["Scalar (single number)", "List", "Dictionary"],
+            key="custom_method_output_type",
+        )
+
+    input_key = "one_column" if input_type == "One Column" else "two_column"
+    output_key = {"Scalar (single number)": "scalar", "List": "list", "Dictionary": "dictionary"}[output_type]
+
+    # Preset selector — filter to matching input type
+    preset_names = ["— None —"] + [
+        name for name, (itype, _) in _PRESET_EXAMPLES.items()
+        if itype == input_key
+    ]
+    selected_preset = st.selectbox(
+        "Load a preset example",
+        preset_names,
+        key="custom_method_preset",
+    )
+
+    # Determine the code template to show
+    if selected_preset != "— None —" and selected_preset in _PRESET_EXAMPLES:
+        default_code = _PRESET_EXAMPLES[selected_preset][1]
+    else:
+        default_code = _ONE_COL_TEMPLATE if input_key == "one_column" else _TWO_COL_TEMPLATE
+
+    # --- Reactive code editor: update when input type or preset changes ---
+    prev_input = st.session_state.get("_cm_prev_input_key", None)
+    prev_preset = st.session_state.get("_cm_prev_preset", None)
+    if prev_input is not None and (input_key != prev_input or selected_preset != prev_preset):
+        st.session_state["custom_method_code_input"] = default_code
+    st.session_state["_cm_prev_input_key"] = input_key
+    st.session_state["_cm_prev_preset"] = selected_preset
+
+    st.markdown("---")
+    st.markdown(
+        "**Compute Logic** — Write Python code that produces a `result` variable. "
+        "You have access to `data` (the selected columns) and `params` (dict). "
+        "`numpy` is imported as `np` in the generated file."
+    )
+    user_code = st.text_area(
+        "Code",
+        value=default_code,
+        height=220,
+        key="custom_method_code_input",
+    )
+
+    # --- Check Code button (live validation without saving) ---
+    if st.button("\U0001f50d Check Code", use_container_width=True):
+        issues = validate_user_code(user_code, input_key)
+        if not issues:
+            st.success("\u2705 No issues found — code looks good!")
+        else:
+            for issue in issues:
+                if issue.startswith("Hint:"):
+                    st.info(issue)
+                else:
+                    st.error(issue)
+
+    st.markdown("---")
+    save_col, cancel_col = st.columns(2)
+    with save_col:
+        if st.button("Save Method", use_container_width=True, type="primary"):
+            ok, msg = save_custom_method(
+                name=method_name,
+                description=description,
+                input_type=input_key,
+                output_type=output_key,
+                user_code=user_code,
+            )
+            if ok:
+                _after_method_change()
+                st.success(msg)
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error(msg)
+    with cancel_col:
+        if st.button("Cancel", use_container_width=True):
+            _clear_cm_dialog_state()
+            st.rerun()
+
+
+# ========================= EDIT DIALOG ======================================
+
+@st.dialog("Edit Custom Statistical Method", width="large")
+def _edit_method_dialog():
+    """Dialog to select an existing custom method and edit it."""
+    registry = load_custom_methods_registry()
+    if not registry:
+        st.info("No custom methods to edit.")
+        if st.button("Close", use_container_width=True):
+            st.rerun()
+        return
+
+    name_map = {e["display_name"]: e for e in registry}
+    selected_name = st.selectbox(
+        "Select method to edit",
+        list(name_map.keys()),
+        key="_cm_edit_selector",
+    )
+    entry = name_map[selected_name]
+    method_id = entry["id"]
+
+    # Detect when a different method is selected (or first open) and
+    # seed all form fields with that method's saved values so the
+    # text_area / inputs show the real data instead of stale state.
+    prev_method = st.session_state.get("_cm_edit_prev_method", None)
+    if prev_method != method_id:
+        existing_code = get_user_code(method_id) or (
+            _TWO_COL_TEMPLATE if entry["input_type"] == "two_column" else _ONE_COL_TEMPLATE
+        )
+        st.session_state["_cm_edit_code_input"] = existing_code
+        st.session_state["_cm_edit_name"] = entry["display_name"]
+        st.session_state["_cm_edit_desc"] = entry["description"]
+        st.session_state.pop("_cm_edit_prev_input", None)
+        st.session_state.pop("_cm_edit_prev_preset", None)
+        st.session_state["_cm_edit_prev_method"] = method_id
+
+    # Pre-populate fields from existing entry
+    new_name = st.text_input(
+        "Method Name",
+        value=entry["display_name"],
+        key="_cm_edit_name",
+    )
+    new_desc = st.text_area(
+        "Description",
+        value=entry["description"],
+        height=68,
+        key="_cm_edit_desc",
+    )
+
+    input_options = ["One Column", "Two Columns"]
+    current_input_idx = 0 if entry["input_type"] == "one_column" else 1
+    col_it, col_ot = st.columns(2)
+    with col_it:
+        input_type = st.selectbox(
+            "Input Type",
+            input_options,
+            index=current_input_idx,
+            key="_cm_edit_input_type",
+        )
+    output_options = ["Scalar (single number)", "List", "Dictionary"]
+    output_idx_map = {"scalar": 0, "list": 1, "dictionary": 2}
+    with col_ot:
+        output_type = st.selectbox(
+            "Output Type",
+            output_options,
+            index=output_idx_map.get(entry["output_type"], 0),
+            key="_cm_edit_output_type",
+        )
+
+    input_key = "one_column" if input_type == "One Column" else "two_column"
+    output_key = {"Scalar (single number)": "scalar", "List": "list", "Dictionary": "dictionary"}[output_type]
+
+    # Preset selector
+    preset_names = ["— None —"] + [
+        name for name, (itype, _) in _PRESET_EXAMPLES.items()
+        if itype == input_key
+    ]
+    selected_preset = st.selectbox(
+        "Load a preset example",
+        preset_names,
+        key="_cm_edit_preset",
+    )
+
+    # Determine code to show — prefer whatever is already in session state
+    # (set above on method switch), but react to preset / input_type changes.
+    current_code = st.session_state.get("_cm_edit_code_input", "")
+
+    if selected_preset != "— None —" and selected_preset in _PRESET_EXAMPLES:
+        target_code = _PRESET_EXAMPLES[selected_preset][1]
+    else:
+        target_code = current_code
+
+    # Reactive update when input type or preset changes
+    prev_input = st.session_state.get("_cm_edit_prev_input", None)
+    prev_preset = st.session_state.get("_cm_edit_prev_preset", None)
+    if prev_input is not None and (input_key != prev_input or selected_preset != prev_preset):
+        st.session_state["_cm_edit_code_input"] = target_code
+    st.session_state["_cm_edit_prev_input"] = input_key
+    st.session_state["_cm_edit_prev_preset"] = selected_preset
+
+    st.markdown("---")
+    st.markdown(
+        "**Compute Logic** — Write Python code that produces a `result` variable. "
+        "You have access to `data` (the selected columns) and `params` (dict). "
+        "`numpy` is imported as `np` in the generated file."
+    )
+    user_code = st.text_area(
+        "Code",
+        height=220,
+        key="_cm_edit_code_input",
+    )
+
+    # --- Check Code button (live validation without saving) ---
+    if st.button("\U0001f50d Check Code", use_container_width=True):
+        issues = validate_user_code(user_code, input_key)
+        if not issues:
+            st.success("\u2705 No issues found — code looks good!")
+        else:
+            for issue in issues:
+                if issue.startswith("Hint:"):
+                    st.info(issue)
+                else:
+                    st.error(issue)
+
+    st.markdown("---")
+    save_col, cancel_col = st.columns(2)
+    with save_col:
+        if st.button("Save Changes", use_container_width=True, type="primary"):
+            ok, msg = update_custom_method(
+                method_id=method_id,
+                name=new_name,
+                description=new_desc,
+                input_type=input_key,
+                output_type=output_key,
+                user_code=user_code,
+            )
+            if ok:
+                _after_method_change()
+                st.success(msg)
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error(msg)
+    with cancel_col:
+        if st.button("Cancel", use_container_width=True):
+            _clear_cm_dialog_state()
+            st.rerun()
+
+
+# ========================= DELETE DIALOG ====================================
+
+@st.dialog("Delete Custom Method", width="large")
+def _delete_method_dialog():
+    """Dialog to select and permanently delete a custom method."""
+    registry = load_custom_methods_registry()
+    if not registry:
+        st.info("No custom methods to delete.")
+        if st.button("Close", use_container_width=True):
+            st.rerun()
+        return
+
+    name_map = {e["display_name"]: e for e in registry}
+    selected_name = st.selectbox(
+        "Select method to delete",
+        list(name_map.keys()),
+        key="_cm_delete_selector",
+    )
+    entry = name_map[selected_name]
+
+    st.markdown("---")
+    st.markdown(f"**Method:** {entry['display_name']}")
+    st.markdown(f"**Description:** {entry['description']}")
+    st.markdown(f"**Input type:** {entry['input_type'].replace('_', ' ').title()}")
+    st.markdown(f"**Created:** {entry['created_at'][:10]}")
+
+    st.markdown("---")
+    st.warning(
+        "This will **permanently** delete the method, its generated code file, "
+        "and remove it from any saved analysis runs. This cannot be undone.",
+        icon="⚠️",
+    )
+
+    confirm = st.checkbox(
+        f"I confirm I want to delete **{entry['display_name']}**",
+        key="_cm_delete_confirm",
+    )
+
+    del_col, cancel_col = st.columns(2)
+    with del_col:
+        if st.button(
+            "Delete Permanently",
+            use_container_width=True,
+            type="primary",
+            disabled=not confirm,
+        ):
+            ok, msg = delete_custom_method(entry["id"])
+            if ok:
+                _after_method_change()
+                st.success(msg)
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error(msg)
+    with cancel_col:
+        if st.button("Cancel", use_container_width=True):
+            st.rerun()
+
+
+# ========================= THREE PERMANENT BUTTONS ==========================
 
 def _user_defined_computation_options():
     """
-    A placeholder function for future user-defined computational methods. The user
-    can click an "Add Method" button to open a form where they can input the name of the method,
-    a description, and the code to execute. The form data can then be validated and, if valid,
-    added to the list of able computations that the user can select for their analysis runs.
+    Render three permanent buttons for custom method management:
+    Create, Edit, and Delete.
     """
-
-    #Place holder button for adding user-defined methods
-    new_method_clicked = st.button(
-        "New Method",
-        key="add_method",
-        use_container_width=True
-    )
+    b1, b2, b3 = st.columns(3)
+    with b1:
+        if st.button("➕ Create", key="cm_create_btn", use_container_width=True):
+            _create_method_dialog()
+    with b2:
+        if st.button("✏️ Edit", key="cm_edit_btn", use_container_width=True):
+            _edit_method_dialog()
+    with b3:
+        if st.button("🗑️ Delete", key="cm_delete_btn", use_container_width=True):
+            _delete_method_dialog()
 
 # ============================================================================
 # ⭐ VISUALIZATION OPTIONS SELECTED BY USER
@@ -963,28 +1177,32 @@ def _user_defined_computation_options():
 
 def _render_visualization_options(
     data_ready: bool,
-    selected_cols: list
 ) -> tuple:
     """
     Render the 5 visualization checkboxes.
 
+    Charts can be selected independently of statistical methods.
+
     Args:
         data_ready: Whether a valid DataFrame is loaded.
-        selected_cols: Currently selected column names.
+
+    Returns:
+        Tuple of 5 booleans: (hist, box, scatter, line, heatmap)
     """
-    disable_general = not data_ready
-    disable_two_cols = not data_ready or len(selected_cols) < 2
+    st.header("Visualization Options", anchor=False)
+
+    disable_viz = not data_ready
 
     v1, v2 = st.columns(2)
 
     with v1:
-        hist    = st.checkbox("Pie Chart",                     key="viz_hist",    disabled=disable_general)
-        box     = st.checkbox("Vertical Bar Chart",            key="viz_box",     disabled=disable_general)
-        scatter = st.checkbox("Horizontal Bar Chart",          key="viz_scatter", disabled=disable_general)
+        hist    = st.checkbox("Pie Chart",                     key="viz_hist",    disabled=disable_viz)
+        box     = st.checkbox("Vertical Bar Chart",            key="viz_box",     disabled=disable_viz)
+        scatter = st.checkbox("Horizontal Bar Chart",          key="viz_scatter", disabled=disable_viz)
 
     with v2:
-        line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_two_cols)
-        heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_two_cols)
+        line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_viz)
+        heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_viz)
 
     return hist, box, scatter, line, heatmap
 
@@ -1039,7 +1257,6 @@ def _handle_run_analysis(
         **method_flags:      Boolean values for all computation + viz
                              checkboxes, keyed by name (mean, median, etc.)
     """
-    
     # Unpack method flags
     mean                   = method_flags.get("mean", False)
     median                 = method_flags.get("median", False)
@@ -1058,6 +1275,7 @@ def _handle_run_analysis(
     scatter                = method_flags.get("scatter", False)
     line                   = method_flags.get("line", False)
     heatmap                = method_flags.get("heatmap", False)
+    custom_flags           = method_flags.get("custom_flags", {})
 
     already_computing = st.session_state.get("_compute_future") is not None
 
@@ -1075,9 +1293,6 @@ def _handle_run_analysis(
     # Convert to 1-based index so row selections align with multiselect values
     edited_table_for_loc = edited_table.copy()
     edited_table_for_loc.index = range(1, len(edited_table_for_loc) + 1)
-
-    if not col2:
-        col2 = edited_table_for_loc.index.tolist()
 
     # Apply column/row filters depending on what the user selected
     if col1 and col2:
@@ -1111,6 +1326,17 @@ def _handle_run_analysis(
         "pie_chart": hist, "vert_bar": box, "hor_bar": scatter,
         "scat_plot": line, "best_fit": heatmap,
     }
+    # Merge custom method selections into method_flags
+    method_flags.update(custom_flags)
+
+    # --- Validate numeric data (logic/run_manager.py) ---
+    non_numeric_cells = validate_numeric(parsed_data, method_flags)
+
+    if non_numeric_cells:
+        st.session_state.modal_message = build_error_message(non_numeric_cells)
+        st.session_state.show_error_dialog = True
+        st.rerun()
+        return
 
     # --- Build methods and graphics lists using canonical backend IDs ---
     _BACKEND_METHOD_IDS = {
@@ -1118,8 +1344,12 @@ def _handle_run_analysis(
         "mean", "median", "mode", "pearson", "percentile", "spearman",
         "standard_deviation", "variance",
     }
-    _BACKEND_CHART_IDS = {"binomial", "best_fit", "hor_bar", "pie_chart", "scat_plot", "vert_bar"}
+    # Add all custom method IDs so they get dispatched to the backend
+    _BACKEND_METHOD_IDS.update(custom_flags.keys())
+    _BACKEND_CHART_IDS = {"best_fit", "hor_bar", "pie_chart", "scat_plot", "vert_bar"}
 
+    # Default parameters for backend methods that require non-empty params.
+    # For example, the percentile method expects a list of cutoff values.
     default_method_params = {
         "percentile": [25, 50, 75],
     }
@@ -1129,6 +1359,10 @@ def _handle_run_analysis(
         for k, v in method_flags.items()
         if v and k in _BACKEND_METHOD_IDS
     ]
+    # Bar and pie charts can use a string column as labels and a numeric
+    # column as values.  Detect this from the DataFrame's dtypes and pass
+    # pre-separated labels/values so charts receive correctly typed data
+    # instead of a numpy array that upcasts everything to strings.
     _LABEL_FRIENDLY_CHARTS = {"pie_chart", "vert_bar", "hor_bar"}
 
     graphics = []
@@ -1145,10 +1379,7 @@ def _handle_run_analysis(
                     req["values"] = parsed_data[num_cols[0]].tolist()
             graphics.append(req)
 
-    # --- Submit ALL heavy work to background so loading dialog appears immediately ---
-    # Validation, data serialization, and computation all run in the background.
-    # Setting _compute_future here and calling st.rerun() means the loading dialog
-    # appears on the very next render — zero UI lag regardless of dataset size.
+    # --- Construct the Message and dispatch to BackendHandler ---
     selected_cols = list(parsed_data.columns)
     selected_rows = list(parsed_data.index.tolist())
     dataset_id = (
@@ -1157,25 +1388,34 @@ def _handle_run_analysis(
         else "unknown"
     )
 
+    request = Message(
+        dataset_id=dataset_id,
+        dataset_version=1,
+        metadata={
+            "columns": selected_cols,
+            "dataset_id": dataset_id,
+        },
+        selection={
+            "cols": selected_cols,
+            "rows": [selected_rows],
+        },
+        methods=methods,
+        graphics=graphics,
+        data=[parsed_data[col].tolist() for col in parsed_data.columns],
+    )
+
+    # Submit computation to background thread so the UI stays responsive
     run_count = len(st.session_state.analysis_runs) + 1
     st.session_state._compute_meta = {
-        "run_id":         str(uuid.uuid4()),
-        "run_name":       f"Run {run_count}",
-        "methods":        methods,
+        "run_id":    str(uuid.uuid4()),
+        "run_name":  f"Run {run_count}",
+        "methods":   methods,
         "visualizations": [VIZ_NAMES[k] for k in _BACKEND_CHART_IDS if method_flags.get(k)],
-        "table":          edited_table,
-        "data":           parsed_data.reset_index(drop=True),
+        "table":     edited_table,
+        "data":      parsed_data.reset_index(drop=True),
     }
     st.session_state._compute_future = _get_executor().submit(
-        _background_run,
-        parsed_data,
-        method_flags,
-        methods,
-        graphics,
-        dataset_id,
-        selected_cols,
-        selected_rows,
-        _get_backend_handler().handle_request,
+        _get_backend_handler().handle_request, request
     )
-    st.session_state._loading_caption = "Running analysis… this won't take long."
     st.rerun()
+    return

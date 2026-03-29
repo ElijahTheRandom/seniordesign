@@ -5,3 +5,4 @@ build
 __pycache__
 results_cache
 test_run.py
+.github
