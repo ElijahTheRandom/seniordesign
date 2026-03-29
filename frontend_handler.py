@@ -22,6 +22,18 @@ _ID_TO_DISPLAY: dict[str, str] = {
     "coefficient_variation":    "Coefficient of Variation",
 }
 
+
+def _load_custom_display_names():
+    """Merge custom method display names into _ID_TO_DISPLAY at runtime."""
+    try:
+        from custom_methods_loader import get_custom_display_names
+        _ID_TO_DISPLAY.update(get_custom_display_names())
+    except Exception:
+        pass
+
+
+_load_custom_display_names()
+
 def _format_value(value) -> str:
     """Convert a result value to a human-readable string."""
     if isinstance(value, (int, float)):
