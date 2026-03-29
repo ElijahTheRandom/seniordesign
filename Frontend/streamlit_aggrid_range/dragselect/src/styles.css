@@ -43,3 +43,7 @@ html, body {
     color: black !important;
     transition: background-color 0.2s;
 }
+
+.ag-theme-alpine .ag-body-viewport::-webkit-scrollbar-track {
+    background-color: transparent;
+}

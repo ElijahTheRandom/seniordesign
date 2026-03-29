@@ -37,6 +37,38 @@ const AgGridRange = (props) => {
         Streamlit.setFrameHeight(containerHeight + 20)
     }, [containerHeight])
 
+    // 👇 ADD IT RIGHT HERE
+    useEffect(() => {
+        const style = document.createElement("style");
+        style.innerHTML = `
+            .ag-body-viewport::-webkit-scrollbar {
+                width: 10px;
+                height: 10px;
+            }
+            .ag-body-viewport::-webkit-scrollbar-track {
+                background-color: #141414;
+            }
+            .ag-body-viewport::-webkit-scrollbar-thumb {
+                background-color: #2c2c2c;
+                border-radius: 5px;
+                border: 2px solid #141414;
+            }
+            .ag-body-viewport::-webkit-scrollbar-thumb:hover {
+                background-color: #e4781d;
+            }
+
+            /* Firefox */
+            .ag-body-viewport {
+                scrollbar-width: thin;
+                scrollbar-color: #2c2c2c #141414;
+            }
+        `;
+        document.head.appendChild(style);
+        return () => {
+            document.head.removeChild(style);
+        };
+    }, []);
+
     useEffect(() => {
         const handleResize = () => {
             const nextHeight = Math.max(550, Math.min(800, Math.round(window.innerHeight * 0.6)))
