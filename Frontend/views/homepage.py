@@ -42,6 +42,8 @@ SESSION STATE WRITTEN:
     modal_message, analysis_runs, active_run_id
 """
 
+import base64
+import io
 import os
 import sys
 import uuid
@@ -54,7 +56,7 @@ import pandas as pd
 import streamlit as st
 from streamlit_aggrid_range import aggrid_range
 
-from utils.helpers import apply_grid_selection_to_filters
+from utils.helpers import apply_grid_selection_to_filters, normalize_grid_selection
 from logic.run_manager import (
     validate_numeric,
     build_error_message,
@@ -76,11 +78,82 @@ def _get_executor():
     return ThreadPoolExecutor(max_workers=1)
 
 
+_GIF_PATH = Path(__file__).parent.parent / "pages" / "assets" / "ThinkingAhSquirrel.GIF"
+
+
+def _show_loading_gif(caption: str = "Loading\u2026") -> None:
+    """Display the loading GIF centered on the page using base64 embedding."""
+    with open(_GIF_PATH, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode()
+    st.markdown(
+        f"""
+        <div style="display:flex; flex-direction:column; align-items:center; margin-top:4rem;">
+            <img src="data:image/gif;base64,{b64}" style="max-width:420px; width:100%;" />
+            <p style="color:#888; margin-top:1rem; font-size:1rem;">{caption}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+class _ValidationError(Exception):
+    """Raised inside the background analysis job when data fails validation."""
+
+
+def _background_run(
+    parsed_data: pd.DataFrame,
+    method_flags: dict,
+    methods: list,
+    graphics: list,
+    dataset_id: str,
+    selected_cols: list,
+    selected_rows: list,
+    handle_request,
+):
+    """
+    Background job: validate → serialize → run backend.
+    Raises _ValidationError on bad data so the UI can show the error dialog.
+    """
+    non_numeric_cells = validate_numeric(parsed_data, method_flags)
+    if non_numeric_cells:
+        raise _ValidationError(build_error_message(non_numeric_cells))
+
+    request = Message(
+        dataset_id=dataset_id,
+        dataset_version=1,
+        metadata={"columns": selected_cols, "dataset_id": dataset_id},
+        selection={"cols": selected_cols, "rows": [selected_rows]},
+        methods=methods,
+        graphics=graphics,
+        data=[parsed_data[col].tolist() for col in parsed_data.columns],
+    )
+    return handle_request(request)
+
+
 if "show_success_dialog" not in st.session_state:
     st.session_state.show_success_dialog = False
 
 if "show_error_dialog" not in st.session_state:
     st.session_state.show_error_dialog = False
+
+@st.dialog("Please Wait")
+def _loading_dialog() -> None:
+    """Loading popup with animated GIF. Re-opens itself via st.rerun() until the
+    loading flag is cleared — giving a persistent dialog effect."""
+    caption = st.session_state.get("_loading_caption", "Loading\u2026")
+    with open(_GIF_PATH, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode()
+    col_img, col_text = st.columns([1, 1.5], gap="medium")
+    with col_img:
+        st.markdown(
+            f'<img src="data:image/gif;base64,{b64}" style="width:100%; border-radius:8px;" />',
+            unsafe_allow_html=True,
+        )
+    with col_text:
+        st.markdown(f"**{caption}**")
+    time.sleep(0.3)
+    st.rerun()
+
 
 @st.dialog("Error")
 def error_dialog():
@@ -116,6 +189,47 @@ def render_homepage(base_dir: str) -> None:
     """
 
     # ------------------------------------------------------------------
+    # CSV loading: poll for completion
+    # ------------------------------------------------------------------
+    if st.session_state.get("_csv_loading"):
+        csv_future = st.session_state.get("_csv_future")
+        if csv_future is None:
+            # Read bytes in main thread (UploadedFile is not thread-safe),
+            # then parse in background so the dialog actually renders first.
+            uf = st.session_state.get("uploaded_file")
+            try:
+                uf.seek(0)
+                raw = uf.read()
+            except Exception as exc:
+                st.session_state.modal_message = f"Failed to read file: {exc}"
+                st.session_state.show_error_dialog = True
+                st.session_state._csv_loading = False
+                st.rerun()
+                return
+            st.session_state._csv_future = _get_executor().submit(
+                lambda data: pd.read_csv(io.BytesIO(data)), raw
+            )
+        elif csv_future.done():
+            try:
+                df = csv_future.result()
+                uf = st.session_state.uploaded_file
+                file_key = f"{uf.name}_{uf.size}"
+                if "edited_data_cache" not in st.session_state:
+                    st.session_state.edited_data_cache = {}
+                st.session_state.edited_data_cache[file_key] = df
+            except Exception as exc:
+                st.session_state.modal_message = f"Failed to parse CSV: {exc}"
+                st.session_state.show_error_dialog = True
+            st.session_state._csv_loading = False
+            st.session_state._csv_future = None
+            st.rerun()
+            return
+        # Still loading (or just kicked off) — open the loading dialog.
+        # _loading_dialog() calls st.rerun() internally, keeping the loop going.
+        st.session_state._loading_caption = "Loading CSV data\u2026"
+        _loading_dialog()
+
+    # ------------------------------------------------------------------
     # Background computation: poll for completion
     # ------------------------------------------------------------------
     future = st.session_state.get("_compute_future")
@@ -125,6 +239,14 @@ def render_homepage(base_dir: str) -> None:
             meta = st.session_state._compute_meta
             try:
                 result_message = future.result()
+            except _ValidationError as ve:
+                # Validation failed — show error and reset
+                st.session_state._compute_future = None
+                st.session_state._compute_meta = None
+                st.session_state.modal_message = str(ve)
+                st.session_state.show_error_dialog = True
+                st.rerun()
+                return
             except Exception as exc:
                 # Computation failed — surface the error and reset
                 st.session_state._compute_future = None
@@ -153,12 +275,10 @@ def render_homepage(base_dir: str) -> None:
             st.rerun()
             return
         else:
-            # Still computing — show a spinner and poll again shortly
-            st.markdown("<div style='margin-top: 4rem;'></div>", unsafe_allow_html=True)
-            with st.spinner("Running analysis… this won't take long."):
-                time.sleep(0.5)
-            st.rerun()
-            return
+            # Still computing — open the loading dialog.
+            # _loading_dialog() calls st.rerun() internally, keeping the loop going.
+            st.session_state._loading_caption = "Running analysis\u2026 this won't take long."
+            _loading_dialog()
 
     if st.session_state.get("show_success_dialog"):
         success_dialog()
@@ -227,6 +347,7 @@ def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
         if uploaded_file is not None:
             st.session_state.uploaded_file = uploaded_file
             st.session_state.has_file = True
+            st.session_state._csv_loading = True
             st.rerun()
 
         st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
@@ -314,7 +435,8 @@ def _clear_file_state() -> None:
         effectively forces a checkbox reset without needing to track each
         checkbox's individual state.
     """
-    for key in ("uploaded_file", "saved_table", "edited_data_cache"):
+    for key in ("uploaded_file", "saved_table", "edited_data_cache",
+                 "_csv_loading", "_csv_future"):
         st.session_state.pop(key, None)
 
     st.session_state.has_file = False
@@ -465,43 +587,108 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
     return df
 
 
+def _col_letter(n: int) -> str:
+    """Convert a 0-based column index to an Excel-style letter (A, B, …, Z, AA, …)."""
+    result = ""
+    while True:
+        result = chr(ord("A") + n % 26) + result
+        n = n // 26 - 1
+        if n < 0:
+            break
+    return result
+
+
 def _display_selection_output(selection: list, df: pd.DataFrame) -> None:
     """
-    Show the selected cell ranges below the grid.
-
-    For each selected range, renders a labeled dataframe subset. Also
-    prints the raw selection metadata to the console for debugging.
-
-    Args:
-        selection: Raw list of range dicts from aggrid_range().
-        df:        The DataFrame displayed in the grid.
+    Show selected ranges Excel-style: a reference bar + per-range labeled tables.
     """
     st.markdown("---")
-    st.markdown("**Selection Output**")
 
-    with st.expander("Selected Ranges Metadata", expanded=False):
-        st.json(selection)
+    col_positions = {name: i for i, name in enumerate(df.columns)}
 
-    for idx, rng in enumerate(selection):
-        st.write(f"**Range {idx + 1} Selection:**")
-
-        start_row = rng.get("startRow")
-        end_row = rng.get("endRow")
-        selected_cols = rng.get("columns", [])
-
-        if start_row is None or end_row is None or not selected_cols:
-            st.warning("Invalid selection data received.")
+    # Build structured info for every valid range
+    ranges_info = []
+    for rng in selection:
+        start = rng.get("startRow")
+        end   = rng.get("endRow")
+        cols  = rng.get("columns", [])
+        if start is None or end is None or not cols:
             continue
-
-        start, end = int(start_row), int(end_row)
-        valid_cols = [c for c in selected_cols if c in df.columns]
-
+        start, end = int(start), int(end)
+        if start > end:
+            start, end = end, start
+        valid_cols = [c for c in cols if c in df.columns]
         if not valid_cols:
-            st.warning("Selected columns not found in current data.")
             continue
+        rows_0 = list(range(start, end + 1))
+        rows_1 = [r + 1 for r in rows_0]
+        subset = df.iloc[rows_0][valid_cols].copy()
+        subset.index = rows_1
 
-        subset = df.iloc[start: end + 1][valid_cols]
-        st.dataframe(subset, use_container_width=True)
+        # Build per-column cell references: A1:A7
+        refs = []
+        for col in valid_cols:
+            letter = _col_letter(col_positions.get(col, 0))
+            r0, r1 = rows_1[0], rows_1[-1]
+            refs.append(f"{letter}{r0}:{letter}{r1}" if r0 != r1 else f"{letter}{r0}")
+
+        ranges_info.append({
+            "cols":   valid_cols,
+            "rows_1": rows_1,
+            "subset": subset,
+            "refs":   refs,
+        })
+
+    if not ranges_info:
+        st.info("No valid cells in the current selection.")
+        return
+
+    # ── Reference bar (Excel Name Box style) ─────────────────────────────
+    all_refs = ",  ".join(r for ri in ranges_info for r in ri["refs"])
+    total_cells = sum(len(ri["rows_1"]) * len(ri["cols"]) for ri in ranges_info)
+    range_word  = "range" if len(ranges_info) == 1 else "ranges"
+
+    st.markdown(
+        f"""
+        <div style="
+            display: flex; align-items: center; gap: 0.75rem;
+            background: #1e1e1e; border: 1px solid #444;
+            border-radius: 6px; padding: 0.4rem 0.8rem; margin-bottom: 0.6rem;
+        ">
+            <span style="
+                background: #2d2d2d; border: 1px solid #555;
+                border-radius: 4px; padding: 0.15rem 0.5rem;
+                font-family: monospace; font-size: 0.82rem; color: #e4781d;
+                white-space: nowrap;
+            ">{all_refs}</span>
+            <span style="color: #888; font-size: 0.8rem;">
+                {total_cells} cell{'s' if total_cells != 1 else ''}
+                &nbsp;·&nbsp; {len(ranges_info)} {range_word}
+            </span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # ── Per-range labeled tables ──────────────────────────────────────────
+    for i, ri in enumerate(ranges_info):
+        ref_str  = ",  ".join(ri["refs"])
+        col_str  = ", ".join(ri["cols"])
+        row_str  = (
+            f"rows {ri['rows_1'][0]}–{ri['rows_1'][-1]}"
+            if len(ri["rows_1"]) > 1
+            else f"row {ri['rows_1'][0]}"
+        )
+        label = (
+            f"**Range {i + 1}** &nbsp; `{ref_str}` &nbsp; "
+            f"<span style='color:#888;font-size:0.82rem;'>{col_str} · {row_str} · "
+            f"{len(ri['rows_1'])} × {len(ri['cols'])}</span>"
+        )
+        st.markdown(label, unsafe_allow_html=True)
+        st.dataframe(ri["subset"], use_container_width=True)
+
+    with st.expander("Raw selection metadata", expanded=False):
+        st.json(selection)
 
 
 # ---------------------------------------------------------------------------
@@ -693,6 +880,58 @@ def _render_computation_options(
         binomial               = st.checkbox("Binomial Distribution",     disabled=disable_one_col,  key=f"binomial_c2_{k1}")
         variation              = st.checkbox("Coefficient of Variation",  disabled=disable_one_col,  key=f"variation_c2_{k1}")
 
+    # --- Conditional parameter inputs (appear inline when the method is checked) ---
+    if percentiles:
+        st.markdown("**Percentile Parameters**")
+        pcol, _ = st.columns([2, 1])
+        with pcol:
+            st.text_input(
+                "Values (comma-separated)",
+                value="25, 50, 75",
+                key="percentile_values_input",
+                placeholder="e.g. 10, 25, 50, 75, 90",
+                help="Enter any values between 0 and 100, separated by commas.",
+                disabled=disable_one_col,
+            )
+
+    if binomial:
+        if percentiles:
+            st.markdown("<div style='margin-top:0.25rem'></div>", unsafe_allow_html=True)
+        st.markdown("**Binomial Parameters**")
+        bn1, bn2, bn3, bn4 = st.columns(4)
+        with bn1:
+            st.number_input(
+                "n (trials)", min_value=1, max_value=100000,
+                value=10, step=1,
+                key="binomial_n",
+                help="Total number of trials.",
+                disabled=disable_one_col,
+            )
+        with bn2:
+            st.number_input(
+                "p (probability)", min_value=0.0, max_value=1.0,
+                value=0.5, step=0.01, format="%.4f",
+                key="binomial_p",
+                help="Probability of success on each trial (0 – 1).",
+                disabled=disable_one_col,
+            )
+        with bn3:
+            st.number_input(
+                "k min", min_value=0,
+                value=0, step=1,
+                key="binomial_k_min",
+                help="Minimum number of successes (start of k-range).",
+                disabled=disable_one_col,
+            )
+        with bn4:
+            st.number_input(
+                "k max", min_value=0,
+                value=10, step=1,
+                key="binomial_k_max",
+                help="Maximum number of successes (end of k-range).",
+                disabled=disable_one_col,
+            )
+
     return (
         mean, median, mode, variance, std, percentiles,
         pearson, spearman, least_squares_regression, chi_squared, binomial, variation
@@ -873,15 +1112,6 @@ def _handle_run_analysis(
         "scat_plot": line, "best_fit": heatmap,
     }
 
-    # --- Validate numeric data (logic/run_manager.py) ---
-    non_numeric_cells = validate_numeric(parsed_data, method_flags)
-
-    if non_numeric_cells:
-        st.session_state.modal_message = build_error_message(non_numeric_cells)
-        st.session_state.show_error_dialog = True
-        st.rerun()
-        return
-
     # --- Build methods and graphics lists using canonical backend IDs ---
     _BACKEND_METHOD_IDS = {
         "chisquared", "coefficient_variation", "least_squares_regression",
@@ -890,8 +1120,6 @@ def _handle_run_analysis(
     }
     _BACKEND_CHART_IDS = {"binomial", "best_fit", "hor_bar", "pie_chart", "scat_plot", "vert_bar"}
 
-    # Default parameters for backend methods that require non-empty params.
-    # For example, the percentile method expects a list of cutoff values.
     default_method_params = {
         "percentile": [25, 50, 75],
     }
@@ -901,10 +1129,6 @@ def _handle_run_analysis(
         for k, v in method_flags.items()
         if v and k in _BACKEND_METHOD_IDS
     ]
-    # Bar and pie charts can use a string column as labels and a numeric
-    # column as values.  Detect this from the DataFrame's dtypes and pass
-    # pre-separated labels/values so charts receive correctly typed data
-    # instead of a numpy array that upcasts everything to strings.
     _LABEL_FRIENDLY_CHARTS = {"pie_chart", "vert_bar", "hor_bar"}
 
     graphics = []
@@ -921,7 +1145,10 @@ def _handle_run_analysis(
                     req["values"] = parsed_data[num_cols[0]].tolist()
             graphics.append(req)
 
-    # --- Construct the Message and dispatch to BackendHandler ---
+    # --- Submit ALL heavy work to background so loading dialog appears immediately ---
+    # Validation, data serialization, and computation all run in the background.
+    # Setting _compute_future here and calling st.rerun() means the loading dialog
+    # appears on the very next render — zero UI lag regardless of dataset size.
     selected_cols = list(parsed_data.columns)
     selected_rows = list(parsed_data.index.tolist())
     dataset_id = (
@@ -930,34 +1157,25 @@ def _handle_run_analysis(
         else "unknown"
     )
 
-    request = Message(
-        dataset_id=dataset_id,
-        dataset_version=1,
-        metadata={
-            "columns": selected_cols,
-            "dataset_id": dataset_id,
-        },
-        selection={
-            "cols": selected_cols,
-            "rows": [selected_rows],
-        },
-        methods=methods,
-        graphics=graphics,
-        data=[parsed_data[col].tolist() for col in parsed_data.columns],
-    )
-
-    # Submit computation to background thread so the UI stays responsive
     run_count = len(st.session_state.analysis_runs) + 1
     st.session_state._compute_meta = {
-        "run_id":    str(uuid.uuid4()),
-        "run_name":  f"Run {run_count}",
-        "methods":   methods,
+        "run_id":         str(uuid.uuid4()),
+        "run_name":       f"Run {run_count}",
+        "methods":        methods,
         "visualizations": [VIZ_NAMES[k] for k in _BACKEND_CHART_IDS if method_flags.get(k)],
-        "table":     edited_table,
-        "data":      parsed_data.reset_index(drop=True),
+        "table":          edited_table,
+        "data":           parsed_data.reset_index(drop=True),
     }
     st.session_state._compute_future = _get_executor().submit(
-        _get_backend_handler().handle_request, request
+        _background_run,
+        parsed_data,
+        method_flags,
+        methods,
+        graphics,
+        dataset_id,
+        selected_cols,
+        selected_rows,
+        _get_backend_handler().handle_request,
     )
+    st.session_state._loading_caption = "Running analysis… this won't take long."
     st.rerun()
-    return
