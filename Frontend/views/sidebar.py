@@ -149,9 +149,7 @@ def _render_compare_mode() -> None:
 # ---------------------------------------------------------------------------
 
 def _render_home_button() -> None:
-
     is_active = st.session_state.get("current_view") == "home"
-
     if st.button(
         "Home Screen",
         key="nav_home",
@@ -165,27 +163,12 @@ def _render_home_button() -> None:
         st.session_state.show_help_view = False
         st.rerun()
 
-
 def _render_run_button(run: dict) -> None:
     """
     Render one analysis run entry in the sidebar.
-
-    Each run entry consists of:
-        - A clickable button (the run name) that navigates to that run
-        - A rename icon (✏️) that opens the inline rename form
-        - The rename form itself, shown only when this run is being renamed
-
-    The "primary" vs "secondary" button type visually indicates which
-    run is currently active — this mirrors the Home button behavior and
-    gives users a consistent "active tab" mental model.
-
-    Args:
-        run: A run dict with keys: id, name, table, data, columns,
-             rows, methods, visualizations.
     """
-    is_active = run["id"] == st.session_state.active_run_id
+    is_active = st.session_state.get("current_view") == f"run:{run['id']}"
 
-    # Row: run name button + rename icon, side by side
     cols = st.columns([6, 2])
 
     with cols[0]:
@@ -196,9 +179,10 @@ def _render_run_button(run: dict) -> None:
             type="primary" if is_active else "secondary"
         ):
             st.session_state.active_run_id = run["id"]
-            st.session_state.current_view = "home"
+            st.session_state.current_view = f"run:{run['id']}"  # <-- important
             st.session_state.compare_mode_active = False
             st.session_state.show_comparison_view = False
+            st.session_state.show_help_view = False
             st.rerun()
 
     with cols[1]:
@@ -207,13 +191,11 @@ def _render_run_button(run: dict) -> None:
             key=f"rename_btn_{run['id']}",
             help="Rename Run"
         ):
-            # Toggle: if already renaming this run, cancel; else open form
             if st.session_state.get("renaming_run_id") == run["id"]:
                 st.session_state["renaming_run_id"] = None
             else:
                 st.session_state["renaming_run_id"] = run["id"]
 
-    # Show inline rename form only for the run currently being renamed
     if st.session_state.get("renaming_run_id") == run["id"]:
         _render_rename_form(run)
 
@@ -239,7 +221,6 @@ def _render_rename_form(run: dict) -> None:
         label_visibility="collapsed"
     )
 
-
     save_col, cancel_col = st.columns([1, 1])  # You can tweak ratios here
 
     with save_col:
@@ -261,11 +242,8 @@ def _render_rename_form(run: dict) -> None:
         ):
             st.session_state["renaming_run_id"] = None
 
-# Method that will allow the user to load the full data for a previous run by its ID
 def _render_load_button() -> None:
-
     is_active = st.session_state.get("current_view") == "load"
-
     if st.button(
         "Load Previous Runs",
         key="nav_load",
@@ -279,11 +257,8 @@ def _render_load_button() -> None:
         st.session_state.show_help_view = False
         st.rerun()
 
-# Method that will allow the user to view the help screen
 def _render_help_button() -> None:
-
     is_active = st.session_state.get("current_view") == "help"
-
     if st.button(
         "Help Screen",
         key="nav_help",

@@ -168,13 +168,27 @@ def render_homepage(base_dir: str) -> None:
         error_dialog()
         st.session_state.show_error_dialog = False
 
-    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown(
         "<hr style='margin: 0; border: none; height: 1px; "
         "background: linear-gradient(90deg, transparent 0%, "
         "rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />",
         unsafe_allow_html=True
     )
+
+    st.markdown("""
+    <style>
+    div[data-testid="stAppViewContainer"] .block-container {
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+
+        padding-left: 0.5rem !important;
+        padding-right: 1rem !important;
+        padding-bottom: 0.5rem !important;
+        padding-top: -0.15rem !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
     left_col, right_col = st.columns([3, 2], gap="medium")
 
@@ -525,7 +539,8 @@ def _render_analysis_config(
 
     st.markdown("---")
 
-    hist, box, scatter, line, heatmap = _render_visualization_options(data_ready)
+    col1 = st.session_state.get("current_cols", [])
+    hist, box, scatter, line, heatmap = _render_visualization_options(data_ready, col1)
 
     st.markdown('---')
     st.markdown('<div class="run-analysis-anchor"></div>', unsafe_allow_html=True)
@@ -709,32 +724,28 @@ def _user_defined_computation_options():
 
 def _render_visualization_options(
     data_ready: bool,
+    selected_cols: list
 ) -> tuple:
     """
     Render the 5 visualization checkboxes.
 
-    Charts can be selected independently of statistical methods.
-
     Args:
         data_ready: Whether a valid DataFrame is loaded.
-
-    Returns:
-        Tuple of 5 booleans: (hist, box, scatter, line, heatmap)
+        selected_cols: Currently selected column names.
     """
-    st.header("Visualization Options", anchor=False)
-
-    disable_viz = not data_ready
+    disable_general = not data_ready
+    disable_two_cols = not data_ready or len(selected_cols) < 2
 
     v1, v2 = st.columns(2)
 
     with v1:
-        hist    = st.checkbox("Pie Chart",                     key="viz_hist",    disabled=disable_viz)
-        box     = st.checkbox("Vertical Bar Chart",            key="viz_box",     disabled=disable_viz)
-        scatter = st.checkbox("Horizontal Bar Chart",          key="viz_scatter", disabled=disable_viz)
+        hist    = st.checkbox("Pie Chart",                     key="viz_hist",    disabled=disable_general)
+        box     = st.checkbox("Vertical Bar Chart",            key="viz_box",     disabled=disable_general)
+        scatter = st.checkbox("Horizontal Bar Chart",          key="viz_scatter", disabled=disable_general)
 
     with v2:
-        line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_viz)
-        heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_viz)
+        line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_two_cols)
+        heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_two_cols)
 
     return hist, box, scatter, line, heatmap
 
@@ -789,6 +800,7 @@ def _handle_run_analysis(
         **method_flags:      Boolean values for all computation + viz
                              checkboxes, keyed by name (mean, median, etc.)
     """
+    
     # Unpack method flags
     mean                   = method_flags.get("mean", False)
     median                 = method_flags.get("median", False)
@@ -824,6 +836,9 @@ def _handle_run_analysis(
     # Convert to 1-based index so row selections align with multiselect values
     edited_table_for_loc = edited_table.copy()
     edited_table_for_loc.index = range(1, len(edited_table_for_loc) + 1)
+
+    if not col2:
+        col2 = edited_table_for_loc.index.tolist()
 
     # Apply column/row filters depending on what the user selected
     if col1 and col2:

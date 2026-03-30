@@ -1025,13 +1025,44 @@ li[role="option"] {
     transition: all 0.15s ease !important;
 }
 
-li[role="option"]:hover {
-    background: rgba(255, 255, 255, 0.06) !important;
+li[role="option"],
+li[role="option"]:hover,
+li[role="option"][aria-selected="true"],
+li[role="option"][aria-selected="true"]:hover {
+    background: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
 }
 
 li[role="option"][aria-selected="true"] {
     background: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
     border-left: 3px solid #e4781d !important;
+}
+
+li[role="option"] * {
+    background: transparent !important;
+}
+
+/* Fix the entire dropdown rendering stack */
+div[data-baseweb="layer"],
+div[data-baseweb="popover"],
+div[data-baseweb="popover"] > div,
+div[data-baseweb="menu"],
+div[role="listbox"] {
+    background-color: #0f0f0f !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+}
+
+div[data-baseweb="popover"] > div {
+    padding: 0 !important;
+}
+
+div[role="listbox"] {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+div[data-baseweb="menu"] > div {
+    background-color: #0f0f0f !important;
 }
 
 /* Hide horizontal scrollbar in dropdown */
@@ -1123,6 +1154,84 @@ div[data-testid="stMultiSelect"] div[role="combobox"]:focus-within {
     animation: input-focus 0.3s ease !important;
 }
 
+/* Remove top padding / header strip */
+div[data-baseweb="menu"] {
+    padding-top: 0 !important;
+}
+
+div[data-baseweb="menu"] > div:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+/* Remove right-side gap */
+div[data-baseweb="popover"] > div {
+    padding-right: 0 !important;
+    margin-right: 0 !important;
+}
+
+/* Ensure listbox fills full width */
+div[role="listbox"] {
+    width: 100% !important;
+}
+
+/* Hide anything that contains "Select" text */
+div[role="option"] {
+    position: relative;
+}
+
+div[role="option"] span,
+div[role="option"] div {
+    font-size: 0 !important;
+}
+
+div[role="option"]::after {
+    content: attr(aria-label);
+    font-size: 14px;
+}
+
+/* Specifically kill Select All */
+div[role="option"][aria-label="Select all"] {
+    display: none !important;
+}
+
+/* Force every layer of the dropdown to your color */
+div[data-baseweb="layer"],
+div[data-baseweb="layer"] *,
+div[data-baseweb="popover"],
+div[data-baseweb="popover"] *,
+div[data-baseweb="menu"],
+div[data-baseweb="menu"] *,
+div[role="listbox"],
+div[role="listbox"] * {
+    background-color: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
+}
+
+/* --- Full dropdown gradient override --- */
+div[data-baseweb="layer"],
+div[data-baseweb="layer"] *,
+div[data-baseweb="popover"],
+div[data-baseweb="popover"] *,
+div[data-baseweb="menu"],
+div[data-baseweb="menu"] *,
+div[data-baseweb="menu"] > div,
+div[role="listbox"],
+div[role="listbox"] *,
+div[role="listbox"] ul,
+div[role="listbox"] ul li {
+    background: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
+}
+
+/* Remove any padding above options that shows default background */
+div[data-baseweb="menu"] {
+    padding-top: 0 !important;
+}
+
+/* Ensure scroll area / gutter uses the gradient */
+div[data-baseweb="popover"] > div,
+div[data-baseweb="layer"] > div {
+    background: linear-gradient(145deg, #1a1a1a, #0f0f0f) !important;
+}
 
 /* ==========================================================================
   11. Multiselect Pills (Tags)
@@ -1194,7 +1303,6 @@ div[data-testid="stMultiSelect"] span[data-baseweb="tag"]:hover svg path,
 div[data-testid="stMultiSelect"] span[data-baseweb="tag"] button:hover svg path {
     stroke: #ffffff !important;
 }
-
 
 /* ==========================================================================
   12. File Uploader
@@ -1624,6 +1732,45 @@ div[data-testid="stDialog"] header {
     word-wrap: break-word;
 }
 
+/* 🎯 ONLY containers inside run-card-wrapper */
+.run-card-wrapper > div[data-testid="stVerticalBlock"] {
+    background: linear-gradient(145deg, #2e2f34, #272a30);
+    border: 1px solid rgba(228, 120, 29, 0.15);
+    border-radius: 16px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.1),
+        0 8px 16px rgba(0, 0, 0, 0.15),
+        0 16px 32px rgba(0, 0, 0, 0.1);
+
+    transition: all 0.25s ease;
+}
+
+/* 🎯 Target ONLY inner containers (not the page) */
+div[data-testid="stVerticalBlock"]:has(.run-card-marker):not(:has(div[data-testid="stVerticalBlock"] .run-card-marker)) {
+    background: linear-gradient(145deg, #2e2f34, #272a30);
+    border: 1px solid rgba(228, 120, 29, 0.15);
+    border-radius: 12px;
+
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.1),
+        0 8px 16px rgba(0, 0, 0, 0.15),
+        0 16px 32px rgba(0, 0, 0, 0.1);
+
+    transition: all 0.25s ease;
+}
+
+/* Hover */
+div[data-testid="stVerticalBlock"]:has(.run-card-marker):not(:has(div[data-testid="stVerticalBlock"] .run-card-marker)):hover {
+    border-color: rgba(228, 120, 29, 0.35);
+    transform: translateY(-3px);
+}
+
 /* ==========================================================================
   17. Animations & Keyframes
    ========================================================================== */
@@ -1747,6 +1894,12 @@ div[data-testid="stSelectbox"] {
     background: linear-gradient(90deg, rgba(228,120,29,0.15), rgba(228,120,29,0.05));
     margin-top: 12px;
     margin-bottom: 18px;
+}
+
+div[data-testid="stAppViewContainer"] .block-container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    padding-bottom: 0.5rem !important;
 }
 
 /* ==========================================================================

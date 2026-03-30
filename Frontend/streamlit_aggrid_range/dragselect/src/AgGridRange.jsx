@@ -21,7 +21,7 @@ const AgGridRange = (props) => {
     const [hasEdits, setHasEdits] = useState(false)
     const [containerHeight, setContainerHeight] = useState(() => {
         if (typeof window === "undefined") return 600
-        return Math.max(500, Math.min(800, Math.round(window.innerHeight * 0.6)))
+        return Math.max(550, Math.min(800, Math.round(window.innerHeight * 0.6)))
     })
 
     // Dynamic column definitions to apply header styling
@@ -39,7 +39,7 @@ const AgGridRange = (props) => {
 
     useEffect(() => {
         const handleResize = () => {
-            const nextHeight = Math.max(500, Math.min(800, Math.round(window.innerHeight * 0.6)))
+            const nextHeight = Math.max(550, Math.min(800, Math.round(window.innerHeight * 0.6)))
             setContainerHeight(nextHeight)
         }
 
@@ -189,7 +189,12 @@ const AgGridRange = (props) => {
     // Container style - ensure it has height for grid to render if not autoHeight
     // Using autoHeight often requires DOM layout adjustment, but let's try fixed constraint or full width 
     // with autoHeight for Streamlit smooth embedding.
-    const containerStyle = useMemo(() => ({ width: "100%", height: `${containerHeight}px` }), [containerHeight]);
+    const containerStyle = useMemo(() => ({
+        width: "100%",
+        height: `${containerHeight}px`,  // your fixed height
+        paddingBottom: "20px",           // reserve space for horizontal scrollbar
+        boxSizing: "border-box"           // make padding count inside height
+    }), [containerHeight]);
 
     // If we want dynamic height, we can use domLayout='autoHeight' and call setFrameHeight repeatedly.
 
@@ -207,6 +212,7 @@ const AgGridRange = (props) => {
                 suppressRowClickSelection={true}
                 // Optional: extra settings for better UX
                 rowSelection="multiple"
+                domLayout="normal" // <--- add this line
             />
         </div>
     )
