@@ -869,11 +869,11 @@ def _handle_run_analysis(
 
     # --- Build methods and graphics lists using canonical backend IDs ---
     _BACKEND_METHOD_IDS = {
-        "binomial", "chisquared", "coefficient_variation", "least_squares_regression",
+        "chisquared", "coefficient_variation", "least_squares_regression",
         "mean", "median", "mode", "pearson", "percentile", "spearman",
         "standard_deviation", "variance",
     }
-    _BACKEND_CHART_IDS = {"best_fit", "hor_bar", "pie_chart", "scat_plot", "vert_bar"}
+    _BACKEND_CHART_IDS = {"binomial", "best_fit", "hor_bar", "pie_chart", "scat_plot", "vert_bar"}
 
     # Default parameters for backend methods that require non-empty params.
     # For example, the percentile method expects a list of cutoff values.

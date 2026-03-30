@@ -18,7 +18,7 @@ _ID_TO_DISPLAY: dict[str, str] = {
     "spearman":                 "Spearman's Rank",
     "least_squares_regression": "Least Squares Regression",
     "chisquared":               "Chi-Square Test",
-    "binomial":                 "Binomial Distribution",
+    #"binomial":                 "Binomial Distribution",
     "coefficient_variation":    "Coefficient of Variation",
 }
 

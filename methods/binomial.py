@@ -1,88 +1,126 @@
+import os
 import numpy as np
+from io import BytesIO
+import matplotlib.pyplot as plt
 from scipy.stats import binom
-import pandas as pd
+
+"""
+    "graphics": [ #3.6
+        {
+            "type": "scatter", 
+            "x_col": 2, 
+            "y_col": 3, 
+            "path": "exports/scatter_plot.jpg"
+            "output":{
+                    "type": self.type,
+                    "ok": False,
+                    "path": self.params.get("path"),
+                    "error": error_message,
+                    "params_used": self.params,
+            }
+        }
+    ],
+"""
 
 class Binomial:
     def __init__(self, data, metadata, params=None):
         # Initialize the statistic with an ID and optional parameters
-        self.stat_id = "binomial"
+        self.type = "binomial"
         self.data = data
         self.metadata = metadata
         self.params = params or {}
 
     def _applicable(self):
-        # Binomial requires exactly 4 inputs: n, p, kMin, kMax
-        if self.data is None:
-            return False
-        arr = np.asarray(self.data).flatten()
-        if len(arr) < 3:
-            return False
+        # Check whether this statistic is valid for the given data selection
+        if "path" not in self.params or not self.params["path"]:
+            return "No output path provided"
+        
         return True
 
-    def _generate_return_structure(self, value):
+    def _generate_return_structure(self):
         # Check whether this statistic is valid for the given data selection
-        return{
-            "id": self.stat_id,
+        return {
+            "type": self.type,
             "ok": True,
-            "value": value,
+            "path": self.params.get("path"),
             "error": None,
-            "loss_of_precision": False,
-            "params_used": self.params
+            "params_used": self.params,
         }
 
     def _generate_return_structure_error(self, error_message):
-        return{
-            "id": self.stat_id,
+        return {
+            "type": self.type,
             "ok": False,
-            "value": None,
+            "path": self.params.get("path"),
             "error": error_message,
-            "loss_of_precision": False,
-            "params_used": self.params
+            "params_used": self.params,
         }
 
-    def compute(self):
+    def _create_chart(self):
+        # Create and return a chart object (e.g., matplotlib Figure).
+        array = np.asarray(self.data).flatten()
+
+        n = int(array[0])
+        p = float(array[1])
+        kMin = int(array[2])
+        kMax = int(array[3]) if len(array) > 3 else n
+        
+
+        k = np.arange(kMin, kMax + 1)
+
+        rows = []
+
+        for i in k:
+            rows.append([
+                    str(i), 
+                    f"{binom.pmf(i, n, p):.4f}", 
+                    f"{binom.cdf(i, n, p):.4f}",
+                f"{binom.sf(i - 1, n, p):.4f}"
+            ])
+
+        col_labels = ["k", "P(X = k)", "P(X ≤ k)", "P(X ≥ k)"]
+
+        fig_height = max(2, 0.5 * len(rows) + 1.2)
+        fig, ax = plt.subplots(figsize = (4.5, 2.8))
+        ax.axis("off")
+
+        table = ax.table(
+            cellText = rows,
+            colLabels = col_labels,
+            cellLoc = "center",
+            loc = "center"
+        )
+
+        table.auto_set_font_size(False)
+        table.set_fontsize(10)
+        table.scale(1.2, 1.4)
+
+        plt.tight_layout()
+        
+        buffer = BytesIO()
+
+        plt.savefig(buffer, format = "png", bbox_inches = "tight", dpi = 200)
+        plt.close(fig)
+        buffer.seek(0)
+
+        return buffer
+
+    def create_graphic(self):
         # Perform the statistical computation and return a standardized result dictionary
         _applicable = self._applicable()
-        if not _applicable:
-            return self._generate_return_structure_error(
-                "Binomial requires at least 3 values: n (trials), p (probability), kMin. "
-                "Optionally provide kMax as a 4th value."
-            )
+        if _applicable is not True:
+            return self._generate_return_structure_error(_applicable)
         
         try:
-            arr = np.asarray(self.data).flatten()
+            chart = self._create_chart()
+            output_path = self.params["path"]
+            output_dir = os.path.dirname(output_path)
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
 
-            n = int(arr[0])
-            p = float(arr[1])
-            kMin = int(arr[2])
-            kMax = int(arr[3]) if len(arr) > 3 else n
+            with open(output_path, "wb") as f:
+                f.write(chart.getvalue())
+        except Exception as exc:
+            return self._generate_return_structure_error(str(exc))
 
-            if not (0 <= p <= 1):
-                return self._generate_return_structure_error(
-                    f"Probability p must be between 0 and 1, got {p}"
-                )
-            
-            k = np.arange(kMin, kMax + 1)
-            table = {
-                "k": k,
-                "P(X = k)": binom.pmf(k, n, p),
-                "P(X <= k)": binom.cdf(k, n, p),
-                "P(X >= k)": binom.sf(k - 1, n, p)
-            }
-
-            tableStructure = self.create_graphic(table)
-        except Exception as e:
-            return self._generate_return_structure_error(str(e))
-
-        results = self._generate_return_structure(tableStructure)
-        return results
-
-    def create_graphic(self, results):
-        # Generate a chart or visualization object for the computed results
-        df = pd.DataFrame({
-            "k": results["k"],
-            "P(X = k)": results["P(X = k)"],
-            "P(X <= k)": results["P(X <= k)"],
-            "P(X >= k)": results["P(X >= k)"]
-        })
-        return df
+        return self._generate_return_structure()
