@@ -133,7 +133,11 @@ def render_help_statistical_methods() -> None:
         st.subheader("Mean", anchor=False)
         st.markdown(
             """
-            <!-- Add description here -->
+            Mean is used to calculate the average value of a set of numbers by summing all
+            the numbers in the set and then dividing the sum by the total number of values 
+            in the set. This computational method requires that all values in the set be numeric.
+            \n\n An example of calculating the mean of the numbers 2, 4, and 6 would be:
+            (2 + 4 + 6) / 3 = 12 / 3 = 4
             """
         )
 
@@ -146,7 +150,12 @@ def render_help_statistical_methods() -> None:
         st.subheader("Median", anchor=False)
         st.markdown(
             """
-            <!-- Add description here -->
+            Median is the middle value in a set of numbers when the numbers are arranged in ascending or descending order. 
+            If the set has an odd number of values, the median is the value that is exactly in the middle. 
+            If the set has an even number of values, the median is calculated as the average of the two middle values.
+            \n\n For example, for the set of numbers 1, 3, 3, 6, 7, 8, 9, the median is 6 because it is the middle value.This 
+            computational method requires that all values in the set be numeric. 
+            For the set of numbers 1, 2, 3, 4, 5, 6, 8, 9, the median would be (4 + 5) / 2 = 4.5
             """
         )
 
@@ -159,7 +168,10 @@ def render_help_statistical_methods() -> None:
         st.subheader("Mode", anchor=False)
         st.markdown(
             """
-            <!-- Add description here -->
+            Mode is the value that appears most frequently in a set of numbers. A set of numbers may have one mode, more than one 
+            mode, or no mode at all if no number repeats. This computational method requires that all values in the set be numeric.
+            \n\n For example, in the set of numbers 1, 2, 2, 3, 4, the mode is 2 because it occurs more frequently than any other number. 
+            In the set 1, 1, 2, 2, 3, 3, there are multiple modes (1, 2, and 3) because each occurs with the same highest frequency.
             """
         )
 
@@ -172,7 +184,13 @@ def render_help_statistical_methods() -> None:
         st.subheader("Variance", anchor=False)
         st.markdown(
             """
-            <!-- Add description here -->
+            Variance is a measure of how much the values in a set of numbers differ 
+            from the mean of the set. It is calculated by taking the average of the 
+            squared differences between each value in the set and the mean of the set. 
+            This computational method requires that all values in the set be numeric. 
+            \n\n For example, for the set of numbers 2, 4, 6, the mean is 4. 
+            The squared differences from the mean are (2-4)^2 = 4, (4-4)^2 = 0, and (6-4)^2 = 4. 
+            The variance is the average of these squared differences: (4 + 0 + 4) / 3 = 8 / 3 ≈ 2.67
             """
         )
 
@@ -185,7 +203,11 @@ def render_help_statistical_methods() -> None:
         st.subheader("Standard Deviation", anchor=False)
         st.markdown(
             """
-            <!-- Add description here -->
+            Standard deviation is a measure of the amount of variation or dispersion in a set of numbers. 
+            It is the square root of the variance and provides a measure of how spread out the numbers 
+            in a data set are around the mean. This computational method requires that all values in the set be numeric. 
+            \n\n For example, for the set of numbers 2, 4, 6, the variance is 8 / 3 ≈ 2.67, 
+            so the standard deviation is √(8 / 3) ≈ 1.63
             """
         )
 
@@ -198,7 +220,16 @@ def render_help_statistical_methods() -> None:
         st.subheader("Percentiles", anchor=False)
         st.markdown(
             """
-            <!-- Add description here -->
+            Percentiles are values that divide a data set into 100 equal parts, 
+            indicating the relative standing of a value within the data set. Percentiles 
+            are useful for understanding the distribution of data and for comparing individual values 
+            to the overall data set. For our application, they system computes percentiles for a numeric selection given user chosen percentile values. This computational method requires that all values in the set be numeric. \n\n
+            for a numeric selection given user chosen percentile values. \n\n
+            For example, the 25th percentile (also called the first quartile) 
+            is the value below which 25% of the data fall, the 50th percentile 
+            (the median) is the value below which 50% of the data fall, and 
+            the 75th percentile (the third quartile) is the value below which 
+            75% of the data fall.
             """
         )
 
@@ -211,7 +242,19 @@ def render_help_statistical_methods() -> None:
         st.subheader("Pearson's Correlation", anchor=False)
         st.markdown(
             """
-            <!-- Add description here -->
+            Pearson's correlation coefficient (also called Pearson's r) is a measure of the 
+            linear relationship between two continuous variables. It ranges from -1 to 1, 
+            where 1 indicates a perfect positive linear relationship, -1 indicates a 
+            perfect negative linear relationship, and 0 indicates no linear relationship. 
+            Pearson's correlation is calculated as the covariance of the two variables 
+            divided by the product of their standard deviations. Our application computes
+            the Pearson correlation coefficient for the two selected numeric columns of equal length. 
+            \n\n For example, if we have two variables X = [1, 2, 3] and Y = [2, 4, 6], 
+            the Pearson correlation coefficient would be 1, indicating a perfect positive 
+            linear relationship between X and Y. This means that as X increases, Y increases 
+            proportionally, and the points (X, Y) lie exactly on a straight line with a 
+            positive slope.
+
             """
         )
 
@@ -224,7 +267,24 @@ def render_help_statistical_methods() -> None:
         st.subheader("Spearman's Rank Correlation", anchor=False)
         st.markdown(
             """
-            <!-- Add description here -->
+            Spearman's rank correlation coefficient (also called Spearman's rho) is a nonparametric 
+            measure of the monotonic relationship between two variables. Unlike Pearson's 
+            correlation, which measures linear relationships, Spearman's correlation 
+            assesses how well the relationship between two variables can be described 
+            using a monotonic function. It is calculated by ranking the values of each 
+            variable and then computing the Pearson correlation coefficient on the ranks. 
+            The Spearman correlation coefficient ranges from -1 to 1, where 1 indicates 
+            a perfect increasing monotonic relationship, -1 indicates a perfect decreasing 
+            monotonic relationship, and 0 indicates no monotonic relationship. Our application computes the 
+            Spearman rank correlation coefficient for the two selected numeric columns 
+            of equal length.
+            \n\n For example, if we have two variables X = [1, 2, 3] and Y = [3, 2, 1], 
+            the ranks of X are [1, 2, 3] and the ranks of Y are [3, 2, 1], and the 
+            Spearman correlation coefficient would be -1, indicating a perfect decreasing 
+            monotonic relationship between X and Y. This means that as X increases, Y decreases 
+            in a consistent manner, and the ranks of the values in X and Y move in opposite 
+            directions in a perfectly monotonic decreasing fashion.
+
             """
         )
 
@@ -237,7 +297,21 @@ def render_help_statistical_methods() -> None:
         st.subheader("Least Squares Regression", anchor=False)
         st.markdown(
             """
-            <!-- Add description here -->
+            Least squares regression is a method for estimating the relationship between a dependent 
+            variable Y and one or more independent variables X by fitting a linear model to the 
+            observed data. The method works by finding the line (or hyperplane in the case of 
+            multiple predictors) that minimizes the sum of the squared differences between 
+            the observed values of Y and the values predicted by the linear model. This line 
+            is called the "least squares regression line," and the coefficients of the line 
+            (slope and intercept in the simple linear regression case) are chosen to minimize 
+            the sum of squared residuals. In simple linear regression with one predictor X, 
+            the model has the form Y = b0 + b1*X + e, where b0 is the intercept, b1 is the 
+            slope, and e is the error term. The least squares estimates of b0 and b1 are 
+            obtained by minimizing the sum of squared residuals, and the resulting line 
+            provides the best linear fit to the data in the least squares sense. Our application
+            computes the least squares regression line for the two selected numeric columns, and reports
+            the estimated slope and intercept of the regression line.
+
             """
         )
 
@@ -250,7 +324,17 @@ def render_help_statistical_methods() -> None:
         st.subheader("Chi-Square Test", anchor=False)
         st.markdown(
             """
-            <!-- Add description here -->
+            The chi-square test is a statistical test used to determine whether there is a 
+            significant association between two categorical variables. It compares the 
+            observed frequencies of occurrences in each category of a contingency table 
+            with the frequencies that would be expected if the variables were independent. 
+            The test statistic is calculated as the sum of the squared differences between 
+            observed and expected frequencies, divided by the expected frequencies. 
+            The resulting chi-square statistic is then compared to a chi-square distribution 
+            with the appropriate degrees of freedom to determine the p-value, which 
+            indicates whether the observed association is statistically significant. 
+            Our application performs the chi-square test for independence on user-selected
+            categorical inputs in a valid contingency layout.
             """
         )
 
@@ -263,7 +347,16 @@ def render_help_statistical_methods() -> None:
         st.subheader("Binomial Distribution", anchor=False)
         st.markdown(
             """
-            <!-- Add description here -->
+            The binomial distribution is a discrete probability distribution that describes the 
+            number of successes in a fixed number of independent Bernoulli trials, each with 
+            the same probability of success. A Bernoulli trial is an experiment with exactly 
+            two possible outcomes, typically labeled "success" and "failure." The binomial 
+            distribution is characterized by two parameters: n, the number of trials, and p, 
+            the probability of success on each trial. The probability of observing exactly 
+            k successes in n trials is given by the binomial probability mass function: 
+            P(X = k) = C(n, k) * p^k * (1-p)^(n-k), where C(n, k) is the binomial 
+            coefficient "n choose k." Our application allows the user to specify the (n,p) and
+            requested k-range, and presents the results in tabular form.
             """
         )
 
@@ -276,6 +369,12 @@ def render_help_statistical_methods() -> None:
         st.subheader("Coefficient of Variation", anchor=False)
         st.markdown(
             """
-            <!-- Add description here -->
+            The coefficient of variation is a standardized measure of the dispersion of a probability 
+            distribution or frequency distribution. It is defined as the ratio of the standard deviation 
+            σ to the mean μ, often expressed as a percentage: CV = (σ / μ) * 100%. The coefficient 
+            of variation allows comparison of the relative variability of datasets with different 
+            units or widely different means. In our application, the Coefficient of Variation is computed for user-provided 
+            numerical data, while ensuring that the mean is not zero, since the coefficient of variation 
+            is undefined when the mean is zero.
             """
         )

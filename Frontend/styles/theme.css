@@ -1446,6 +1446,32 @@ div[data-testid="stDialog"] {
     animation: fadeInModal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
+/* Override Streamlit's primaryColor applied to the inner dialog box.
+   Targets multiple selectors to cover all Streamlit/base-web versions. */
+div[data-baseweb="dialog"],
+div[data-baseweb="dialog"] > div,
+div[data-baseweb="dialog"] > div > div,
+div[role="dialog"],
+div[role="dialog"] > div,
+div[data-testid="stDialogContent"],
+div[data-testid="stModal"],
+div[data-testid="stModalContent"] {
+    background-color: #1c1f26 !important;
+    color: #ffffff !important;
+}
+
+div[data-baseweb="dialog"] {
+    border: 1px solid rgba(228, 120, 29, 0.2) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+}
+
+div[role="dialog"] {
+    border: 1px solid rgba(228, 120, 29, 0.2) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+}
+
 div[data-testid="stDialog"] * {
     animation: fadeInModal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
