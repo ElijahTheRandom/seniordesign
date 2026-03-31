@@ -68,6 +68,10 @@ def validate_numeric(
         "pearson", "spearman", "least_squares_regression", "percentile", "coefficient_variation",
         "scat_plot", "best_fit",
     }
+    # Custom methods (prefixed with 'custom_') also require numeric data
+    numeric_methods.update(
+        k for k in method_flags if k.startswith("custom_")
+    )
 
     # Determines if at least one selected method requires some form of validation
     numeric_required = any(
@@ -240,6 +244,18 @@ METHOD_NAMES: dict[str, str] = {
     #"binomial":                 "Binomial",
     "coefficient_variation":    "Coefficient of Variation",
 }
+
+
+def _load_custom_method_names():
+    """Merge custom method display names into METHOD_NAMES at runtime."""
+    try:
+        from custom_methods_loader import get_custom_display_names
+        METHOD_NAMES.update(get_custom_display_names())
+    except Exception:
+        pass
+
+
+_load_custom_method_names()
 
 # Maps the internal visualization key to how they're displayed for the user
 VIZ_NAMES: dict[str, str] = {

@@ -33,8 +33,15 @@ class BackendHandler:
     def statistical_methods(self):
         if self._statistical_methods is None:
             from methods.methods import methods_list
-            self._statistical_methods = methods_list
+            from custom_methods_loader import load_custom_method_classes
+            merged = dict(methods_list)
+            merged.update(load_custom_method_classes())
+            self._statistical_methods = merged
         return self._statistical_methods
+
+    def reload_methods(self):
+        """Clear cached methods so custom methods are re-loaded on next request."""
+        self._statistical_methods = None
 
     @property
     def chart_generation_methods(self):
