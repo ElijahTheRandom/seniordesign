@@ -58,13 +58,29 @@ class Binomial:
 
     def _create_chart(self):
         # Create and return a chart object (e.g., matplotlib Figure).
-        array = np.asarray(self.data).flatten()
+        if "n" in self.params and "p" in self.params:
+            n = int(self.params.get("n", 0))
+            p = float(self.params.get("p", 0))
+            kMin = int(self.params.get("k_min", 0))
+            kMax = int(self.params.get("k_max", n))
+        else:
+            array = np.asarray(self.data).flatten()
+            if len(array) < 2:
+                raise ValueError("Binomial chart requires [n,p,k_min,k_max] input or sufficient selected data")
 
-        n = int(array[0])
-        p = float(array[1])
-        kMin = int(array[2])
-        kMax = int(array[3]) if len(array) > 3 else n
-        
+            n = int(array[0])
+            p = float(array[1])
+            kMin = int(array[2]) if len(array) > 2 else 0
+            kMax = int(array[3]) if len(array) > 3 else n
+
+        if n < 1:
+            raise ValueError("Parameter 'n' must be >= 1")
+        if not (0 <= p <= 1):
+            raise ValueError("Parameter 'p' must be between 0 and 1")
+        if kMin < 0 or kMax < 0:
+            raise ValueError("k_min and k_max must be >= 0")
+        if kMax < kMin:
+            raise ValueError("k_max must be >= k_min")
 
         k = np.arange(kMin, kMax + 1)
 
