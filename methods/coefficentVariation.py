@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.stats import variation
-from class_templates import message_structure
 
 class CoefficientVariation:
     def __init__(self, data, metadata, params=None):

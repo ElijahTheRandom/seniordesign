@@ -47,20 +47,14 @@ class Percentile:
                 return self._generate_return_structure_error(f"Percentile {p} is out of range [0, 100]")
             
         try:
-            self.params = np.asarray(self.params)
-            if self.params.size == 0:
+            param_array = np.asarray(self.params)
+            if param_array.size == 0:
                 return self._generate_return_structure_error("No percentile values specified")
 
             flat_data = np.asarray(self.data, dtype=float).flatten()
 
-            requested = np.asarray(self.params, dtype=float).flatten()
-            if requested.size == 0:
-                return self._generate_return_structure_error("No percentile values specified")
-
             percentile_results = []
-            for p in requested:
-                if not (0 <= p <= 100):
-                    raise ValueError(f"Percentile {p} is out of range [0, 100]")
+            for p in param_array.flatten():
                 computed = float(np.percentile(flat_data, p))
 
                 # Format ordinal suffix
@@ -79,7 +73,6 @@ class Percentile:
                         ordinal = f"{p_int}th"
 
                 percentile_results.append(f"{ordinal}: {computed:.2f}")
-
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 

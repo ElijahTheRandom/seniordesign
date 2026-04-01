@@ -34,7 +34,7 @@ class PieChart:
         # Check whether this statistic is valid for the given data selection
         if "path" not in self.params or not self.params["path"]:
             return "No output path provided"
-        return True
+        return None
 
     def _generate_return_structure(self):
         # Check whether this statistic is valid for the given data selection
@@ -223,9 +223,9 @@ class PieChart:
 
     def create_graphic(self):
         # Perform the statistical computation and return a standardized result dictionary
-        _applicable = self._applicable()
-        if _applicable is not True:
-            return self._generate_return_structure_error(_applicable)
+        reason = self._applicable()
+        if reason is not None:
+            return self._generate_return_structure_error(reason)
         
         try:
             chart = self._create_chart()

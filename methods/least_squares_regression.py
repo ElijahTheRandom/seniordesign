@@ -1,8 +1,5 @@
-import base64
-
 import numpy as np
-import matplotlib.pyplot as plt
-from io import BytesIO
+
 
 class LeastSquaresRegression:
     def __init__(self, data, metadata, params=None):
@@ -59,12 +56,6 @@ class LeastSquaresRegression:
             ss_tot = float(np.sum((y - np.mean(y)) ** 2))
             r_squared = 1 - ss_res / ss_tot if ss_tot != 0 else 0.0
 
-            # Line for the plot
-            xFit = np.linspace(x.min(), x.max(), 200)
-            yFit = slope * xFit + intercept
-
-            chart_b64 = self.create_graphic(x, y, xFit, yFit)
-
             # Return a compact equation string that fits better in the card
             value = f"y = {slope:.3f}x + {intercept:.3f}"
 
@@ -74,21 +65,7 @@ class LeastSquaresRegression:
         results = self._generate_return_structure(value)
         return results
 
-    def create_graphic(self, xs, ys, xLine, yLine):
-        # Generate a chart or visualization object for the computed results
-        # Use the non-interactive Agg backend so this is safe to call from threads.
-        plt.switch_backend("Agg")
-        fig = plt.figure()
-        plt.scatter(xs, ys)
-        plt.plot(xLine, yLine)
-        plt.xlabel("X")
-        plt.ylabel("Y")
-        plt.title("Least Squares Regression Line")
-
-        # Save the image to memory, get it, and return it
-        buffer = BytesIO()
-        plt.savefig(buffer, format = "png", bbox_inches = "tight")
-        plt.close(fig)
-
-        buffer.seek(0)
-        return base64.b64encode(buffer.getvalue()).decode("utf-8")
+    def create_graphic(self, results):
+        # No standalone graphic for least squares regression
+        # (the best_fit chart class handles the visualization)
+        pass
