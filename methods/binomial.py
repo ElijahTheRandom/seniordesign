@@ -58,12 +58,19 @@ class Binomial:
 
     def _create_chart(self):
         # Create and return a chart object (e.g., matplotlib Figure).
-        array = np.asarray(self.data).flatten()
-
-        n = int(array[0])
-        p = float(array[1])
-        kMin = int(array[2])
-        kMax = int(array[3]) if len(array) > 3 else n
+        # Prefer parameters from self.params (passed by the frontend UI);
+        # fall back to reading from self.data for backwards compatibility.
+        if "n" in self.params:
+            n = int(self.params["n"])
+            p = float(self.params["p"])
+            kMin = int(self.params.get("k_min", 0))
+            kMax = int(self.params.get("k_max", n))
+        else:
+            array = np.asarray(self.data).flatten()
+            n = int(array[0])
+            p = float(array[1])
+            kMin = int(array[2])
+            kMax = int(array[3]) if len(array) > 3 else n
         
 
         k = np.arange(kMin, kMax + 1)

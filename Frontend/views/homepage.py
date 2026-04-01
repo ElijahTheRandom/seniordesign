@@ -1699,8 +1699,15 @@ def _handle_run_analysis(
     _BACKEND_METHOD_IDS.update(custom_flags.keys())
     _BACKEND_CHART_IDS = {"binomial", "best_fit", "hor_bar", "pie_chart", "scat_plot", "vert_bar"}
 
+    # --- Parse user-entered percentile values from the text input ---
+    raw_pct = st.session_state.get("percentile_values_input", "25, 50, 75")
+    try:
+        pct_values = [float(v.strip()) for v in raw_pct.split(",") if v.strip()]
+    except (ValueError, AttributeError):
+        pct_values = [25, 50, 75]
+
     default_method_params = {
-        "percentile": [25, 50, 75],
+        "percentile": pct_values,
     }
 
     methods = [
@@ -1714,6 +1721,12 @@ def _handle_run_analysis(
     for k, v in method_flags.items():
         if v and k in _BACKEND_CHART_IDS:
             req = {"type": k}
+            # --- Pass user-entered binomial parameters into the chart request ---
+            if k == "binomial":
+                req["n"] = st.session_state.get("binomial_n", 10)
+                req["p"] = st.session_state.get("binomial_p", 0.5)
+                req["k_min"] = st.session_state.get("binomial_k_min", 0)
+                req["k_max"] = st.session_state.get("binomial_k_max", 10)
             if k in _LABEL_FRIENDLY_CHARTS:
                 num_cols = parsed_data.select_dtypes(include="number").columns.tolist()
                 str_cols = parsed_data.select_dtypes(exclude="number").columns.tolist()
