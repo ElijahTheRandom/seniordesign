@@ -89,6 +89,34 @@ def _get_executor():
     return ThreadPoolExecutor(max_workers=1)
 
 
+def _param_warning(msg: str) -> None:
+    """Render a compact inline callout with an upward caret, styled to branch from the input above."""
+    st.markdown(
+        f"""
+        <div style="margin-top:0.2rem; margin-bottom:0.1rem;">
+            <div style="
+                width:0; height:0;
+                border-left:8px solid transparent;
+                border-right:8px solid transparent;
+                border-bottom:8px solid rgba(228,120,29,0.55);
+                margin-left:14px;
+            "></div>
+            <div style="
+                background:rgba(228,120,29,0.10);
+                border:1px solid rgba(228,120,29,0.55);
+                border-radius:0 8px 8px 8px;
+                padding:0.35rem 0.7rem;
+                font-size:0.82rem;
+                color:rgba(255,255,255,0.88);
+                font-weight:500;
+                line-height:1.4;
+            ">⚠&nbsp; {msg}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 _GIF_PATH = Path(__file__).parent.parent / "pages" / "assets" / "ThinkingAhSquirrel.GIF"
 
 
@@ -941,10 +969,12 @@ def _render_computation_options(
             parsed_pcts = [float(v.strip()) for v in percentile_input_val.split(",") if v.strip()]
             if not parsed_pcts or any(v < 0 or v > 100 for v in parsed_pcts):
                 invalid_params = True
-                st.warning("Percentile values must be numbers between 0 and 100.")
+                with pcol:
+                    _param_warning("Values must be numbers between 0 and 100.")
         except ValueError:
             invalid_params = True
-            st.warning("Percentile values must be valid numbers between 0 and 100.")
+            with pcol:
+                _param_warning("Values must be valid numbers between 0 and 100.")
 
     if binomial:
         if percentiles:
@@ -953,7 +983,7 @@ def _render_computation_options(
         bn1, bn2, bn3, bn4 = st.columns(4)
         with bn1:
             binomial_n_val = st.number_input(
-                "n (trials)", min_value=1, max_value=100000,
+                "n (trials)",
                 value=10, step=1,
                 key="binomial_n",
                 help="Total number of trials.",
@@ -961,7 +991,7 @@ def _render_computation_options(
             )
         with bn2:
             binomial_p_val = st.number_input(
-                "p (probability)", min_value=0.0, max_value=1.0,
+                "p (probability)",
                 value=0.5, step=0.01, format="%.4f",
                 key="binomial_p",
                 help="Probability of success on each trial (0 – 1).",
@@ -969,7 +999,7 @@ def _render_computation_options(
             )
         with bn3:
             binomial_k_min_val = st.number_input(
-                "k min", min_value=0,
+                "k min",
                 value=0, step=1,
                 key="binomial_k_min",
                 help="Minimum number of successes (start of k-range).",
@@ -977,7 +1007,7 @@ def _render_computation_options(
             )
         with bn4:
             binomial_k_max_val = st.number_input(
-                "k max", min_value=0,
+                "k max",
                 value=10, step=1,
                 key="binomial_k_max",
                 help="Maximum number of successes (end of k-range).",
@@ -985,23 +1015,33 @@ def _render_computation_options(
             )
         if any(v is None for v in [binomial_n_val, binomial_p_val, binomial_k_min_val, binomial_k_max_val]):
             invalid_params = True
-            st.warning("All binomial fields are required.")
+            _param_warning("All binomial fields are required.")
         else:
             if binomial_n_val < 1:
                 invalid_params = True
-                st.warning("n (trials) must be at least 1.")
+                with bn1:
+                    _param_warning("Must be at least 1.")
             if not (0.0 <= binomial_p_val <= 1.0):
                 invalid_params = True
-                st.warning("p (probability) must be between 0 and 1.")
+                with bn2:
+                    _param_warning("Must be between 0 and 1.")
             if binomial_k_min_val < 0 or binomial_k_max_val < 0:
                 invalid_params = True
-                st.warning("k min and k max must be 0 or greater.")
+                with bn3:
+                    _param_warning("Must be 0 or greater.")
+            elif binomial_k_max_val > binomial_n_val:
+                invalid_params = True
+                with bn4:
+                    _param_warning(f"k max cannot exceed n ({binomial_n_val}).")
             elif binomial_k_min_val > binomial_k_max_val:
                 invalid_params = True
-                st.warning("k min must be less than or equal to k max.")
+                with bn3:
+                    _param_warning("k min must be ≤ k max.")
 
     # --- Custom methods ---
     custom_flags = _render_custom_method_checkboxes(data_ready, col1)
+
+    st.session_state["_analysis_invalid_params"] = invalid_params
 
     return (
         mean, median, mode, variance, std, percentiles,
@@ -1593,12 +1633,13 @@ def _handle_run_analysis(
     custom_flags           = method_flags.get("custom_flags", {})
 
     already_computing = st.session_state.get("_compute_future") is not None
+    _invalid = st.session_state.get("_analysis_invalid_params", False) or invalid_params
 
     run_clicked = st.button(
         "Run Analysis",
         key="run_analysis",
         use_container_width=True,
-        disabled=not (data_ready and computation_selected) or already_computing or invalid_params
+        disabled=not (data_ready and computation_selected) or already_computing or _invalid
     )
 
     if not run_clicked:
