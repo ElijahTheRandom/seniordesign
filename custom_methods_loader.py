@@ -393,14 +393,14 @@ def save_custom_method(
     if input_type == "two_column":
         applicable_check = (
             '        if self.data is None or len(self.data) < 2:\n'
-            '            return False\n'
-            '        return True'
+            '            return "Requires at least 2 columns of data"\n'
+            '        return None'
         )
     else:
         applicable_check = (
             '        if self.data is None or len(self.data) == 0:\n'
-            '            return False\n'
-            '        return True'
+            '            return "No data provided"\n'
+            '        return None'
         )
 
     # Indent user code by 12 spaces (inside compute method's try block)
@@ -433,7 +433,7 @@ class {class_name}:
             "ok": True,
             "value": value,
             "error": None,
-            "loss_precision": False,
+            "loss_of_precision": False,
             "params_used": self.params
         }}
 
@@ -443,14 +443,14 @@ class {class_name}:
             "ok": False,
             "value": None,
             "error": error_message,
-            "loss_precision": False,
+            "loss_of_precision": False,
             "params_used": self.params
         }}
 
     def compute(self):
-        _applicable = self._applicable()
-        if not _applicable:
-            return self._generate_return_structure_error("Data not applicable for this method")
+        reason = self._applicable()
+        if reason is not None:
+            return self._generate_return_structure_error(reason)
         try:
             data = self.data
             params = self.params
@@ -585,14 +585,14 @@ def update_custom_method(
     if input_type == "two_column":
         applicable_check = (
             '        if self.data is None or len(self.data) < 2:\n'
-            '            return False\n'
-            '        return True'
+            '            return "Requires at least 2 columns of data"\n'
+            '        return None'
         )
     else:
         applicable_check = (
             '        if self.data is None or len(self.data) == 0:\n'
-            '            return False\n'
-            '        return True'
+            '            return "No data provided"\n'
+            '        return None'
         )
 
     indented_code = "\n".join(
@@ -624,7 +624,7 @@ class {class_name}:
             "ok": True,
             "value": value,
             "error": None,
-            "loss_precision": False,
+            "loss_of_precision": False,
             "params_used": self.params
         }}
 
@@ -634,14 +634,14 @@ class {class_name}:
             "ok": False,
             "value": None,
             "error": error_message,
-            "loss_precision": False,
+            "loss_of_precision": False,
             "params_used": self.params
         }}
 
     def compute(self):
-        _applicable = self._applicable()
-        if not _applicable:
-            return self._generate_return_structure_error("Data not applicable for this method")
+        reason = self._applicable()
+        if reason is not None:
+            return self._generate_return_structure_error(reason)
         try:
             data = self.data
             params = self.params

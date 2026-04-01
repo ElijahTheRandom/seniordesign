@@ -277,6 +277,7 @@ def render_homepage(base_dir: str) -> None:
                 "data":           meta["data"],
                 "columns":        meta.get("columns", []),
                 "rows":           meta.get("rows", []),
+                "measurement_levels": meta.get("measurement_levels", {}),
             }
             handle_result(run)
 
@@ -796,6 +797,28 @@ def _render_column_row_selectors(
         col1 = st.multiselect("Columns", available_cols, key="selected_columns")
         st.session_state["current_cols"] = col1
 
+        # --- Measurement-level tagging per selected column (Req 4.1-4.2) ---
+        _MEASUREMENT_LEVELS = ["Nominal", "Ordinal", "Interval", "Ratio"]
+        if col1:
+            with st.expander("Column Measurement Types", expanded=False):
+                ml_dict = st.session_state.get("column_measurement_levels", {})
+                for c in col1:
+                    # Auto-detect default: numeric → Interval, text → Nominal
+                    if c not in ml_dict:
+                        coerced = pd.to_numeric(edited_table[c], errors="coerce")
+                        ml_dict[c] = "Interval" if coerced.notna().all() and len(coerced) > 0 else "Nominal"
+                    ml_dict[c] = st.selectbox(
+                        c,
+                        _MEASUREMENT_LEVELS,
+                        index=_MEASUREMENT_LEVELS.index(ml_dict.get(c, "Nominal")),
+                        key=f"ml_{c}",
+                    )
+                # Remove stale entries for columns no longer selected
+                ml_dict = {k: v for k, v in ml_dict.items() if k in col1}
+                st.session_state["column_measurement_levels"] = ml_dict
+        else:
+            st.session_state["column_measurement_levels"] = {}
+
         # --- Reset one-column checkboxes when all columns are cleared ---
         if (
             len(st.session_state.get("last_cols_selected", [])) > 0
@@ -883,6 +906,8 @@ def _compute_data_info(
             "num_rows": 0,
             "all_numeric": False,
             "has_numeric": False,
+            "num_interval_ratio": 0,
+            "num_ordinal_plus": 0,
         }
 
     subset = edited_table[col1]
@@ -901,12 +926,19 @@ def _compute_data_info(
         if coerced.notna().all() or subset[c].isna().all():
             numeric_count += 1
 
+    # Measurement-level counts from user tags
+    ml = st.session_state.get("column_measurement_levels", {})
+    num_interval_ratio = sum(1 for c in col1 if ml.get(c) in ("Interval", "Ratio"))
+    num_ordinal_plus = sum(1 for c in col1 if ml.get(c) in ("Ordinal", "Interval", "Ratio"))
+
     return {
         "num_selected_cols": len(col1),
         "num_numeric_cols": numeric_count,
         "num_rows": num_rows,
         "all_numeric": numeric_count == len(col1) and len(col1) > 0,
         "has_numeric": numeric_count > 0,
+        "num_interval_ratio": num_interval_ratio,
+        "num_ordinal_plus": num_ordinal_plus,
     }
 
 
@@ -952,23 +984,27 @@ def _render_computation_options(
     n_rows = data_info["num_rows"]
     has_num = data_info["has_numeric"]
     all_num = data_info["all_numeric"]
+    n_ir   = data_info.get("num_interval_ratio", 0)  # interval/ratio columns
+    n_ord  = data_info.get("num_ordinal_plus", 0)     # ordinal+ columns
 
-    # One-column numeric methods: need ≥1 numeric column
-    dis_1num = not data_ready or n_num < 1
-    # Variance needs ≥1 numeric column AND ≥2 rows (sample variance, ddof=1)
-    dis_var  = not data_ready or n_num < 1 or n_rows < 2
-    # Two-column numeric methods: need ≥2 numeric columns
-    dis_2num = not data_ready or n_num < 2
-    # Pearson / Spearman: need ≥2 numeric columns AND ≥3 rows
-    dis_corr = not data_ready or n_num < 2 or n_rows < 3
-    # Least-squares regression: need ≥2 numeric columns AND ≥2 rows
-    dis_lsr  = not data_ready or n_num < 2 or n_rows < 2
+    # Interval/ratio methods: Mean, Median, Std Dev, Percentiles, CV
+    dis_1num = not data_ready or n_num < 1 or n_ir < 1
+    # Variance needs interval/ratio AND ≥2 rows (sample variance, ddof=1)
+    dis_var  = not data_ready or n_num < 1 or n_ir < 1 or n_rows < 2
+    # Mode works on any measurement level — just needs data
+    dis_mode = not data_ready or n_num < 1
+    # Pearson: needs ≥2 interval/ratio columns AND ≥3 rows
+    dis_corr = not data_ready or n_num < 2 or n_ir < 2 or n_rows < 3
+    # Spearman: works on ordinal+, needs ≥2 ordinal+ columns AND ≥3 rows
+    dis_spear = not data_ready or n_num < 2 or n_ord < 2 or n_rows < 3
+    # Least-squares regression: needs ≥2 interval/ratio columns AND ≥2 rows
+    dis_lsr  = not data_ready or n_num < 2 or n_ir < 2 or n_rows < 2
     # Chi-Square: needs ≥1 numeric column AND ≥2 observed values
     dis_chi  = not data_ready or n_num < 1 or n_rows < 2
     # Binomial: needs ≥1 numeric column (data is cast to int/float)
     dis_binom = not data_ready or n_num < 1
-    # Coefficient of Variation: needs ≥1 numeric column
-    dis_cv   = not data_ready or n_num < 1
+    # Coefficient of Variation: needs ≥1 interval/ratio column
+    dis_cv   = not data_ready or n_num < 1 or n_ir < 1
 
     # If user drops from >=2 columns to 1 column,
     # reset two-column statistical method checkboxes
@@ -980,18 +1016,18 @@ def _render_computation_options(
     with c1:
         mean        = st.checkbox("Mean",                disabled=dis_1num,  key=f"mean_c1_{k1}")        and not dis_1num
         median      = st.checkbox("Median",              disabled=dis_1num,  key=f"median_c1_{k1}")      and not dis_1num
-        mode        = st.checkbox("Mode",                disabled=dis_1num,  key=f"mode_c1_{k1}")        and not dis_1num
+        mode        = st.checkbox("Mode",                disabled=dis_mode,  key=f"mode_c1_{k1}")        and not dis_mode
         variance    = st.checkbox("Variance",            disabled=dis_var,   key=f"variance_c1_{k1}")    and not dis_var
         std         = st.checkbox("Standard Deviation",  disabled=dis_1num,  key=f"std_c1_{k1}")         and not dis_1num
         percentiles = st.checkbox("Percentiles",         disabled=dis_1num,  key=f"percentiles_c1_{k1}") and not dis_1num
 
     with c2:
-        pearson                = st.checkbox("Pearson's Correlation",     disabled=dis_corr, key=f"pearson_c2_{k2}")                and not dis_corr
-        spearman               = st.checkbox("Spearman's Rank",           disabled=dis_corr, key=f"spearman_c2_{k2}")               and not dis_corr
+        pearson                = st.checkbox("Pearson's Correlation",     disabled=dis_corr,  key=f"pearson_c2_{k2}")                and not dis_corr
+        spearman               = st.checkbox("Spearman's Rank",           disabled=dis_spear, key=f"spearman_c2_{k2}")               and not dis_spear
         least_squares_regression = st.checkbox("Least Squares Regression",  disabled=dis_lsr,  key=f"least_squares_regression_c2_{k2}") and not dis_lsr
-        chi_squared            = st.checkbox("Chi-Square Test",           disabled=dis_chi,  key=f"chi_squared_c2_{k1}")            and not dis_chi
-        binomial               = st.checkbox("Binomial Distribution",     disabled=dis_binom, key=f"binomial_c2_{k1}")              and not dis_binom
-        variation              = st.checkbox("Coefficient of Variation",  disabled=dis_cv,   key=f"variation_c2_{k1}")              and not dis_cv
+        chi_squared            = st.checkbox("Chi-Square Test",           disabled=dis_chi,   key=f"chi_squared_c2_{k1}")            and not dis_chi
+        binomial               = st.checkbox("Binomial Distribution",     disabled=dis_binom, key=f"binomial_c2_{k1}")               and not dis_binom
+        variation              = st.checkbox("Coefficient of Variation",  disabled=dis_cv,    key=f"variation_c2_{k1}")              and not dis_cv
 
     # --- Conditional parameter inputs (appear inline when the method is checked) ---
     if percentiles:
@@ -1761,6 +1797,7 @@ def _handle_run_analysis(
         "data":           parsed_data.reset_index(drop=True),
         "columns":        col1,
         "rows":           col2,
+        "measurement_levels": dict(st.session_state.get("column_measurement_levels", {})),
     }
     st.session_state._compute_future = _get_executor().submit(
         _background_run,
