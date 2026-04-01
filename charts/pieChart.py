@@ -68,9 +68,9 @@ class PieChart:
                 factor = i / max(n - 1, 1)
 
                 # blend toward white for lighter shades
-                r2 = int(r + (255 - r) * factor * 0.6)
-                g2 = int(g + (255 - g) * factor * 0.6)
-                b2 = int(b + (255 - b) * factor * 0.6)
+                r2 = int(r + (255 - r) * factor * 0.8)
+                g2 = int(g + (255 - g) * factor * 0.8)
+                b2 = int(b + (255 - b) * factor * 0.8)
 
                 colors.append(f"#{r2:02x}{g2:02x}{b2:02x}")
 
