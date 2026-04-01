@@ -783,12 +783,15 @@ def _render_analysis_config(
 
     col1, col2 = _render_column_row_selectors(edited_table, data_ready)
 
+    # --- Compute data characteristics for smart checkbox disabling ---
+    data_info = _compute_data_info(edited_table, col1, col2, data_ready)
+
     st.markdown("---")
 
     mean, median, mode, variance, std, percentiles, \
         pearson, spearman, least_squares_regression, chi_squared, variation, \
         custom_flags, invalid_params = \
-        _render_computation_options(data_ready, col1, col2)
+        _render_computation_options(data_ready, col1, col2, data_info)
 
     st.markdown("---")
 
@@ -949,28 +952,115 @@ def _render_column_row_selectors(
 # selection flags that get passed to _handle_run_analysis.
 # ============================================================================
 
+def _compute_data_info(
+    edited_table: pd.DataFrame | None,
+    col1: list,
+    col2: list,
+    data_ready: bool,
+) -> dict:
+    """
+    Analyze the currently selected data to determine which methods are
+    eligible.  Returns a dict with:
+
+        num_selected_cols   – number of columns selected
+        num_numeric_cols    – how many of those columns are numeric
+        num_rows            – number of data rows in the selection
+        all_numeric         – True if every selected column is numeric
+        has_numeric         – True if at least one selected column is numeric
+    """
+    if not data_ready or not col1:
+        return {
+            "num_selected_cols": 0,
+            "num_numeric_cols": 0,
+            "num_rows": 0,
+            "all_numeric": False,
+            "has_numeric": False,
+        }
+
+    subset = edited_table[col1]
+    if col2:
+        # Re-index to 1-based to match the row selector values
+        subset = subset.copy()
+        subset.index = range(1, len(subset) + 1)
+        subset = subset.loc[subset.index.isin(col2)]
+
+    num_rows = len(subset)
+
+    # A column is "numeric" if pd.to_numeric can coerce every non-null value
+    numeric_count = 0
+    for c in subset.columns:
+        coerced = pd.to_numeric(subset[c], errors="coerce")
+        if coerced.notna().all() or subset[c].isna().all():
+            numeric_count += 1
+
+    return {
+        "num_selected_cols": len(col1),
+        "num_numeric_cols": numeric_count,
+        "num_rows": num_rows,
+        "all_numeric": numeric_count == len(col1) and len(col1) > 0,
+        "has_numeric": numeric_count > 0,
+    }
+
+
+# ============================================================================
+# ⭐ STATISTICAL METHODS SELECTED BY USER
+# Return values: mean, median, mode, variance, std_dev, percentiles (one-column)
+#                pearson, spearman, regression, chi_square, binomial, variation
+# ============================================================================
+# The following function renders checkboxes for: Mean, Median, Mode, Variance,
+# Standard Deviation, Percentiles, Pearson, Spearman, Regression, Chi-Square,
+# Binomial, and Coefficient of Variation. The return values are the method
+# selection flags that get passed to _handle_run_analysis.
+# ============================================================================
+
 def _render_computation_options(
     data_ready: bool,
     col1: list,
-    col2: list
+    col2: list,
+    data_info: dict,
 ) -> tuple:
     """
     Render the 12 computation checkboxes in two columns.
 
-    Disable rules:
+    Disable rules (real-time, based on the current selection):
         - All checkboxes: disabled if no data is loaded (data_ready=False)
-        - One-column methods: disabled if no column is selected
-        - Two-column methods: disabled if fewer than 2 columns are selected
+        - One-column numeric methods (Mean, Median, Mode, Std Dev, Percentiles):
+              disabled if no numeric column selected
+        - Variance: disabled if < 1 numeric column OR < 2 rows (ddof=1)
+        - Pearson / Spearman: disabled if < 2 numeric columns OR < 3 rows
+        - Least Squares Regression: disabled if < 2 numeric columns OR < 2 rows
+        - Chi-Square: disabled if < 1 numeric column OR < 2 rows
+        - Binomial: disabled if < 1 numeric column
+        - Coefficient of Variation: disabled if no numeric column
 
     Returns:
-        Tuple of 12 booleans in order:
-        (mean, median, mode, variance, std_dev, percentiles,
-         pearson, spearman, regression, chi_square, variation)
+        Tuple of 11 booleans + custom_flags dict + invalid_params bool.
     """
     st.header("Computation Options", anchor=False)
 
-    disable_one_col = not data_ready or len(col1) < 1
-    disable_two_cols = not data_ready or len(col1) < 2
+    # --- Derive disable flags from data_info ---
+    n_cols = data_info["num_selected_cols"]
+    n_num  = data_info["num_numeric_cols"]
+    n_rows = data_info["num_rows"]
+    has_num = data_info["has_numeric"]
+    all_num = data_info["all_numeric"]
+
+    # One-column numeric methods: need ≥1 numeric column
+    dis_1num = not data_ready or n_num < 1
+    # Variance needs ≥1 numeric column AND ≥2 rows (sample variance, ddof=1)
+    dis_var  = not data_ready or n_num < 1 or n_rows < 2
+    # Two-column numeric methods: need ≥2 numeric columns
+    dis_2num = not data_ready or n_num < 2
+    # Pearson / Spearman: need ≥2 numeric columns AND ≥3 rows
+    dis_corr = not data_ready or n_num < 2 or n_rows < 3
+    # Least-squares regression: need ≥2 numeric columns AND ≥2 rows
+    dis_lsr  = not data_ready or n_num < 2 or n_rows < 2
+    # Chi-Square: needs ≥1 numeric column AND ≥2 observed values
+    dis_chi  = not data_ready or n_num < 1 or n_rows < 2
+    # Binomial: needs ≥1 numeric column (data is cast to int/float)
+    dis_binom = not data_ready or n_num < 1
+    # Coefficient of Variation: needs ≥1 numeric column
+    dis_cv   = not data_ready or n_num < 1
 
     # If user drops from >=2 columns to 1 column,
     # reset two-column statistical method checkboxes
@@ -980,19 +1070,19 @@ def _render_computation_options(
     c1, c2 = st.columns(2)
 
     with c1:
-        mean        = st.checkbox("Mean",                disabled=disable_one_col,  key=f"mean_c1_{k1}")
-        median      = st.checkbox("Median",              disabled=disable_one_col,  key=f"median_c1_{k1}")
-        mode        = st.checkbox("Mode",                disabled=disable_one_col,  key=f"mode_c1_{k1}")
-        variance    = st.checkbox("Variance",            disabled=disable_one_col,  key=f"variance_c1_{k1}")
-        std         = st.checkbox("Standard Deviation",  disabled=disable_one_col,  key=f"std_c1_{k1}")
-        percentiles = st.checkbox("Percentiles",         disabled=disable_one_col,  key=f"percentiles_c1_{k1}")
+        mean        = st.checkbox("Mean",                disabled=dis_1num,  key=f"mean_c1_{k1}")        and not dis_1num
+        median      = st.checkbox("Median",              disabled=dis_1num,  key=f"median_c1_{k1}")      and not dis_1num
+        mode        = st.checkbox("Mode",                disabled=dis_1num,  key=f"mode_c1_{k1}")        and not dis_1num
+        variance    = st.checkbox("Variance",            disabled=dis_var,   key=f"variance_c1_{k1}")    and not dis_var
+        std         = st.checkbox("Standard Deviation",  disabled=dis_1num,  key=f"std_c1_{k1}")         and not dis_1num
+        percentiles = st.checkbox("Percentiles",         disabled=dis_1num,  key=f"percentiles_c1_{k1}") and not dis_1num
 
     with c2:
-        pearson                = st.checkbox("Pearson's Correlation",     disabled=disable_two_cols, key=f"pearson_c2_{k2}")
-        spearman               = st.checkbox("Spearman's Rank",           disabled=disable_two_cols, key=f"spearman_c2_{k2}")
-        least_squares_regression = st.checkbox("Least Squares Regression",  disabled=disable_two_cols, key=f"least_squares_regression_c2_{k2}")
-        chi_squared            = st.checkbox("Chi-Square Test",           disabled=disable_one_col,  key=f"chi_squared_c2_{k1}")
-        variation              = st.checkbox("Coefficient of Variation",  disabled=disable_one_col,  key=f"variation_c2_{k1}")
+        pearson                = st.checkbox("Pearson's Correlation",     disabled=dis_corr, key=f"pearson_c2_{k2}")                and not dis_corr
+        spearman               = st.checkbox("Spearman's Rank",           disabled=dis_corr, key=f"spearman_c2_{k2}")               and not dis_corr
+        least_squares_regression = st.checkbox("Least Squares Regression",  disabled=dis_lsr,  key=f"least_squares_regression_c2_{k2}") and not dis_lsr
+        chi_squared            = st.checkbox("Chi-Square Test",           disabled=dis_chi,  key=f"chi_squared_c2_{k1}")            and not dis_chi
+        variation              = st.checkbox("Coefficient of Variation",  disabled=dis_cv,   key=f"variation_c2_{k1}")              and not dis_cv
 
     # --- Conditional parameter inputs (appear inline when the method is checked) ---
     invalid_params = False
@@ -1007,7 +1097,7 @@ def _render_computation_options(
                 key="percentile_values_input",
                 placeholder="e.g. 10, 25, 50, 75, 90",
                 help="Enter any values between 0 and 100, separated by commas.",
-                disabled=disable_one_col,
+                disabled=dis_1num,
             )
         try:
             parsed_pcts = [float(v.strip()) for v in percentile_input_val.split(",") if v.strip()]
@@ -1021,7 +1111,7 @@ def _render_computation_options(
                 _param_warning("Values must be valid numbers between 0 and 100.")
 
     # --- Custom methods ---
-    custom_flags = _render_custom_method_checkboxes(data_ready, col1)
+    custom_flags = _render_custom_method_checkboxes(data_ready, col1, data_info)
 
     st.session_state["_analysis_invalid_params"] = invalid_params
 
@@ -1035,12 +1125,13 @@ def _render_computation_options(
 def _render_custom_method_checkboxes(
     data_ready: bool,
     col1: list,
+    data_info: dict,
 ) -> dict[str, bool]:
     """
     Render checkboxes for any user-defined custom methods.
 
     Reads the custom_methods.json registry and renders one checkbox per
-    entry, respecting the method's input_type for disable logic.
+    entry, respecting the method's input_type and numeric requirements.
 
     Returns:
         Dict mapping custom method ID → bool (checked/unchecked).
@@ -1053,6 +1144,7 @@ def _render_custom_method_checkboxes(
         kc = st.session_state.get("checkbox_key_custom", 0)
         k1 = st.session_state.checkbox_key_onecol
         k2 = st.session_state.checkbox_key_twocol
+        n_num = data_info["num_numeric_cols"]
 
         flags = {}
         cm1, cm2 = st.columns(2)
@@ -1062,17 +1154,18 @@ def _render_custom_method_checkboxes(
             itype = entry.get("input_type", "one_column")
 
             if itype == "two_column":
-                disabled = not data_ready or len(col1) < 2
+                disabled = not data_ready or n_num < 2
                 key_suffix = f"{k2}_{kc}"
             else:
-                disabled = not data_ready or len(col1) < 1
+                disabled = not data_ready or n_num < 1
                 key_suffix = f"{k1}_{kc}"
 
             col_target = cm1 if idx % 2 == 0 else cm2
             with col_target:
-                flags[mid] = st.checkbox(
+                checked = st.checkbox(
                     label, disabled=disabled, key=f"{mid}_{key_suffix}"
                 )
+                flags[mid] = checked and not disabled
     else:
         flags = {}
 
@@ -1595,14 +1688,14 @@ def _render_visualization_options(
     v1, v2 = st.columns(2)
 
     with v1:
-        hist    = st.checkbox("Pie Chart",                     key="viz_hist",    disabled=disable_one_col)
-        box     = st.checkbox("Vertical Bar Chart",            key="viz_box",     disabled=disable_one_col)
-        scatter = st.checkbox("Horizontal Bar Chart",          key="viz_scatter", disabled=disable_one_col)
+        hist    = st.checkbox("Pie Chart",                     key="viz_hist",    disabled=disable_one_col)  and not disable_one_col
+        box     = st.checkbox("Vertical Bar Chart",            key="viz_box",     disabled=disable_one_col)  and not disable_one_col
+        scatter = st.checkbox("Horizontal Bar Chart",          key="viz_scatter", disabled=disable_one_col)  and not disable_one_col
 
     with v2:
-        line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_two_cols)
-        heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_two_cols)
-        binomial = st.checkbox("Binomial Distribution",        key="viz_binomial", disabled=disable_one_col)
+        line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_two_cols) and not disable_two_cols
+        heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_two_cols) and not disable_two_cols
+        binomial = st.checkbox("Binomial Distribution",        key="viz_binomial", disabled=disable_one_col) and not disable_one_col
 
     return hist, box, scatter, line, heatmap, binomial
 
