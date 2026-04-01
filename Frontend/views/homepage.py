@@ -1305,6 +1305,49 @@ def _render_computation_options(
             with pcol:
                 _param_warning("Values must be valid numbers between 0 and 100.")
 
+    if st.session_state.get("viz_binomial", False) and not dis_binom:
+        if percentiles:
+            st.markdown("<div style='margin-top:0.25rem'></div>", unsafe_allow_html=True)
+        st.markdown("**Binomial Parameters**")
+        bn1, bn2, bn3, bn4 = st.columns(4)
+        with bn1:
+            st.number_input(
+                "n (trials)", min_value=1, max_value=100000,
+                value=10, step=1,
+                key="binomial_n",
+                help="Total number of trials.",
+                disabled=dis_binom,
+            )
+        with bn2:
+            st.number_input(
+                "p (probability)", min_value=0.0, max_value=1.0,
+                value=0.5, step=0.01, format="%.4f",
+                key="binomial_p",
+                help="Probability of success on each trial (0 – 1).",
+                disabled=dis_binom,
+            )
+        with bn3:
+            st.number_input(
+                "k min", min_value=0,
+                value=0, step=1,
+                key="binomial_k_min",
+                help="Minimum number of successes (start of k-range).",
+                disabled=dis_binom,
+            )
+        with bn4:
+            st.number_input(
+                "k max", min_value=0,
+                value=10, step=1,
+                key="binomial_k_max",
+                help="Maximum number of successes (end of k-range).",
+                disabled=dis_binom,
+            )
+        k_min_val = st.session_state.get("binomial_k_min", 0)
+        k_max_val = st.session_state.get("binomial_k_max", 10)
+        if k_min_val > k_max_val:
+            invalid_params = True
+            _param_warning("k min must be ≤ k max.")
+
     # --- Custom methods ---
     custom_flags = _render_custom_method_checkboxes(data_ready, col1, data_info)
 
