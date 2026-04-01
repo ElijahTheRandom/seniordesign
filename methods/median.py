@@ -1,5 +1,4 @@
 import numpy as np
-from class_templates import message_structure
 
 class Median:
     def __init__(self, data, metadata, params=None):

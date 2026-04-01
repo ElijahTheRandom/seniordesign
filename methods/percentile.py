@@ -43,15 +43,15 @@ class Percentile:
             return self._generate_return_structure_error(reason)
         
         try:
-            self.params = np.asarray(self.params)
-            if self.params.size == 0:
+            param_array = np.asarray(self.params)
+            if param_array.size == 0:
                 return self._generate_return_structure_error("No percentile values specified")
 
             flat_data = np.asarray(self.data, dtype=float).flatten()
 
             percentiles = []
-            for i in range(len(self.params)):
-                appendPercentile = float(np.percentile(flat_data, self.params[i]))
+            for i in range(len(param_array)):
+                appendPercentile = float(np.percentile(flat_data, param_array[i]))
                 percentiles.append(appendPercentile)
         except Exception as e:
             return self._generate_return_structure_error(str(e))

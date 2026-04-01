@@ -244,7 +244,9 @@ class BackendHandler:
 
         def _gen_one(idx, graphic_request):
             chart_type = graphic_request.get("type")
-            chart_params = {k: v for k, v in graphic_request.items() if k != "type"}
+            # Strip result-only keys that leak in when replaying saved runs
+            _result_keys = {"type", "ok", "error", "params_used"}
+            chart_params = {k: v for k, v in graphic_request.items() if k not in _result_keys}
 
             if "path" in chart_params:
                 original_filename = os.path.basename(chart_params["path"])
