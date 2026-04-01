@@ -3,6 +3,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.colors as pc
 from io import BytesIO
+from collections import Counter
 """
     "graphics": [ #3.6
         {
@@ -75,25 +76,64 @@ class PieChart:
 
             return colors
     
+    def _is_numeric_data(self):
+        """Check if the data contains numeric values that should be used directly."""
+        try:
+            if self.params.get("values"):
+                test_values = self.params["values"]
+            else:
+                data_array = np.asarray(self.data)
+                if data_array.ndim > 1:
+                    test_values = data_array.flatten()
+                else:
+                    test_values = data_array
+            
+            # Try to convert first few values to float
+            for val in test_values[:min(5, len(test_values))]:
+                float(val)
+            return True
+        except (ValueError, TypeError):
+            return False
+    
     def _create_chart(self):
-        values = self.params.get("values")
-        if values is None:
-            data_array = np.asarray(self.data)
-            if data_array.ndim > 1:
-                values = data_array[0].tolist()
+        # Check if we should count label frequencies instead of using raw values
+        if self.params.get("count_labels", False) or not self._is_numeric_data():
+            # Count frequency of each unique label
+            data_list = []
+            
+            if self.params.get("values"):
+                data_list = self.params["values"]
             else:
-                values = data_array.tolist()
-            try:
-                values = [float(v) for v in values]
-            except (ValueError, TypeError):
-                raise ValueError("Pie chart requires numeric data for values.")
+                data_array = np.asarray(self.data)
+                if data_array.ndim > 1:
+                    data_list = data_array.flatten().tolist()
+                else:
+                    data_list = data_array.tolist()
+            
+            # Count frequencies
+            label_counts = Counter(data_list)
+            labels = list(label_counts.keys())
+            values = list(label_counts.values())
+        else:
+            # Original numeric value processing
+            values = self.params.get("values")
+            if values is None:
+                data_array = np.asarray(self.data)
+                if data_array.ndim > 1:
+                    values = data_array[0].tolist()
+                else:
+                    values = data_array.tolist()
+                try:
+                    values = [float(v) for v in values]
+                except (ValueError, TypeError):
+                    raise ValueError("Pie chart requires numeric data for values.")
 
-        labels = self.params.get("labels")
-        if labels is None:
-            if isinstance(self.metadata, (list, tuple)) and len(self.metadata) >= len(values):
-                labels = list(self.metadata[:len(values)])
-            else:
-                labels = [str(i) for i in range(len(values))]
+            labels = self.params.get("labels")
+            if labels is None:
+                if isinstance(self.metadata, (list, tuple)) and len(self.metadata) >= len(values):
+                    labels = list(self.metadata[:len(values)])
+                else:
+                    labels = [str(i) for i in range(len(values))]
 
         colors = self.color_pallette(len(labels))
 
