@@ -5,3 +5,6 @@ __pycache__/
 .git/
 node_modules/
 .DS_Store
+certbot/
+nginx/
+results_cache/

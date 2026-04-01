@@ -2,11 +2,49 @@ services:
   ui:
     build: .
     image: senior-design-app:latest
-    ports:
-      - "8501:8501"
+    command:
+      - streamlit
+      - run
+      - Frontend/home.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+      - --server.headless=true
+    expose:
+      - "8501"
     volumes:
       - senior_design_data:/app/data
       - ./results_cache:/app/results_cache
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/', timeout=5)"
+      interval: 20s
+      timeout: 8s
+      retries: 6
+      start_period: 30s
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:stable-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+    depends_on:
+      ui:
+        condition: service_healthy
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'
+    restart: unless-stopped
 
 volumes:
   senior_design_data:
