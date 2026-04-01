@@ -12,13 +12,13 @@ class ChiSquared:
     def _applicable(self):
         # Check whether this statistic is valid for the given data selection
         if self.data is None:
-            return False
+            return "Chi-Square requires at least 2 categories of observed data"
         arr = np.asarray(self.data)
         flat = arr.flatten()
         # Need at least 2 observed values for chi-squared
         if len(flat) < 2:
-            return False
-        return True 
+            return "Chi-Square requires at least 2 categories of observed data"
+        return None
 
     def _generate_return_structure(self, value):
         # Check whether this statistic is valid for the given data selection
@@ -43,9 +43,9 @@ class ChiSquared:
 
     def compute(self):
         # Perform the statistical computation and return a standardized result dictionary
-        _applicable = self._applicable()
-        if not _applicable:
-            return self._generate_return_structure_error("Chi-Square requires at least 2 categories of observed data")
+        reason = self._applicable()
+        if reason is not None:
+            return self._generate_return_structure_error(reason)
         
         try:
             arr = np.asarray(self.data, dtype=float)
