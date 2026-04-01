@@ -41,6 +41,7 @@ import sys
 import os
 import json
 from datetime import datetime
+from io import BytesIO
 
 _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 if _PROJECT_ROOT not in sys.path:
@@ -48,6 +49,7 @@ if _PROJECT_ROOT not in sys.path:
 from pathlib import Path
 import streamlit as st
 import pandas as pd
+from PIL import Image
 
 from utils.helpers import df_to_ascii_table
 from frontend_handler import handle_result
@@ -217,9 +219,25 @@ def _render_visualizations(run: dict, show_divider: bool = True) -> None:
     st.subheader("Visualizations", anchor=False)
     st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
 
-    for chart in graphics:
+    for idx, chart in enumerate(graphics):
         if chart.get("ok") and chart.get("path"):
             st.image(chart["path"])
+            # --- Req 3.7: JPEG download button ---
+            try:
+                img = Image.open(chart["path"])
+                buf = BytesIO()
+                rgb = img.convert("RGB")  # JPEG requires RGB
+                rgb.save(buf, format="JPEG", quality=95)
+                chart_type = chart.get("type", f"chart_{idx}")
+                st.download_button(
+                    "Download JPEG",
+                    data=buf.getvalue(),
+                    file_name=f"{run.get('name', 'run')}_{chart_type}.jpg",
+                    mime="image/jpeg",
+                    key=f"dl_jpeg_{run.get('id', '')}_{idx}",
+                )
+            except Exception:
+                pass  # If conversion fails, skip the button silently
         else:
             st.error(f"{chart.get('type', 'Chart')}: {chart.get('error', 'Failed to generate')}")
 
@@ -397,7 +415,16 @@ def _build_export_text(run: dict) -> str:
         A multi-line string ready to be written to a .txt file.
     """
     lines = [f"Analysis Results — {run['name']}", ""]
-
+    # --- Req 3.9: Include the exact row/column selection ---
+    sel_cols = run.get("columns", [])
+    sel_rows = run.get("rows", [])
+    if sel_cols:
+        lines.append(f"Selected Columns: {', '.join(str(c) for c in sel_cols)}")
+    if sel_rows:
+        lines.append(f"Selected Rows: {', '.join(str(r) for r in sel_rows)}")
+    else:
+        lines.append("Selected Rows: All")
+    lines.append("")
     if run.get("cards"):
         stat_cards = [c for c in run["cards"] if c[0] == "stat"]
         error_cards = [c for c in run["cards"] if c[0] == "error"]

@@ -130,10 +130,12 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
             ignore_index=True
         )
 
+        combined_filename = ', '.join(run_names)
+
         st.download_button(
             "Export CSV Data",
             data=combined_df.to_csv(index=False),
-            file_name=f"{run['name']}.csv",
+            file_name=f"{combined_filename} Combined.csv",
             mime="text/csv",
             use_container_width=True,
         )
@@ -142,7 +144,7 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
         st.download_button(
             "Export TSV Data",
             data=combined_df.to_csv(index=False, sep="\t"),
-            file_name=f"{run['name']}.tsv",
+            file_name=f"{combined_filename} Combined.tsv",
             mime="text/tab-separated-values",
             use_container_width=True,
         )

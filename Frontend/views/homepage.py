@@ -277,6 +277,8 @@ def render_homepage(base_dir: str) -> None:
                 "result_message": result_message,
                 "table":          meta["table"],
                 "data":           meta["data"],
+                "columns":        meta.get("columns", []),
+                "rows":           meta.get("rows", []),
             }
             handle_result(run)
 
@@ -1837,6 +1839,8 @@ def _handle_run_analysis(
         "visualizations": [VIZ_NAMES[k] for k in _BACKEND_CHART_IDS if method_flags.get(k)],
         "table":          edited_table,
         "data":           parsed_data.reset_index(drop=True),
+        "columns":        col1,
+        "rows":           col2,
     }
     st.session_state._compute_future = _get_executor().submit(
         _background_run,
