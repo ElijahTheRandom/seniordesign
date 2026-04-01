@@ -44,8 +44,8 @@ def validate_numeric(
     require it.
 
     Only runs the check if at least one numeric method or numeric
-    visualization is selected. Categorical-only methods (Chi-Square,
-    Binomial) do not trigger the check.
+    visualization is selected. Bar and pie charts are excluded since
+    they can handle mixed data (a string label column + numeric values).
 
     Args:
         data:         The sliced DataFrame the user wants to analyze.
@@ -66,6 +66,7 @@ def validate_numeric(
     numeric_methods = {
         "mean", "median", "mode", "standard_deviation", "variance",
         "pearson", "spearman", "least_squares_regression", "percentile", "coefficient_variation",
+        "chisquared", "binomial",
         "scat_plot", "best_fit",
     }
     # Custom methods (prefixed with 'custom_') also require numeric data
