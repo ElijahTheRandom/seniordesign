@@ -59,7 +59,7 @@ class HorBar:
 
     def _format_value(self, val):
         """Format value as millions or billions or trillions if appropriate."""
-        val_num = float(val)
+        val_num = np.float64(val)
         if val_num >= 1e12:
             return f"{val_num / 1e12:.3f}T"
         elif val_num >= 1e9:
@@ -69,7 +69,10 @@ class HorBar:
         elif val_num >= 1e3:
             return f"{val_num / 1e3:.3f}K"
         else:
-            return str(int(val_num) if val_num == int(val_num) else val_num)
+            if abs(val_num - int(val_num)) < 1e-6:
+                return str(int(val_num))
+            else:
+                return f"{val_num:.2f}"
 
     def _is_numeric_data(self):
         """Check if the data contains numeric values that should be used directly."""
@@ -85,7 +88,7 @@ class HorBar:
             
             # Try to convert first few values to float
             for val in test_values[:min(5, len(test_values))]:
-                float(val)
+                np.float64(val)
             return True
         except (ValueError, TypeError):
             return False
@@ -121,13 +124,13 @@ class HorBar:
                 else:
                     values = data_array.tolist()
                 try:
-                    values = [float(v) for v in values]
+                    values = [np.float64(v) for v in values]
                 except (ValueError, TypeError):
                     raise ValueError("Bar chart requires numeric data for values.")
             else:
                 values = list(values)
                 try:
-                    values = [float(v) for v in values]
+                    values = [np.float64(v) for v in values]
                 except (ValueError, TypeError):
                     raise ValueError("Bar chart requires numeric data for values.")
 
@@ -153,35 +156,51 @@ class HorBar:
 
         # Format values for display
         formatted_values = [self._format_value(v) for v in values[::-1]]
-
+        
+        # Dynamic font size for x-axis labels (category labels) and value labels
+        num_labels = len(labels)
+        if num_labels <= 10:
+            dynamic_font_size = 14
+        elif num_labels <= 20:
+            dynamic_font_size = 14
+        elif num_labels <= 35:
+            dynamic_font_size = 10
+        elif num_labels <= 50:
+            dynamic_font_size = 8
+        else:
+            dynamic_font_size = 6
         figure.add_trace(go.Bar(
             x = values[::-1],
             y = labels[::-1],
             orientation = 'h',
             text = formatted_values,
-            textposition = "inside",
-            textfont = dict(size = 10, color = "white"),
+            textposition = "auto",
+            textfont = dict(size = 14, color = "white", family = "Arial Black, Arial, sans-serif"),
             marker = dict(
                 color = "#e4781d",
                 line = dict (width = 1, color = "#e4781d")
             )
         ))
 
+
         figure.update_layout(
-            title = dict(
-                text = "Bar Chart",
-                x = 0.5,
-                font = dict(color = "white", size = 20)
-            ),
             template = "plotly_dark",
             paper_bgcolor = "black",
             plot_bgcolor = "black",
             font = dict(color = "white"),
             xaxis = dict(showgrid = True, gridcolor = "white"),
-            yaxis = dict(showgrid = False, automargin = True, ticklabelstandoff = 10, tickfont = dict(size = 10)),
+            yaxis = dict(
+                showgrid = False,
+                automargin = True,
+                ticklabelstandoff = 10,
+                tickfont = dict(size = dynamic_font_size),
+                tickmode = "array",
+                tickvals = labels[::-1],
+                ticktext = labels[::-1]
+            ),
             width = 700,
-            height = 500,
-            margin = dict(l = 100, r = 100, t = 80, b = 80)
+            height = 500.,
+            margin = dict(l = 100, r = 100, t = 10, b = 10)
         )
 
         buffer = BytesIO()

@@ -69,7 +69,10 @@ class VertBar:
         elif val_num >= 1e3:
             return f"{val_num / 1e3:.3f}K"
         else:
-            return str(int(val_num) if val_num == int(val_num) else val_num)
+            if abs(val_num - int(val_num)) < 1e-6:
+                return str(int(val_num))
+            else:
+                return f"{val_num:.2f}"
 
 
     def _is_numeric_data(self):
@@ -152,12 +155,25 @@ class VertBar:
 
         figure = go.Figure()
 
+        # Dynamic font size for x-axis labels (category labels) and value labels
+        num_labels = len(labels)
+        if num_labels <= 10:
+            dynamic_font_size = 15
+        elif num_labels <= 20:
+            dynamic_font_size = 12
+        elif num_labels <= 35:
+            dynamic_font_size = 10
+        elif num_labels <= 50:
+            dynamic_font_size = 8
+        else:
+            dynamic_font_size = 6
+
         figure.add_trace(go.Bar(
             x = labels,
             y = values,
             text = [self._format_value(v) for v in values],
-            textposition = "inside",
-            textfont = dict(size = 10, color = "white"),
+            textposition = "auto",
+            textfont = dict(size = 14, color = "white"),
             marker = dict(
                 color = "#e4781d",
                 line = dict (width = 1, color = "#e4781d")
@@ -165,19 +181,15 @@ class VertBar:
         ))
 
         figure.update_layout(
-            title = dict(
-                text = "Bar Chart",
-                x = 0.5,
-                font = dict(color = "white", size = 20)
-            ),
             template = "plotly_dark",
             paper_bgcolor = "black",
             plot_bgcolor = "black",
             font = dict(color = "white"),
-            xaxis = dict(showgrid = False, automargin = True, ticklabelstandoff = 10),
+            xaxis = dict(showgrid = False, automargin = True, ticklabelstandoff = 10, tickfont = dict(size = dynamic_font_size), tickangle = 0 if num_labels <= 15 else 90),
             yaxis = dict(showgrid = True, gridcolor = "gray"),
             width = 700,
-            height = 500
+            height = 500,
+            margin = dict(l = 60, r = 40, t = 10, b = 10)
         )
 
         buffer = BytesIO()
