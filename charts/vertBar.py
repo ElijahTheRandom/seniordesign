@@ -57,6 +57,21 @@ class VertBar:
             "params_used": self.params,
         }
 
+    def _format_value(self, val):
+        """Format value as millions or billions or trillions if appropriate."""
+        val_num = float(val)
+        if val_num >= 1e12:
+            return f"{val_num / 1e12:.3f}T"
+        elif val_num >= 1e9:
+            return f"{val_num / 1e9:.3f}B"
+        elif val_num >= 1e6:
+            return f"{val_num / 1e6:.3f}M"
+        elif val_num >= 1e3:
+            return f"{val_num / 1e3:.3f}K"
+        else:
+            return str(int(val_num) if val_num == int(val_num) else val_num)
+
+
     def _is_numeric_data(self):
         """Check if the data contains numeric values that should be used directly."""
         try:
@@ -110,9 +125,26 @@ class VertBar:
                     values = [float(v) for v in values]
                 except (ValueError, TypeError):
                     raise ValueError("Bar chart requires numeric data for values.")
+            else:
+                values = list(values)
+                try:
+                    values = [float(v) for v in values]
+                except (ValueError, TypeError):
+                    raise ValueError("Bar chart requires numeric data for values.")
 
             labels = self.params.get("labels")
-            if labels is None:
+            if labels is not None:
+                if len(labels) != len(values):
+                    raise ValueError("Bar chart requires labels to align with values length.")
+
+                # Sum values by label so duplicates aggregate
+                label_totals = {}
+                for lbl, val in zip(labels, values):
+                    label_totals[lbl] = label_totals.get(lbl, 0.0) + val
+
+                labels = list(label_totals.keys())
+                values = list(label_totals.values())
+            else:
                 if isinstance(self.metadata, (list, tuple)) and len(self.metadata) == len(values):
                     labels = list(self.metadata)
                 else:
@@ -123,8 +155,9 @@ class VertBar:
         figure.add_trace(go.Bar(
             x = labels,
             y = values,
-            text = values,
-            textposition = "outside",
+            text = [self._format_value(v) for v in values],
+            textposition = "inside",
+            textfont = dict(size = 10, color = "white"),
             marker = dict(
                 color = "#e4781d",
                 line = dict (width = 1, color = "#e4781d")
@@ -143,6 +176,7 @@ class VertBar:
             font = dict(color = "white"),
             xaxis = dict(showgrid = False, automargin = True, ticklabelstandoff = 10),
             yaxis = dict(showgrid = True, gridcolor = "gray"),
+            width = 700,
             height = 500
         )
 

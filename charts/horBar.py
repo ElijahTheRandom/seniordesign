@@ -57,6 +57,20 @@ class HorBar:
             "params_used": self.params,
         }
 
+    def _format_value(self, val):
+        """Format value as millions or billions or trillions if appropriate."""
+        val_num = float(val)
+        if val_num >= 1e12:
+            return f"{val_num / 1e12:.3f}T"
+        elif val_num >= 1e9:
+            return f"{val_num / 1e9:.3f}B"
+        elif val_num >= 1e6:
+            return f"{val_num / 1e6:.3f}M"
+        elif val_num >= 1e3:
+            return f"{val_num / 1e3:.3f}K"
+        else:
+            return str(int(val_num) if val_num == int(val_num) else val_num)
+
     def _is_numeric_data(self):
         """Check if the data contains numeric values that should be used directly."""
         try:
@@ -110,9 +124,26 @@ class HorBar:
                     values = [float(v) for v in values]
                 except (ValueError, TypeError):
                     raise ValueError("Bar chart requires numeric data for values.")
+            else:
+                values = list(values)
+                try:
+                    values = [float(v) for v in values]
+                except (ValueError, TypeError):
+                    raise ValueError("Bar chart requires numeric data for values.")
 
             labels = self.params.get("labels")
-            if labels is None:
+            if labels is not None:
+                if len(labels) != len(values):
+                    raise ValueError("Bar chart requires labels to align with values length.")
+
+                # Sum values by label so duplicates aggregate
+                label_totals = {}
+                for lbl, val in zip(labels, values):
+                    label_totals[lbl] = label_totals.get(lbl, 0.0) + val
+
+                labels = list(label_totals.keys())
+                values = list(label_totals.values())
+            else:
                 if isinstance(self.metadata, (list, tuple)) and len(self.metadata) == len(values):
                     labels = list(self.metadata)
                 else:
@@ -120,12 +151,16 @@ class HorBar:
 
         figure = go.Figure()
 
+        # Format values for display
+        formatted_values = [self._format_value(v) for v in values[::-1]]
+
         figure.add_trace(go.Bar(
             x = values[::-1],
             y = labels[::-1],
             orientation = 'h',
-            text = values[::-1],
-            textposition = "outside",
+            text = formatted_values,
+            textposition = "inside",
+            textfont = dict(size = 10, color = "white"),
             marker = dict(
                 color = "#e4781d",
                 line = dict (width = 1, color = "#e4781d")
@@ -141,10 +176,12 @@ class HorBar:
             template = "plotly_dark",
             paper_bgcolor = "black",
             plot_bgcolor = "black",
-            font = dict(color = "white", family = "Arial", size = 15),
+            font = dict(color = "white"),
             xaxis = dict(showgrid = True, gridcolor = "white"),
-            yaxis = dict(showgrid = False, automargin = True, ticklabelstandoff = 10),
-            height = 500
+            yaxis = dict(showgrid = False, automargin = True, ticklabelstandoff = 10, tickfont = dict(size = 10)),
+            width = 700,
+            height = 500,
+            margin = dict(l = 100, r = 100, t = 80, b = 80)
         )
 
         buffer = BytesIO()

@@ -127,9 +127,26 @@ class PieChart:
                     values = [float(v) for v in values]
                 except (ValueError, TypeError):
                     raise ValueError("Pie chart requires numeric data for values.")
+            else:
+                values = list(values)
+                try:
+                    values = [float(v) for v in values]
+                except (ValueError, TypeError):
+                    raise ValueError("Pie chart requires numeric data for values.")
 
             labels = self.params.get("labels")
-            if labels is None:
+            if labels is not None:
+                if len(labels) != len(values):
+                    raise ValueError("Pie chart requires labels to align with values length.")
+
+                # Sum values by label so duplicate labels aggregate into one slice
+                label_totals = {}
+                for lbl, val in zip(labels, values):
+                    label_totals[lbl] = label_totals.get(lbl, 0.0) + val
+
+                labels = list(label_totals.keys())
+                values = list(label_totals.values())
+            else:
                 if isinstance(self.metadata, (list, tuple)) and len(self.metadata) >= len(values):
                     labels = list(self.metadata[:len(values)])
                 else:
