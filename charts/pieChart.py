@@ -163,11 +163,49 @@ class PieChart:
             textposition = "outside"
         ))
 
+
+        # Keep legend readable for larger label sets (up to ~35 items)
+        if len(labels) <= 10:
+            legend_font_size = 13
+            chart_height = 720
+            legend_x = 1.02
+            right_margin = 420
+        elif len(labels) <= 20:
+            legend_font_size = 10
+            chart_height = 980
+            legend_x = 1.05
+            right_margin = 450
+        elif len(labels) <= 35:
+            legend_font_size = 8
+            chart_height = 1500
+            legend_x = 1.10
+            right_margin = 520
+        else:
+            legend_font_size = 8
+            chart_height = 1650
+            legend_x = 1.12
+            right_margin = 560
+
         fig.update_layout(
             title = "",
             template = "plotly_dark",
             paper_bgcolor = "black",
-            font = dict(color = "white")
+            font = dict(color = "white"),
+            width = 1300,
+            height = chart_height,
+            margin = dict(l = 40, r = right_margin, t = 30, b = 30),
+            legend = dict(
+                font = dict(size = legend_font_size, color = "white"),
+                orientation = "v",
+                x = legend_x,
+                y = 0.99,
+                xanchor = "left",
+                yanchor = "top",
+                bordercolor = "white",
+                borderwidth = 1,
+                bgcolor = "rgba(0,0,0,0)",
+                traceorder = "normal"
+            )
         )
 
         buffer = BytesIO()

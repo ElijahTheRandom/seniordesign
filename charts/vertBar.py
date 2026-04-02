@@ -168,11 +168,13 @@ class VertBar:
         else:
             dynamic_font_size = 6
 
+        show_value_labels = num_labels <= 30
+
         figure.add_trace(go.Bar(
             x = labels,
             y = values,
-            text = [self._format_value(v) for v in values],
-            textposition = "auto",
+            text = [self._format_value(v) for v in values] if show_value_labels else None,
+            textposition = "auto" if show_value_labels else "none",
             textfont = dict(size = 14, color = "white"),
             marker = dict(
                 color = "#e4781d",
@@ -185,7 +187,7 @@ class VertBar:
             paper_bgcolor = "black",
             plot_bgcolor = "black",
             font = dict(color = "white"),
-            xaxis = dict(showgrid = False, automargin = True, ticklabelstandoff = 10, tickfont = dict(size = dynamic_font_size), tickangle = 0 if num_labels <= 15 else 90),
+            xaxis = dict(showgrid = False, automargin = True, ticklabelstandoff = 10, tickfont = dict(size = dynamic_font_size), tickangle = 0 if num_labels <= 5 else 90),
             yaxis = dict(showgrid = True, gridcolor = "gray"),
             width = 700,
             height = 500,

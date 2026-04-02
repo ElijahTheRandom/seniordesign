@@ -169,12 +169,14 @@ class HorBar:
             dynamic_font_size = 8
         else:
             dynamic_font_size = 6
+
+        showValueLabels = num_labels <= 30
         figure.add_trace(go.Bar(
             x = values[::-1],
             y = labels[::-1],
             orientation = 'h',
-            text = formatted_values,
-            textposition = "auto",
+            text = formatted_values if showValueLabels else None,
+            textposition = "auto" if showValueLabels else "none",
             textfont = dict(size = 14, color = "white", family = "Arial Black, Arial, sans-serif"),
             marker = dict(
                 color = "#e4781d",
