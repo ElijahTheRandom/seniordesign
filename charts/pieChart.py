@@ -64,15 +64,22 @@ class PieChart:
 
             colors = []
 
-            for i in range(n):
-                factor = i / max(n - 1, 1)
+            if n <= 20:
+                for i in range(n):
+                    factor = i / max(n - 1, 1)
 
-                # blend toward white for lighter shades
-                r2 = int(r + (255 - r) * factor * 0.8)
-                g2 = int(g + (255 - g) * factor * 0.8)
-                b2 = int(b + (255 - b) * factor * 0.8)
+                    # blend toward white for lighter shades
+                    r2 = int(r + (255 - r) * factor * 0.8)
+                    g2 = int(g + (255 - g) * factor * 0.8)
+                    b2 = int(b + (255 - b) * factor * 0.8)
 
-                colors.append(f"#{r2:02x}{g2:02x}{b2:02x}")
+                    colors.append(f"#{r2:02x}{g2:02x}{b2:02x}")
+
+            else:
+                # For larger n, use Plotly's qualitative color scales
+                plotly_colors = pc.qualitative.Plotly
+                for i in range(n):
+                    colors.append(plotly_colors[i % len(plotly_colors)])
 
             return colors
     
@@ -165,26 +172,35 @@ class PieChart:
 
 
         # Keep legend readable for larger label sets (up to ~35 items)
+        """
         if len(labels) <= 10:
             legend_font_size = 13
-            chart_height = 720
+            chart_height = 500
             legend_x = 1.02
             right_margin = 420
         elif len(labels) <= 20:
             legend_font_size = 10
-            chart_height = 980
+            chart_height = 700
             legend_x = 1.05
             right_margin = 450
         elif len(labels) <= 35:
             legend_font_size = 8
-            chart_height = 1500
+            chart_height = 1100
             legend_x = 1.10
             right_margin = 520
         else:
             legend_font_size = 8
-            chart_height = 1650
+            chart_height = 1300
             legend_x = 1.12
             right_margin = 560
+        """
+
+        if len(labels) <= 35:
+            chartHeight = 700
+            chartWidth = 900
+        else:
+            chartHeight = 1100
+            chartWidth = 900
 
         fig.update_layout(
             title = "",
@@ -192,8 +208,8 @@ class PieChart:
             paper_bgcolor = "black",
             font = dict(color = "white"),
             showlegend = False,
-            width = 1300,
-            height = chart_height,
+            width = 900,
+            height = chartHeight,
             margin = dict(l = 40, r = 40, t = 30, b = 30),
         )
 
