@@ -191,21 +191,10 @@ class PieChart:
             template = "plotly_dark",
             paper_bgcolor = "black",
             font = dict(color = "white"),
+            showlegend = False,
             width = 1300,
             height = chart_height,
-            margin = dict(l = 40, r = right_margin, t = 30, b = 30),
-            legend = dict(
-                font = dict(size = legend_font_size, color = "white"),
-                orientation = "v",
-                x = legend_x,
-                y = 0.99,
-                xanchor = "left",
-                yanchor = "top",
-                bordercolor = "white",
-                borderwidth = 1,
-                bgcolor = "rgba(0,0,0,0)",
-                traceorder = "normal"
-            )
+            margin = dict(l = 40, r = 40, t = 30, b = 30),
         )
 
         buffer = BytesIO()
