@@ -43,3 +43,32 @@ html, body {
     color: black !important;
     transition: background-color 0.2s;
 }
+
+/* Invisible custom scrollbar tracks */
+.ag-theme-alpine .ag-body-vertical-scroll-viewport,
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport {
+    background: transparent !important;
+}
+
+.ag-theme-alpine .ag-body-vertical-scroll,
+.ag-theme-alpine .ag-body-horizontal-scroll {
+    background: transparent !important;
+}
+
+.ag-theme-alpine .ag-body-vertical-scroll-viewport,
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport,
+.ag-theme-alpine .ag-body-vertical-scroll,
+.ag-theme-alpine .ag-body-horizontal-scroll {
+    background-color: transparent !important;
+    color: transparent !important;
+}
+
+.ag-body-vertical-scroll-viewport::-webkit-scrollbar-track,
+.ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+.ag-body-vertical-scroll-viewport::-webkit-scrollbar-corner,
+.ag-body-horizontal-scroll-viewport::-webkit-scrollbar-corner {
+    background: transparent !important;
+}

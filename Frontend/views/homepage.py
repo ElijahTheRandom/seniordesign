@@ -741,20 +741,20 @@ def _render_analysis_config(
     st.markdown("---")
 
     mean, median, mode, variance, std, percentiles, \
-        pearson, spearman, least_squares_regression, chi_squared, binomial, variation, \
+        pearson, spearman, least_squares_regression, chi_squared, variation, \
         custom_flags, invalid_params = \
         _render_computation_options(data_ready, col1, col2)
 
     st.markdown("---")
 
-    hist, box, scatter, line, heatmap = _render_visualization_options(data_ready)
+    hist, box, scatter, line, heatmap, binomial = _render_visualization_options(data_ready, col1)
 
     st.markdown('---')
     st.markdown('<div class="run-analysis-anchor"></div>', unsafe_allow_html=True)
 
     computation_selected = any([
         mean, median, mode, variance, std, percentiles,
-        pearson, spearman, least_squares_regression, chi_squared, binomial, variation,
+        pearson, spearman, least_squares_regression, chi_squared, variation,
         hist, box, scatter, line, heatmap,
     ] + list(custom_flags.values()))
 
@@ -920,7 +920,7 @@ def _render_computation_options(
     Returns:
         Tuple of 12 booleans in order:
         (mean, median, mode, variance, std_dev, percentiles,
-         pearson, spearman, regression, chi_square, binomial, variation)
+         pearson, spearman, regression, chi_square, variation)
     """
     st.header("Computation Options", anchor=False)
 
@@ -947,7 +947,6 @@ def _render_computation_options(
         spearman               = st.checkbox("Spearman's Rank",           disabled=disable_two_cols, key=f"spearman_c2_{k2}")
         least_squares_regression = st.checkbox("Least Squares Regression",  disabled=disable_two_cols, key=f"least_squares_regression_c2_{k2}")
         chi_squared            = st.checkbox("Chi-Square Test",           disabled=disable_one_col,  key=f"chi_squared_c2_{k1}")
-        binomial               = st.checkbox("Binomial Distribution",     disabled=disable_one_col,  key=f"binomial_c2_{k1}")
         variation              = st.checkbox("Coefficient of Variation",  disabled=disable_one_col,  key=f"variation_c2_{k1}")
 
     # --- Conditional parameter inputs (appear inline when the method is checked) ---
@@ -976,68 +975,6 @@ def _render_computation_options(
             with pcol:
                 _param_warning("Values must be valid numbers between 0 and 100.")
 
-    if binomial:
-        if percentiles:
-            st.markdown("<div style='margin-top:0.25rem'></div>", unsafe_allow_html=True)
-        st.markdown("**Binomial Parameters**")
-        bn1, bn2, bn3, bn4 = st.columns(4)
-        with bn1:
-            binomial_n_val = st.number_input(
-                "n (trials)",
-                value=10, step=1,
-                key="binomial_n",
-                help="Total number of trials.",
-                disabled=disable_one_col,
-            )
-        with bn2:
-            binomial_p_val = st.number_input(
-                "p (probability)",
-                value=0.5, step=0.01, format="%.4f",
-                key="binomial_p",
-                help="Probability of success on each trial (0 – 1).",
-                disabled=disable_one_col,
-            )
-        with bn3:
-            binomial_k_min_val = st.number_input(
-                "k min",
-                value=0, step=1,
-                key="binomial_k_min",
-                help="Minimum number of successes (start of k-range).",
-                disabled=disable_one_col,
-            )
-        with bn4:
-            binomial_k_max_val = st.number_input(
-                "k max",
-                value=10, step=1,
-                key="binomial_k_max",
-                help="Maximum number of successes (end of k-range).",
-                disabled=disable_one_col,
-            )
-        if any(v is None for v in [binomial_n_val, binomial_p_val, binomial_k_min_val, binomial_k_max_val]):
-            invalid_params = True
-            _param_warning("All binomial fields are required.")
-        else:
-            if binomial_n_val < 1:
-                invalid_params = True
-                with bn1:
-                    _param_warning("Must be at least 1.")
-            if not (0.0 <= binomial_p_val <= 1.0):
-                invalid_params = True
-                with bn2:
-                    _param_warning("Must be between 0 and 1.")
-            if binomial_k_min_val < 0 or binomial_k_max_val < 0:
-                invalid_params = True
-                with bn3:
-                    _param_warning("Must be 0 or greater.")
-            elif binomial_k_max_val > binomial_n_val:
-                invalid_params = True
-                with bn4:
-                    _param_warning(f"k max cannot exceed n ({binomial_n_val}).")
-            elif binomial_k_min_val > binomial_k_max_val:
-                invalid_params = True
-                with bn3:
-                    _param_warning("k min must be ≤ k max.")
-
     # --- Custom methods ---
     custom_flags = _render_custom_method_checkboxes(data_ready, col1)
 
@@ -1045,7 +982,7 @@ def _render_computation_options(
 
     return (
         mean, median, mode, variance, std, percentiles,
-        pearson, spearman, least_squares_regression, chi_squared, binomial, variation,
+        pearson, spearman, least_squares_regression, chi_squared, variation,
         custom_flags, invalid_params,
     )
 
@@ -1065,7 +1002,7 @@ def _render_custom_method_checkboxes(
     """
     registry = load_custom_methods_registry()
 
-    st.markdown("**Custom Methods**")
+    st.subheader("**Custom Methods**")
 
     if registry:
         kc = st.session_state.get("checkbox_key_custom", 0)
@@ -1296,14 +1233,12 @@ def _create_method_dialog():
 
 # ========================= EDIT DIALOG ======================================
 
-@st.dialog("Edit Custom Statistical Method", width="large")
+@st.dialog("Edit Custom Method", width="large")
 def _edit_method_dialog():
     """Dialog to select an existing custom method and edit it."""
     registry = load_custom_methods_registry()
     if not registry:
         st.info("No custom methods to edit.")
-        if st.button("Close", use_container_width=True):
-            st.rerun()
         return
 
     name_map = {e["display_name"]: e for e in registry}
@@ -1444,15 +1379,12 @@ def _edit_method_dialog():
 
 
 # ========================= DELETE DIALOG ====================================
-
 @st.dialog("Delete Custom Method", width="large")
 def _delete_method_dialog():
-    """Dialog to select and permanently delete a custom method."""
+    """Dialog to select an existing custom method and edit it."""
     registry = load_custom_methods_registry()
     if not registry:
         st.info("No custom methods to delete.")
-        if st.button("Close", use_container_width=True):
-            st.rerun()
         return
 
     name_map = {e["display_name"]: e for e in registry}
@@ -1511,13 +1443,13 @@ def _user_defined_computation_options():
     """
     b1, b2, b3 = st.columns(3)
     with b1:
-        if st.button("➕ Create", key="cm_create_btn", use_container_width=True):
+        if st.button("Create", key="cm_create_btn", use_container_width=True):
             _create_method_dialog()
     with b2:
-        if st.button("✏️ Edit", key="cm_edit_btn", use_container_width=True):
+        if st.button("Edit", key="cm_edit_btn", use_container_width=True):
             _edit_method_dialog()
     with b3:
-        if st.button("🗑️ Delete", key="cm_delete_btn", use_container_width=True):
+        if st.button("Delete", key="cm_delete_btn", use_container_width=True):
             _delete_method_dialog()
 
 # ============================================================================
@@ -1531,6 +1463,7 @@ def _user_defined_computation_options():
 
 def _render_visualization_options(
     data_ready: bool,
+    col1: list,
 ) -> tuple:
     """
     Render the 5 visualization checkboxes.
@@ -1545,20 +1478,22 @@ def _render_visualization_options(
     """
     st.header("Visualization Options", anchor=False)
 
-    disable_viz = not data_ready
+    disable_one_col  = not data_ready or len(col1) < 1
+    disable_two_cols = not data_ready or len(col1) < 2
 
     v1, v2 = st.columns(2)
 
     with v1:
-        hist    = st.checkbox("Pie Chart",                     key="viz_hist",    disabled=disable_viz)
-        box     = st.checkbox("Vertical Bar Chart",            key="viz_box",     disabled=disable_viz)
-        scatter = st.checkbox("Horizontal Bar Chart",          key="viz_scatter", disabled=disable_viz)
+        hist    = st.checkbox("Pie Chart",                     key="viz_hist",    disabled=disable_one_col)
+        box     = st.checkbox("Vertical Bar Chart",            key="viz_box",     disabled=disable_one_col)
+        scatter = st.checkbox("Horizontal Bar Chart",          key="viz_scatter", disabled=disable_one_col)
 
     with v2:
-        line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_viz)
-        heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_viz)
+        line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_two_cols)
+        heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_two_cols)
+        binomial = st.checkbox("Binomial Distribution",        key="viz_binomial", disabled=disable_one_col)
 
-    return hist, box, scatter, line, heatmap
+    return hist, box, scatter, line, heatmap, binomial
 
 
 # ---------------------------------------------------------------------------
