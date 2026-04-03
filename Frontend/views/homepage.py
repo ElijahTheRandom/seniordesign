@@ -1196,7 +1196,7 @@ def _create_method_dialog():
     )
 
     # --- Check Code button (live validation without saving) ---
-    if st.button("\U0001f50d Check Code", use_container_width=True):
+    if st.button("Check Code", use_container_width=True):
         issues = validate_user_code(user_code, input_key)
         if not issues:
             st.success("\u2705 No issues found — code looks good!")

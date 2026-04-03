@@ -3,7 +3,7 @@ showSidebarNavigation = false
 
 [theme]
 base="dark"
-primaryColor = "#e4781d"
+primaryColor = "rgba(228,120,29,0.10)"
 backgroundColor = "#0e1117"
 secondaryBackgroundColor = "#161b22"
 textColor = "#ffffff"
