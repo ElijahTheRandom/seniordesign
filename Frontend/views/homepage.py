@@ -1646,15 +1646,26 @@ def _handle_run_analysis(
     _BACKEND_METHOD_IDS.update(custom_flags.keys())
     _BACKEND_CHART_IDS = {"binomial", "best_fit", "hor_bar", "pie_chart", "scat_plot", "vert_bar"}
 
-    default_method_params = {
-        "percentile": [25, 50, 75],
-    }
+    # Parse percentile parameter text input to list of floats
+    _percentile_input_value = st.session_state.get("percentile_values_input", "25, 50, 75")
+    percentile_values = []
+    if isinstance(_percentile_input_value, str):
+        for item in _percentile_input_value.split(","):
+            try:
+                pct = float(item.strip())
+                if 0 <= pct <= 100:
+                    percentile_values.append(pct)
+            except ValueError:
+                continue
 
-    methods = [
-        {"id": k, "params": default_method_params.get(k, {})}
-        for k, v in method_flags.items()
-        if v and k in _BACKEND_METHOD_IDS
-    ]
+    if not percentile_values:
+        percentile_values = [25, 50, 75]
+
+    methods = []
+    for k, v in method_flags.items():
+        if v and k in _BACKEND_METHOD_IDS:
+            method_params = percentile_values if k == "percentile" else {}
+            methods.append({"id": k, "params": method_params})
     _LABEL_FRIENDLY_CHARTS = {"pie_chart", "vert_bar", "hor_bar"}
 
     graphics = []

@@ -42,6 +42,10 @@ class Percentile:
         if not _applicable:
             return self._generate_return_structure_error("No numerical data provided")
         
+        for p in self.params:
+            if p < 0 or p > 100:
+                return self._generate_return_structure_error(f"Percentile {p} is out of range [0, 100]")
+            
         try:
             self.params = np.asarray(self.params)
             if self.params.size == 0:
@@ -49,14 +53,37 @@ class Percentile:
 
             flat_data = np.asarray(self.data, dtype=float).flatten()
 
-            percentiles = []
-            for i in range(len(self.params)):
-                appendPercentile = float(np.percentile(flat_data, self.params[i]))
-                percentiles.append(appendPercentile)
+            requested = np.asarray(self.params, dtype=float).flatten()
+            if requested.size == 0:
+                return self._generate_return_structure_error("No percentile values specified")
+
+            percentile_results = []
+            for p in requested:
+                if not (0 <= p <= 100):
+                    raise ValueError(f"Percentile {p} is out of range [0, 100]")
+                computed = float(np.percentile(flat_data, p))
+
+                # Format ordinal suffix
+                p_int = int(p) if float(p).is_integer() else p
+                ordinal = f"{p_int}th"
+                if isinstance(p_int, int):
+                    if 10 <= p_int % 100 <= 20:
+                        ordinal = f"{p_int}th"
+                    elif p_int % 10 == 1:
+                        ordinal = f"{p_int}st"
+                    elif p_int % 10 == 2:
+                        ordinal = f"{p_int}nd"
+                    elif p_int % 10 == 3:
+                        ordinal = f"{p_int}rd"
+                    else:
+                        ordinal = f"{p_int}th"
+
+                percentile_results.append(f"{ordinal}: {computed:.2f}")
+
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 
-        results = self._generate_return_structure(percentiles)
+        results = self._generate_return_structure(percentile_results)
         return results
 
     def create_graphic(self, results):
