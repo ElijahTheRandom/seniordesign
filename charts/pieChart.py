@@ -3,6 +3,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.colors as pc
 from io import BytesIO
+from collections import Counter
 """
     "graphics": [ #3.6
         {
@@ -63,37 +64,100 @@ class PieChart:
 
             colors = []
 
-            for i in range(n):
-                factor = i / max(n - 1, 1)
+            if n <= 20:
+                for i in range(n):
+                    factor = i / max(n - 1, 1)
 
-                # blend toward white for lighter shades
-                r2 = int(r + (255 - r) * factor * 0.6)
-                g2 = int(g + (255 - g) * factor * 0.6)
-                b2 = int(b + (255 - b) * factor * 0.6)
+                    # blend toward white for lighter shades
+                    r2 = int(r + (255 - r) * factor * 0.8)
+                    g2 = int(g + (255 - g) * factor * 0.8)
+                    b2 = int(b + (255 - b) * factor * 0.8)
 
-                colors.append(f"#{r2:02x}{g2:02x}{b2:02x}")
+                    colors.append(f"#{r2:02x}{g2:02x}{b2:02x}")
+
+            else:
+                # For larger n, use Plotly's qualitative color scales
+                plotly_colors = pc.qualitative.Plotly
+                for i in range(n):
+                    colors.append(plotly_colors[i % len(plotly_colors)])
 
             return colors
     
+    def _is_numeric_data(self):
+        """Check if the data contains numeric values that should be used directly."""
+        try:
+            if self.params.get("values"):
+                test_values = self.params["values"]
+            else:
+                data_array = np.asarray(self.data)
+                if data_array.ndim > 1:
+                    test_values = data_array.flatten()
+                else:
+                    test_values = data_array
+            
+            # Try to convert first few values to float
+            for val in test_values[:min(5, len(test_values))]:
+                float(val)
+            return True
+        except (ValueError, TypeError):
+            return False
+    
     def _create_chart(self):
-        values = self.params.get("values")
-        if values is None:
-            data_array = np.asarray(self.data)
-            if data_array.ndim > 1:
-                values = data_array[0].tolist()
+        # Check if we should count label frequencies instead of using raw values
+        if self.params.get("count_labels", False) or not self._is_numeric_data():
+            # Count frequency of each unique label
+            data_list = []
+            
+            if self.params.get("values"):
+                data_list = self.params["values"]
             else:
-                values = data_array.tolist()
-            try:
-                values = [float(v) for v in values]
-            except (ValueError, TypeError):
-                raise ValueError("Pie chart requires numeric data for values.")
+                data_array = np.asarray(self.data)
+                if data_array.ndim > 1:
+                    data_list = data_array.flatten().tolist()
+                else:
+                    data_list = data_array.tolist()
+            
+            # Count frequencies
+            label_counts = Counter(data_list)
+            labels = list(label_counts.keys())
+            values = list(label_counts.values())
+        else:
+            # Original numeric value processing
+            values = self.params.get("values")
+            if values is None:
+                data_array = np.asarray(self.data)
+                if data_array.ndim > 1:
+                    values = data_array[0].tolist()
+                else:
+                    values = data_array.tolist()
+                try:
+                    values = [float(v) for v in values]
+                except (ValueError, TypeError):
+                    raise ValueError("Pie chart requires numeric data for values.")
+            else:
+                values = list(values)
+                try:
+                    values = [float(v) for v in values]
+                except (ValueError, TypeError):
+                    raise ValueError("Pie chart requires numeric data for values.")
 
-        labels = self.params.get("labels")
-        if labels is None:
-            if isinstance(self.metadata, (list, tuple)) and len(self.metadata) >= len(values):
-                labels = list(self.metadata[:len(values)])
+            labels = self.params.get("labels")
+            if labels is not None:
+                if len(labels) != len(values):
+                    raise ValueError("Pie chart requires labels to align with values length.")
+
+                # Sum values by label so duplicate labels aggregate into one slice
+                label_totals = {}
+                for lbl, val in zip(labels, values):
+                    label_totals[lbl] = label_totals.get(lbl, 0.0) + val
+
+                labels = list(label_totals.keys())
+                values = list(label_totals.values())
             else:
-                labels = [str(i) for i in range(len(values))]
+                if isinstance(self.metadata, (list, tuple)) and len(self.metadata) >= len(values):
+                    labels = list(self.metadata[:len(values)])
+                else:
+                    labels = [str(i) for i in range(len(values))]
 
         colors = self.color_pallette(len(labels))
 
@@ -106,11 +170,47 @@ class PieChart:
             textposition = "outside"
         ))
 
+
+        # Keep legend readable for larger label sets (up to ~35 items)
+        """
+        if len(labels) <= 10:
+            legend_font_size = 13
+            chart_height = 500
+            legend_x = 1.02
+            right_margin = 420
+        elif len(labels) <= 20:
+            legend_font_size = 10
+            chart_height = 700
+            legend_x = 1.05
+            right_margin = 450
+        elif len(labels) <= 35:
+            legend_font_size = 8
+            chart_height = 1100
+            legend_x = 1.10
+            right_margin = 520
+        else:
+            legend_font_size = 8
+            chart_height = 1300
+            legend_x = 1.12
+            right_margin = 560
+        """
+
+        if len(labels) <= 35:
+            chartHeight = 700
+            chartWidth = 900
+        else:
+            chartHeight = 1100
+            chartWidth = 900
+
         fig.update_layout(
             title = "",
             template = "plotly_dark",
             paper_bgcolor = "black",
-            font = dict(color = "white")
+            font = dict(color = "white"),
+            showlegend = False,
+            width = 900,
+            height = chartHeight,
+            margin = dict(l = 40, r = 40, t = 30, b = 30),
         )
 
         buffer = BytesIO()
