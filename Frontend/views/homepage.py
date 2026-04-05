@@ -1668,10 +1668,24 @@ def _handle_run_analysis(
             methods.append({"id": k, "params": method_params})
     _LABEL_FRIENDLY_CHARTS = {"pie_chart", "vert_bar", "hor_bar"}
 
+    binomial_n = st.session_state.get("binomial_n", 10)
+    binomial_p = st.session_state.get("binomial_p", 0.5)
+    binomial_k_min = st.session_state.get("binomial_k_min", 0)
+    binomial_k_max = st.session_state.get("binomial_k_max", int(binomial_n))
+
     graphics = []
     for k, v in method_flags.items():
         if v and k in _BACKEND_CHART_IDS:
             req = {"type": k}
+
+            if k == "binomial":
+                req.update({
+                    "n": int(binomial_n),
+                    "p": float(binomial_p),
+                    "k_min": int(binomial_k_min),
+                    "k_max": int(binomial_k_max),
+                })
+
             if k in _LABEL_FRIENDLY_CHARTS:
                 num_cols = parsed_data.select_dtypes(include="number").columns.tolist()
                 str_cols = parsed_data.select_dtypes(exclude="number").columns.tolist()

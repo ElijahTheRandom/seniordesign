@@ -57,49 +57,80 @@ class Binomial:
         }
 
     def _create_chart(self):
-        # Create and return a chart object (e.g., matplotlib Figure).
-        array = np.asarray(self.data).flatten()
+        # Get parameters either from self.params or from self.data
+        if isinstance(self.params, dict) and "n" in self.params and "p" in self.params:
+            n = int(self.params.get("n", 0))
+            p = float(self.params.get("p", 0))
+            k_min = int(self.params.get("k_min", 0))
+            k_max = int(self.params.get("k_max", n))
+        else:
+            array = np.asarray(self.data).flatten()
+            if len(array) < 2:
+                raise ValueError(
+                    "Binomial chart requires [n, p, k_min, k_max] in data "
+                    "or parameters {'n':..., 'p':..., 'k_min':..., 'k_max':...}"
+                )
 
-        n = int(array[0])
-        p = float(array[1])
-        kMin = int(array[2])
-        kMax = int(array[3]) if len(array) > 3 else n
-        
+            n = int(array[0])
+            p = float(array[1])
+            k_min = int(array[2]) if len(array) > 2 else 0
+            k_max = int(array[3]) if len(array) > 3 else n
 
-        k = np.arange(kMin, kMax + 1)
+        # Validation
+        if n < 1:
+            raise ValueError("Parameter 'n' must be >= 1")
+        if not (0 <= p <= 1):
+            raise ValueError("Parameter 'p' must be between 0 and 1")
+        if k_min < 0 or k_max < 0:
+            raise ValueError("k_min and k_max must be >= 0")
+        if k_max < k_min:
+            raise ValueError("k_max must be >= k_min")
+
+        k_values = np.arange(k_min, k_max + 1)
 
         rows = []
-
-        for i in k:
+        for k in k_values:
             rows.append([
-                    str(i), 
-                    f"{binom.pmf(i, n, p):.4f}", 
-                    f"{binom.cdf(i, n, p):.4f}",
-                f"{binom.sf(i - 1, n, p):.4f}"
+                str(k),
+                f"{binom.pmf(k, n, p):.4f}",
+                f"{binom.cdf(k, n, p):.4f}",
+                f"{binom.sf(k - 1, n, p):.4f}"
             ])
 
         col_labels = ["k", "P(X = k)", "P(X ≤ k)", "P(X ≥ k)"]
 
-        fig_height = max(2, 0.5 * len(rows) + 1.2)
-        fig, ax = plt.subplots(figsize = (4.5, 2.8))
+        fig_height = max(2.5, 0.42 * len(rows) + 1.4)
+        fig, ax = plt.subplots(figsize=(4.0, fig_height * 0.5 - 0.3))
         ax.axis("off")
 
         table = ax.table(
-            cellText = rows,
-            colLabels = col_labels,
-            cellLoc = "center",
-            loc = "center"
+            cellText=rows,
+            colLabels=col_labels,
+            cellLoc="center",
+            loc="center"
         )
 
         table.auto_set_font_size(False)
         table.set_fontsize(10)
-        table.scale(1.2, 1.4)
+        table.scale(1.0, 1.0)
+
+        ax.text(
+            0.5,
+            1.01,
+            f"n = {n}, p = {p}",
+            transform=ax.transAxes,
+            ha="center",
+            va="bottom",
+            fontsize=11,
+            color="black",
+            bbox=dict(facecolor="white", edgecolor="none", alpha=1.0, pad=0.5)
+        )
 
         plt.tight_layout()
-        
-        buffer = BytesIO()
+        plt.subplots_adjust(top=0.95)
 
-        plt.savefig(buffer, format = "png", bbox_inches = "tight", dpi = 200)
+        buffer = BytesIO()
+        fig.savefig(buffer, format="png", bbox_inches="tight", dpi=200)
         plt.close(fig)
         buffer.seek(0)
 
