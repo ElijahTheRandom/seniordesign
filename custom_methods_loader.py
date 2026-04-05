@@ -265,7 +265,7 @@ def validate_user_code(
     # targets / comprehension targets) and then check every Name in Load
     # context.  Names provided by the template: data, params, np, result,
     # self, plus Python builtins.
-    _TEMPLATE_NAMES = {"data", "params", "np", "result", "self"}
+    _TEMPLATE_NAMES = {"data", "params", "np", "result", "self", "toolbox"}
     builtin_names = set(dir(_builtins))
 
     # Gather locally-defined names
@@ -347,6 +347,7 @@ def save_custom_method(
     input_type: str,
     output_type: str,
     user_code: str,
+    dependencies: list[str] | None = None,
 ) -> tuple[bool, str]:
     """
     Validate, generate, and persist a new custom statistical method.
@@ -389,6 +390,12 @@ def save_custom_method(
     if errors:
         return False, "\n".join(errors)
 
+    # --- Validate dependencies (no cycles) ---
+    if dependencies:
+        cycle_err = detect_dependency_cycles(method_id, dependencies)
+        if cycle_err:
+            return False, cycle_err
+
     # --- Generate the full .py file ---
     if input_type == "two_column":
         applicable_check = (
@@ -418,11 +425,12 @@ class {class_name}:
     {description}
     """
 
-    def __init__(self, data, metadata, params=None):
+    def __init__(self, data, metadata, params=None, toolbox=None):
         self.stat_id = "{method_id}"
         self.data = data
         self.metadata = metadata
         self.params = params or {{}}
+        self.toolbox = toolbox or {{}}
 
     def _applicable(self):
 {applicable_check}
@@ -454,6 +462,7 @@ class {class_name}:
         try:
             data = self.data
             params = self.params
+            toolbox = self.toolbox
 {indented_code}
         except Exception as e:
             return self._generate_return_structure_error(str(e))
@@ -477,6 +486,7 @@ class {class_name}:
         "output_type": output_type,
         "filename": filename,
         "class_name": class_name,
+        "dependencies": dependencies or [],
         "created_at": datetime.now().isoformat(),
     }
     registry.append(entry)
@@ -546,6 +556,7 @@ def update_custom_method(
     input_type: str,
     output_type: str,
     user_code: str,
+    dependencies: list[str] | None = None,
 ) -> tuple[bool, str]:
     """
     Update an existing custom method's metadata, code, and generated .py file.
@@ -576,6 +587,12 @@ def update_custom_method(
     errors = [i for i in issues if not i.startswith("Hint:")]
     if errors:
         return False, "\n".join(errors)
+
+    # --- Validate dependencies (no cycles) ---
+    if dependencies:
+        cycle_err = detect_dependency_cycles(method_id, dependencies)
+        if cycle_err:
+            return False, cycle_err
 
     old_entry = registry[idx]
     class_name = old_entry["class_name"]
@@ -609,11 +626,12 @@ class {class_name}:
     {description}
     """
 
-    def __init__(self, data, metadata, params=None):
+    def __init__(self, data, metadata, params=None, toolbox=None):
         self.stat_id = "{method_id}"
         self.data = data
         self.metadata = metadata
         self.params = params or {{}}
+        self.toolbox = toolbox or {{}}
 
     def _applicable(self):
 {applicable_check}
@@ -645,6 +663,7 @@ class {class_name}:
         try:
             data = self.data
             params = self.params
+            toolbox = self.toolbox
 {indented_code}
         except Exception as e:
             return self._generate_return_structure_error(str(e))
@@ -671,6 +690,7 @@ class {class_name}:
         "output_type": output_type,
         "filename": filename,
         "class_name": class_name,
+        "dependencies": dependencies or [],
         "created_at": old_entry["created_at"],
     }
     with open(_CUSTOM_METHODS_JSON, "w", encoding="utf-8") as f:
@@ -697,6 +717,18 @@ def delete_custom_method(method_id: str) -> tuple[bool, str]:
         return False, f"Method '{method_id}' not found."
 
     display_name = entry["display_name"]
+
+    # Check if other methods depend on this one
+    dependents = [
+        e["display_name"] for e in registry
+        if e["id"] != method_id and method_id in e.get("dependencies", [])
+    ]
+    if dependents:
+        names = ", ".join(f"'{n}'" for n in dependents)
+        return False, (
+            f"Cannot delete '{display_name}' because the following methods "
+            f"depend on it: {names}. Remove those dependencies first."
+        )
 
     # 1) Delete the .py file
     filename = entry["filename"]
@@ -740,3 +772,73 @@ def delete_custom_method(method_id: str) -> tuple[bool, str]:
     sys.modules.pop(f"custom_methods.{method_id}", None)
 
     return True, f"Method '{display_name}' deleted."
+
+
+# ---------------------------------------------------------------------------
+# Toolbox helpers — allow custom methods to call each other
+# ---------------------------------------------------------------------------
+
+def get_available_tools_info(exclude_id: str | None = None) -> list[dict]:
+    """
+    Return a list of dicts describing available custom methods that can
+    be used as tools in the toolbox.
+
+    Each dict has: id, display_name, description, input_type.
+    If *exclude_id* is given, that method is omitted (used when editing
+    a method so it doesn't list itself as a dependency).
+    """
+    registry = load_custom_methods_registry()
+    tools = []
+    for entry in registry:
+        if exclude_id and entry["id"] == exclude_id:
+            continue
+        tools.append({
+            "id": entry["id"],
+            "display_name": entry["display_name"],
+            "description": entry.get("description", ""),
+            "input_type": entry.get("input_type", "one_column"),
+        })
+    return tools
+
+
+def detect_dependency_cycles(
+    method_id: str,
+    proposed_deps: list[str],
+) -> str | None:
+    """
+    Check whether *proposed_deps* for *method_id* would create a cycle
+    in the dependency graph.
+
+    Returns an error message string if a cycle is found, or None if safe.
+    """
+    registry = load_custom_methods_registry()
+    dep_map: dict[str, list[str]] = {
+        e["id"]: list(e.get("dependencies", []))
+        for e in registry
+    }
+    # Insert the proposed state
+    dep_map[method_id] = list(proposed_deps)
+
+    visited: set[str] = set()
+    in_stack: set[str] = set()
+
+    def _dfs(node: str) -> bool:
+        if node in in_stack:
+            return True  # cycle detected
+        if node in visited:
+            return False
+        visited.add(node)
+        in_stack.add(node)
+        for dep in dep_map.get(node, []):
+            if _dfs(dep):
+                return True
+        in_stack.discard(node)
+        return False
+
+    if _dfs(method_id):
+        return (
+            "Circular dependency detected — these dependencies would "
+            "create a cycle. Please remove at least one dependency "
+            "to break the loop."
+        )
+    return None

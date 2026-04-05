@@ -350,10 +350,56 @@ class BackendHandler:
         return final_result_message
 
 
+    def _build_toolbox(self, exclude_id, metadata):
+        """
+        Build a toolbox dict of callable wrappers for all custom methods,
+        excluding *exclude_id* to prevent direct self-recursion.
+
+        Each toolbox entry is a callable:
+            toolbox["custom_summation"](data)            → returns the computed value
+            toolbox["custom_summation"](data, params={}) → with custom params
+
+        A shared call-stack set detects circular dependencies at runtime.
+        """
+        _call_stack: set[str] = set()
+        toolbox: dict = {}
+
+        for method_id, method_class in self.statistical_methods.items():
+            if not method_id.startswith("custom_"):
+                continue
+
+            def _make_tool(cls=method_class, mid=method_id):
+                def tool_fn(tool_data, tool_params=None):
+                    if mid in _call_stack:
+                        raise RuntimeError(
+                            f"Circular dependency detected: '{mid}' "
+                            "is already being computed in the current chain."
+                        )
+                    _call_stack.add(mid)
+                    try:
+                        instance = cls(tool_data, metadata, tool_params, toolbox=toolbox)
+                        result = instance.compute()
+                        if result.get("ok"):
+                            return result["value"]
+                        raise RuntimeError(result.get("error", f"Tool '{mid}' failed"))
+                    finally:
+                        _call_stack.discard(mid)
+                return tool_fn
+
+            toolbox[method_id] = _make_tool()
+
+        # Remove the calling method so it can't invoke itself directly
+        toolbox.pop(exclude_id, None)
+        return toolbox
+
     def worker(self, method_name, data, metadata, params):
         method_class = self.statistical_methods.get(method_name)
         if method_class:
-            method_instance = method_class(data, metadata, params)
+            if method_name.startswith("custom_"):
+                toolbox = self._build_toolbox(method_name, metadata)
+                method_instance = method_class(data, metadata, params, toolbox=toolbox)
+            else:
+                method_instance = method_class(data, metadata, params)
             return method_instance.compute()
 
         return self._generate_error_result(method_name, f"Method {method_name} not found.", params)

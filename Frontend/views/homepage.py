@@ -76,6 +76,8 @@ from custom_methods_loader import (
     save_custom_method,
     update_custom_method,
     delete_custom_method,
+    get_available_tools_info,
+    detect_dependency_cycles,
 )
 
 
@@ -1133,9 +1135,39 @@ def _create_method_dialog():
     st.markdown("---")
     st.markdown(
         "**Compute Logic** — Write Python code that produces a `result` variable. "
-        "You have access to `data` (the selected columns) and `params` (dict). "
+        "You have access to `data` (the selected columns), `params` (dict), "
+        "and `toolbox` (dict of callable custom methods). "
         "`numpy` is imported as `np` in the generated file."
     )
+
+    # --- Toolbox: dependency selection ---
+    available_tools = get_available_tools_info()
+    if available_tools:
+        tool_options = {t["display_name"]: t["id"] for t in available_tools}
+        selected_tool_names = st.multiselect(
+            "Use other custom methods (toolbox)",
+            options=list(tool_options.keys()),
+            help=(
+                "Select custom methods this method depends on. "
+                "They will be available via the `toolbox` dict in your code."
+            ),
+            key="custom_method_deps",
+        )
+        selected_deps = [tool_options[n] for n in selected_tool_names]
+        if selected_tool_names:
+            with st.expander("Toolbox usage reference", expanded=False):
+                for t in available_tools:
+                    if t["id"] in selected_deps:
+                        st.code(
+                            f'# Call "{t["display_name"]}":\n'
+                            f'value = toolbox["{t["id"]}"](data)\n'
+                            f'# Or with custom params:\n'
+                            f'value = toolbox["{t["id"]}"](data, {{"key": "val"}})',
+                            language="python",
+                        )
+    else:
+        selected_deps = []
+
     user_code = st.text_area(
         "Code",
         value=default_code,
@@ -1165,6 +1197,7 @@ def _create_method_dialog():
                 input_type=input_key,
                 output_type=output_key,
                 user_code=user_code,
+                dependencies=selected_deps,
             )
             if ok:
                 _after_method_change()
@@ -1282,9 +1315,43 @@ def _edit_method_dialog():
     st.markdown("---")
     st.markdown(
         "**Compute Logic** — Write Python code that produces a `result` variable. "
-        "You have access to `data` (the selected columns) and `params` (dict). "
+        "You have access to `data` (the selected columns), `params` (dict), "
+        "and `toolbox` (dict of callable custom methods). "
         "`numpy` is imported as `np` in the generated file."
     )
+
+    # --- Toolbox: dependency selection ---
+    available_tools = get_available_tools_info(exclude_id=method_id)
+    existing_deps = entry.get("dependencies", [])
+    if available_tools:
+        tool_options = {t["display_name"]: t["id"] for t in available_tools}
+        reverse_map = {t["id"]: t["display_name"] for t in available_tools}
+        default_names = [reverse_map[d] for d in existing_deps if d in reverse_map]
+        selected_tool_names = st.multiselect(
+            "Use other custom methods (toolbox)",
+            options=list(tool_options.keys()),
+            default=default_names,
+            help=(
+                "Select custom methods this method depends on. "
+                "They will be available via the `toolbox` dict in your code."
+            ),
+            key="_cm_edit_deps",
+        )
+        selected_deps = [tool_options[n] for n in selected_tool_names]
+        if selected_tool_names:
+            with st.expander("Toolbox usage reference", expanded=False):
+                for t in available_tools:
+                    if t["id"] in selected_deps:
+                        st.code(
+                            f'# Call "{t["display_name"]}":\n'
+                            f'value = toolbox["{t["id"]}"](data)\n'
+                            f'# Or with custom params:\n'
+                            f'value = toolbox["{t["id"]}"](data, {{"key": "val"}})',
+                            language="python",
+                        )
+    else:
+        selected_deps = existing_deps
+
     user_code = st.text_area(
         "Code",
         height=220,
@@ -1314,6 +1381,7 @@ def _edit_method_dialog():
                 input_type=input_key,
                 output_type=output_key,
                 user_code=user_code,
+                dependencies=selected_deps,
             )
             if ok:
                 _after_method_change()
