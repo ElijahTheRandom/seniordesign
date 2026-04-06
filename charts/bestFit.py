@@ -66,32 +66,36 @@ class BestFit:
         yFit = slope * xFit + intercept
 
         fig = go.Figure()
+        
+        fig.add_trace(go.Scatter(
+            x = xFit,
+            y = yFit,
+            mode = "lines",
+            line = dict(color = "#2be21e", width = 3),
+            #opacity = 0.6,
+            name = "Line of Best Fit"
+        ))
 
         fig.add_trace(go.Scatter(
             x = self.data[0],
             y = self.data[1],
             mode = "markers",
-            marker = dict(color = "#e4781d", size = 10),
+            marker = dict(color = "#e4781d", size = 7),
             name = "Data Markers"
         ))
 
-        fig.add_trace(go.Scatter(
-            x = xFit,
-            y = yFit,
-            mode = "lines",
-            line = dict(color = "#f59403", width = 3),
-            name = "Line of Best Fit"
-        ))
+
 
         fig.update_layout(
             plot_bgcolor = "black",
             paper_bgcolor = "black",
             font = dict(color = "white"),
-            title = ""
+            title = "",
+            showlegend = False
         )
 
-        fig.update_xaxes(gridcolor = "#222222", dtick = 1)
-        fig.update_yaxes(gridcolor = "#222222", dtick = 1)
+        fig.update_xaxes(gridcolor = "#222222")
+        fig.update_yaxes(gridcolor = "#222222")
 
         buffer = BytesIO()
         fig.write_image(buffer, format = "png")

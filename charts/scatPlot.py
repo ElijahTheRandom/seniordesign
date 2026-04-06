@@ -63,7 +63,7 @@ class ScatPlot:
             mode = "markers",
             marker = dict(
                 color = "#e4781d",
-                size = 15
+                size = 7
             ),
             name = "Data Markers"
         ))
