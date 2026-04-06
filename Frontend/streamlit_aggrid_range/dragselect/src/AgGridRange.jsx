@@ -13,7 +13,7 @@ const AgGridRange = (props) => {
     const { rowData, columnDefs } = props.args
 
     const [gridApi, setGridApi] = useState(null)
-    const [selectedColId, setSelectedColId] = useState(null)
+    const [selectedColIds, setSelectedColIds] = useState(new Set())
     const [hasEdits, setHasEdits] = useState(false)
     const [containerHeight, setContainerHeight] = useState(() => {
         if (typeof window === "undefined") return 600
@@ -27,6 +27,23 @@ const AgGridRange = (props) => {
     const [editPos, setEditPos] = useState({ top: 0, left: 0, width: 0 })
     const editInputRef = useRef(null)
     const headerClickTimers = useRef({})
+    const ctrlPressed = useRef(false)
+
+    // Track Ctrl/Meta key state reliably via global listeners
+    useEffect(() => {
+        const onKeyDown = (e) => {
+            if (e.key === "Control" || e.key === "Meta") ctrlPressed.current = true
+        }
+        const onKeyUp = (e) => {
+            if (e.key === "Control" || e.key === "Meta") ctrlPressed.current = false
+        }
+        window.addEventListener("keydown", onKeyDown)
+        window.addEventListener("keyup", onKeyUp)
+        return () => {
+            window.removeEventListener("keydown", onKeyDown)
+            window.removeEventListener("keyup", onKeyUp)
+        }
+    }, [])
 
     // Track renamed headers — merge incoming columnDefs field names with renames
     const effectiveColumnDefs = useMemo(() => {
@@ -35,10 +52,10 @@ const AgGridRange = (props) => {
             return {
                 ...col,
                 headerName: renamed || col.field,
-                headerClass: col.field === selectedColId ? 'full-column-selected' : ''
+                headerClass: selectedColIds.has(col.field) ? 'full-column-selected' : ''
             }
         })
-    }, [columnDefs, selectedColId, renamedHeaders])
+    }, [columnDefs, selectedColIds, renamedHeaders])
 
     // Auto-resize height on mount and updates
     useEffect(() => {
@@ -67,26 +84,24 @@ const AgGridRange = (props) => {
         const cellRanges = event.api.getCellRanges();
         const rowCount = event.api.getDisplayedRowCount();
 
-        // Check if we have a single range that covers the full height and exactly one column
-        let newSelectedColId = null;
-        if (cellRanges.length === 1) {
-            const r = cellRanges[0];
-            if (r.startRow && r.endRow) {
+        // Collect all columns that have a full-height single-column range
+        const newSelectedColIds = new Set();
+        for (const r of cellRanges) {
+            if (r.startRow && r.endRow && r.columns.length === 1) {
                 const s = r.startRow.rowIndex;
                 const e = r.endRow.rowIndex;
-                const height = Math.abs(e - s) + 1;
-
-                // Check if full height
-                if (height === rowCount && r.columns.length === 1) {
-                    newSelectedColId = r.columns[0].getColId();
+                if (Math.abs(e - s) + 1 === rowCount) {
+                    newSelectedColIds.add(r.columns[0].getColId());
                 }
             }
         }
 
         // Update visual state if changed
-        if (newSelectedColId !== selectedColId) {
-            setSelectedColId(newSelectedColId);
-            // Force refresh of headers to apply new class immediately
+        const prev = selectedColIds;
+        const changed = newSelectedColIds.size !== prev.size ||
+            [...newSelectedColIds].some(id => !prev.has(id));
+        if (changed) {
+            setSelectedColIds(newSelectedColIds);
             event.api.refreshHeader();
         }
 
@@ -243,14 +258,59 @@ const AgGridRange = (props) => {
             headerClickTimers.current[colId] = null;
         }, 300);
 
-        // Select the entire column
         const rowCount = params.api.getDisplayedRowCount();
-        params.api.clearRangeSelection();
-        params.api.addCellRange({
-            columns: [colId],
-            rowStartIndex: 0,
-            rowEndIndex: rowCount - 1
-        });
+        const isMulti = ctrlPressed.current || (params.event && (params.event.ctrlKey || params.event.metaKey));
+
+        if (isMulti) {
+            // Ctrl/Cmd+click: toggle this column in the current selection
+            const existingRanges = params.api.getCellRanges() || [];
+            // Check if this column is already fully selected
+            const alreadySelected = existingRanges.some(r => {
+                if (r.columns.length !== 1) return false;
+                const rCol = r.columns[0].getColId();
+                if (rCol !== colId) return false;
+                const s = r.startRow ? r.startRow.rowIndex : 0;
+                const e = r.endRow ? r.endRow.rowIndex : 0;
+                return Math.abs(e - s) + 1 === rowCount;
+            });
+
+            if (alreadySelected) {
+                // Deselect: rebuild ranges without this column
+                const keep = existingRanges.filter(r => {
+                    if (r.columns.length === 1 && r.columns[0].getColId() === colId) {
+                        const s = r.startRow ? r.startRow.rowIndex : 0;
+                        const e = r.endRow ? r.endRow.rowIndex : 0;
+                        return Math.abs(e - s) + 1 !== rowCount;
+                    }
+                    return true;
+                });
+                params.api.clearRangeSelection();
+                keep.forEach(r => {
+                    let startRow = r.startRow ? r.startRow.rowIndex : 0;
+                    let endRow = r.endRow ? r.endRow.rowIndex : 0;
+                    params.api.addCellRange({
+                        columns: r.columns.map(c => c.getColId()),
+                        rowStartIndex: Math.min(startRow, endRow),
+                        rowEndIndex: Math.max(startRow, endRow),
+                    });
+                });
+            } else {
+                // Add this column to the selection
+                params.api.addCellRange({
+                    columns: [colId],
+                    rowStartIndex: 0,
+                    rowEndIndex: rowCount - 1,
+                });
+            }
+        } else {
+            // Normal click: clear existing selection and select just this column
+            params.api.clearRangeSelection();
+            params.api.addCellRange({
+                columns: [colId],
+                rowStartIndex: 0,
+                rowEndIndex: rowCount - 1
+            });
+        }
     }, [renamedHeaders]);
 
     // Focus the rename input when it appears
