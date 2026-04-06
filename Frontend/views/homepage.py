@@ -1991,7 +1991,6 @@ def _handle_run_analysis(
     for k, v in method_flags.items():
         if v and k in _BACKEND_CHART_IDS:
             req = {"type": k}
-
             if k == "binomial":
                 req.update({
                     "n": int(binomial_n),
