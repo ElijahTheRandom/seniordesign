@@ -162,6 +162,47 @@ hr {
     margin: 2rem 0 !important;
 }
 
+/* Target the FULL text input container (this is the key fix) */
+div[data-baseweb="input"] {
+    background-color: #161b22 !important;
+    border: 1px solid #444 !important;
+    border-radius: 6px !important;
+}
+
+/* Remove default orange border */
+div[data-baseweb="input"] > div {
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Style the actual input */
+div[data-baseweb="input"] input {
+    background-color: #161b22 !important;
+    color: #ffffff !important;
+}
+
+/* Focus state (ONLY when clicked) */
+div[data-baseweb="input"]:focus-within {
+    border: 1px solid #e4781d !important;
+    box-shadow: 0 0 0 1px #e4781d !important;
+}
+
+/* TextArea version */
+div[data-baseweb="textarea"] {
+    background-color: #161b22 !important;
+    border: 1px solid #444 !important;
+}
+
+div[data-baseweb="textarea"]:focus-within {
+    border: 1px solid #e4781d !important;
+    box-shadow: 0 0 0 1px #e4781d !important;
+}
+
+textarea {
+    background-color: #161b22 !important;
+    color: #ffffff !important;
+}
+
 /* ==========================================================================
    2. App Background
    ========================================================================== */
