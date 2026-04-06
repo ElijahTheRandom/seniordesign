@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react"
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import {
     Streamlit,
     withStreamlitConnection,
@@ -10,12 +10,8 @@ import "ag-grid-community/styles/ag-theme-alpine.css"
 import "./styles.css"
 
 const AgGridRange = (props) => {
-    // Destructure props (args are passed via specialized 'args' prop in withStreamlitConnection wrapper usually, 
-    // but simpler wrapping passes them directly if customized, 
-    // checking standard streamlit-component-lib usage: props.args)
     const { rowData, columnDefs } = props.args
 
-    // State for grid api to access later
     const [gridApi, setGridApi] = useState(null)
     const [selectedColId, setSelectedColId] = useState(null)
     const [hasEdits, setHasEdits] = useState(false)
@@ -24,13 +20,25 @@ const AgGridRange = (props) => {
         return Math.max(550, Math.min(800, Math.round(window.innerHeight * 0.6)))
     })
 
-    // Dynamic column definitions to apply header styling
-    const displayColumnDefs = useMemo(() => {
-        return columnDefs.map(col => ({
-            ...col,
-            headerClass: col.field === selectedColId ? 'full-column-selected' : ''
-        }))
-    }, [columnDefs, selectedColId])
+    // Header rename state
+    const [renamedHeaders, setRenamedHeaders] = useState({})
+    const [editingColId, setEditingColId] = useState(null)
+    const [editValue, setEditValue] = useState("")
+    const [editPos, setEditPos] = useState({ top: 0, left: 0, width: 0 })
+    const editInputRef = useRef(null)
+    const headerClickTimers = useRef({})
+
+    // Track renamed headers — merge incoming columnDefs field names with renames
+    const effectiveColumnDefs = useMemo(() => {
+        return columnDefs.map(col => {
+            const renamed = renamedHeaders[col.field]
+            return {
+                ...col,
+                headerName: renamed || col.field,
+                headerClass: col.field === selectedColId ? 'full-column-selected' : ''
+            }
+        })
+    }, [columnDefs, selectedColId, renamedHeaders])
 
     // Auto-resize height on mount and updates
     useEffect(() => {
@@ -118,7 +126,8 @@ const AgGridRange = (props) => {
 
         Streamlit.setComponentValue({
             selections: formattedRanges,
-            editedData: currentEditedData
+            editedData: currentEditedData,
+            renamedHeaders: Object.keys(renamedHeaders).length > 0 ? renamedHeaders : null
         });
     }
 
@@ -147,7 +156,8 @@ const AgGridRange = (props) => {
         setHasEdits(true);
         Streamlit.setComponentValue({
             selections: formattedRanges,
-            editedData: updatedRows
+            editedData: updatedRows,
+            renamedHeaders: Object.keys(renamedHeaders).length > 0 ? renamedHeaders : null
         });
     }
 
@@ -182,20 +192,108 @@ const AgGridRange = (props) => {
         },
     }), [])
 
-    const onColumnHeaderClicked = (params) => {
-        // Select the entire column when header is clicked
-        if (params.api) {
-            const colId = params.column.getColId();
-            const rowCount = params.api.getDisplayedRowCount();
+    // Helper: send current state to Streamlit
+    const sendValue = useCallback((api, overrideEdited) => {
+        const cellRanges = api.getCellRanges() || [];
+        const formattedRanges = cellRanges.map((range) => {
+            let startRow = range.startRow ? range.startRow.rowIndex : 0;
+            let endRow = range.endRow ? range.endRow.rowIndex : 0;
+            if (startRow > endRow) { const t = startRow; startRow = endRow; endRow = t; }
+            const columns = range.columns.map((col) => col.colId);
+            return { startRow, endRow, columns };
+        });
+        Streamlit.setComponentValue({
+            selections: formattedRanges,
+            editedData: overrideEdited !== undefined ? overrideEdited : null,
+            renamedHeaders: Object.keys(renamedHeaders).length > 0 ? renamedHeaders : null
+        });
+    }, [renamedHeaders]);
 
-            params.api.clearRangeSelection();
-            params.api.addCellRange({
-                columns: [colId],
-                rowStartIndex: 0,
-                rowEndIndex: rowCount - 1
-            });
+    // Header click: single = select column, double = rename
+    const onColumnHeaderClicked = useCallback((params) => {
+        if (!params.api) return;
+        const colId = params.column.getColId();
+
+        // Check for double-click (two clicks within 300ms)
+        if (headerClickTimers.current[colId]) {
+            // Double-click detected — open rename editor
+            clearTimeout(headerClickTimers.current[colId]);
+            headerClickTimers.current[colId] = null;
+
+            // Find the header cell element to position the input
+            const headerEl = document.querySelector(`.ag-header-cell[col-id="${colId}"]`);
+            if (headerEl) {
+                const rect = headerEl.getBoundingClientRect();
+                const gridEl = headerEl.closest('.ag-theme-alpine');
+                const gridRect = gridEl ? gridEl.getBoundingClientRect() : { top: 0, left: 0 };
+                setEditPos({
+                    top: rect.top - gridRect.top,
+                    left: rect.left - gridRect.left,
+                    width: rect.width,
+                    height: rect.height
+                });
+            }
+            setEditingColId(colId);
+            setEditValue(renamedHeaders[colId] || colId);
+            return;
         }
-    }
+
+        // First click — start timer, and select column
+        headerClickTimers.current[colId] = setTimeout(() => {
+            headerClickTimers.current[colId] = null;
+        }, 300);
+
+        // Select the entire column
+        const rowCount = params.api.getDisplayedRowCount();
+        params.api.clearRangeSelection();
+        params.api.addCellRange({
+            columns: [colId],
+            rowStartIndex: 0,
+            rowEndIndex: rowCount - 1
+        });
+    }, [renamedHeaders]);
+
+    // Focus the rename input when it appears
+    useEffect(() => {
+        if (editingColId && editInputRef.current) {
+            editInputRef.current.focus();
+            editInputRef.current.select();
+        }
+    }, [editingColId]);
+
+    // Commit header rename
+    const commitRename = useCallback(() => {
+        if (!editingColId) return;
+        const trimmed = editValue.trim();
+        if (trimmed && trimmed !== editingColId) {
+            const updated = { ...renamedHeaders, [editingColId]: trimmed };
+            setRenamedHeaders(updated);
+            // Send rename data to Streamlit immediately
+            if (gridApi) {
+                const cellRanges = gridApi.getCellRanges() || [];
+                const formattedRanges = cellRanges.map((range) => {
+                    let startRow = range.startRow ? range.startRow.rowIndex : 0;
+                    let endRow = range.endRow ? range.endRow.rowIndex : 0;
+                    if (startRow > endRow) { const t = startRow; startRow = endRow; endRow = t; }
+                    const columns = range.columns.map((col) => col.colId);
+                    return { startRow, endRow, columns };
+                });
+                Streamlit.setComponentValue({
+                    selections: formattedRanges,
+                    editedData: null,
+                    renamedHeaders: updated
+                });
+            }
+        }
+        setEditingColId(null);
+        setEditValue("");
+    }, [editingColId, editValue, renamedHeaders, gridApi]);
+
+    // Cancel rename
+    const cancelRename = useCallback(() => {
+        setEditingColId(null);
+        setEditValue("");
+    }, []);
 
     // Container style - ensure it has height for grid to render if not autoHeight
     // Using autoHeight often requires DOM layout adjustment, but let's try fixed constraint or full width 
@@ -210,10 +308,37 @@ const AgGridRange = (props) => {
     // If we want dynamic height, we can use domLayout='autoHeight' and call setFrameHeight repeatedly.
 
     return (
-        <div className="ag-theme-alpine" style={containerStyle}>
+        <div className="ag-theme-alpine" style={{ ...containerStyle, position: "relative" }}>
+            {/* Inline header rename overlay */}
+            {editingColId && (
+                <div
+                    className="header-rename-overlay"
+                    style={{
+                        position: "absolute",
+                        top: editPos.top,
+                        left: editPos.left,
+                        width: editPos.width,
+                        height: editPos.height || 32,
+                        zIndex: 1000,
+                    }}
+                >
+                    <input
+                        ref={editInputRef}
+                        className="header-rename-input"
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") commitRename();
+                            if (e.key === "Escape") cancelRename();
+                        }}
+                        onBlur={commitRename}
+                    />
+                </div>
+            )}
             <AgGridReact
                 rowData={rowData}
-                columnDefs={displayColumnDefs}
+                columnDefs={effectiveColumnDefs}
                 defaultColDef={defaultColDef}
                 onGridReady={onGridReady}
                 enableRangeSelection={true}
@@ -221,9 +346,8 @@ const AgGridRange = (props) => {
                 onColumnHeaderClicked={onColumnHeaderClicked}
                 onCellValueChanged={onCellValueChanged}
                 suppressRowClickSelection={true}
-                // Optional: extra settings for better UX
                 rowSelection="multiple"
-                domLayout="normal" // <--- add this line
+                domLayout="normal"
             />
         </div>
     )

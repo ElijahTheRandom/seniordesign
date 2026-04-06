@@ -53,7 +53,6 @@ class Percentile:
 
             flat_data = np.asarray(self.data, dtype=float).flatten()
 
-<<<<<<< HEAD
             percentile_results = []
             for p in param_array.flatten():
                 computed = float(np.percentile(flat_data, p))
@@ -74,12 +73,6 @@ class Percentile:
                         ordinal = f"{p_int}th"
 
                 percentile_results.append(f"{ordinal}: {computed:.2f}")
-=======
-            percentiles = []
-            for i in range(len(param_array)):
-                appendPercentile = float(np.percentile(flat_data, param_array[i]))
-                percentiles.append(appendPercentile)
->>>>>>> 2b46729 (big method fixer)
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 

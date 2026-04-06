@@ -235,6 +235,113 @@ def success_dialog():
         st.markdown(st.session_state.modal_message)
 
 # ---------------------------------------------------------------------------
+# Header detection helpers
+# ---------------------------------------------------------------------------
+
+def _detect_has_headers(raw_bytes: bytes) -> bool:
+    """
+    Heuristic: does the CSV's first row look like column headers?
+
+    Returns True if every value in the first row is a non-numeric string
+    and at least one column in subsequent rows contains numeric data.
+    Falls back to True (the pandas default) when uncertain.
+    """
+    try:
+        df = pd.read_csv(io.BytesIO(raw_bytes), header=None, nrows=20)
+    except Exception:
+        return True
+
+    if len(df) < 2:
+        return False
+
+    first_row = df.iloc[0]
+
+    # If any first-row value is numeric, it's likely data, not a header
+    for val in first_row:
+        if pd.isna(val):
+            continue
+        try:
+            float(str(val))
+            return False
+        except (ValueError, TypeError):
+            pass
+
+    # Check if rows 2+ have at least some numeric data
+    rest = df.iloc[1:]
+    for col in rest.columns:
+        coerced = pd.to_numeric(rest[col], errors="coerce")
+        if coerced.notna().any():
+            return True
+
+    # All-string data throughout — assume headers (common convention)
+    return True
+
+
+def _on_header_toggle(file_key: str) -> None:
+    """Callback: re-parse CSV when the user toggles the header checkbox."""
+    has_headers = st.session_state.get(f"_has_headers_{file_key}", True)
+    raw = st.session_state.get("_csv_raw_bytes")
+
+    # Try to recover raw bytes from the uploaded file if not cached
+    if raw is None:
+        uf = st.session_state.get("uploaded_file")
+        if uf is not None:
+            try:
+                uf.seek(0)
+                raw = uf.read()
+                st.session_state._csv_raw_bytes = raw
+            except Exception:
+                return
+
+    if raw is None:
+        return
+
+    if has_headers:
+        df = pd.read_csv(io.BytesIO(raw))
+    else:
+        df = pd.read_csv(io.BytesIO(raw), header=None)
+        df.columns = [f"Column {_col_letter(i)}" for i in range(len(df.columns))]
+
+    st.session_state.edited_data_cache[file_key] = df
+
+    # Reset column-related state since column names changed
+    st.session_state.selected_columns = []
+    st.session_state.selected_rows = []
+    st.session_state.last_grid_selection = None
+    st.session_state.checkbox_key_onecol += 1
+    st.session_state.checkbox_key_twocol += 1
+
+
+def _render_header_settings(uploaded_file) -> None:
+    """
+    Render the header-detection toggle.
+
+    Shown between the file action buttons and the grid.
+    """
+    if uploaded_file is None:
+        return
+
+    file_key = f"{uploaded_file.name}_{uploaded_file.size}"
+    cache = st.session_state.get("edited_data_cache", {})
+    if file_key not in cache:
+        return
+
+    # --- Header toggle ---
+    detected = st.session_state.get(f"_headers_detected_{file_key}", True)
+    toggle_key = f"_has_headers_{file_key}"
+    st.session_state.setdefault(toggle_key, detected)
+
+    st.checkbox(
+        "First row contains headers",
+        key=toggle_key,
+        on_change=_on_header_toggle,
+        args=(file_key,),
+    )
+
+
+
+
+# ---------------------------------------------------------------------------
 # Public interface
 # ---------------------------------------------------------------------------
 
@@ -290,6 +397,7 @@ def render_homepage(base_dir: str) -> None:
                 st.session_state._csv_loading = False
                 st.rerun()
                 return
+            st.session_state._csv_raw_bytes = raw
             st.session_state._csv_future = _get_executor().submit(
                 lambda data: pd.read_csv(io.BytesIO(data)), raw
             )
@@ -300,6 +408,24 @@ def render_homepage(base_dir: str) -> None:
                 file_key = f"{uf.name}_{uf.size}"
                 if "edited_data_cache" not in st.session_state:
                     st.session_state.edited_data_cache = {}
+
+                # Auto-detect whether the first row is headers
+                raw = st.session_state.get("_csv_raw_bytes")
+                if raw is not None:
+                    detected = _detect_has_headers(raw)
+                else:
+                    detected = True
+                st.session_state[f"_headers_detected_{file_key}"] = detected
+                st.session_state.setdefault(f"_has_headers_{file_key}", detected)
+
+                if not detected:
+                    # Re-parse without headers and generate column names
+                    if raw is not None:
+                        df = pd.read_csv(io.BytesIO(raw), header=None)
+                    df.columns = [
+                        f"Column {_col_letter(i)}" for i in range(len(df.columns))
+                    ]
+
                 st.session_state.edited_data_cache[file_key] = df
             except Exception as exc:
                 st.session_state.modal_message = f"Failed to parse CSV: {exc}"
@@ -437,6 +563,9 @@ def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
         _clear_file_state()
         st.rerun()
 
+    # --- Header settings (toggle + rename) ---
+    _render_header_settings(uploaded_file)
+
     # --- Grid / table display ---
     edited_table = _render_grid(uploaded_file)
 
@@ -509,8 +638,13 @@ def _clear_file_state() -> None:
         checkbox's individual state.
     """
     for key in ("uploaded_file", "saved_table", "edited_data_cache",
-                 "_csv_loading", "_csv_future", "_raw_grid_selection"):
+                 "_csv_loading", "_csv_future", "_raw_grid_selection", "_csv_raw_bytes"):
         st.session_state.pop(key, None)
+
+    # Clear per-file header detection state
+    for key in list(st.session_state.keys()):
+        if key.startswith(("_headers_detected_", "_has_headers_")):
+            del st.session_state[key]
 
     st.session_state.has_file = False
 
@@ -633,22 +767,45 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
 
     result = aggrid_range(records, columns, key=grid_key)
 
-    # The component returns {"selections": [...], "editedData": [...] | null}
+    # The component returns {"selections": [...], "editedData": [...] | null, "renamedHeaders": {...} | null}
     if isinstance(result, dict):
         selection = result.get("selections", [])
         edited_data = result.get("editedData")
+        renamed_headers = result.get("renamedHeaders")
     else:
         # Fallback for old format (list of ranges)
         selection = result
         edited_data = None
+        renamed_headers = None
 
     # Apply cell edits back to the DataFrame
     if edited_data is not None:
         df = pd.DataFrame(edited_data, columns=df.columns)
 
+    # Apply header renames from the grid component
+    if renamed_headers and isinstance(renamed_headers, dict):
+        rename_map = {}
+        for old_name, new_name in renamed_headers.items():
+            new_name = str(new_name).strip()
+            if old_name in df.columns and new_name and new_name != old_name:
+                rename_map[old_name] = new_name
+        if rename_map:
+            # Ensure no duplicate names
+            new_cols = [rename_map.get(c, c) for c in df.columns]
+            if len(set(new_cols)) == len(new_cols):
+                df = df.rename(columns=rename_map)
+                # Reset column selections since names changed
+                st.session_state.selected_columns = []
+                st.session_state.selected_rows = []
+                st.session_state.checkbox_key_onecol += 1
+                st.session_state.checkbox_key_twocol += 1
+
     apply_grid_selection_to_filters(selection, df)
     st.session_state["_raw_grid_selection"] = selection
-    st.caption("**Tip:** Click and drag to select a range of cells. "
+
+    st.markdown("")
+    st.caption("**Tip:** Click a header to select a column. "
+               "Double-click a header to rename it. "
                "Double-click a cell to edit its value.")
 
     if selection:
