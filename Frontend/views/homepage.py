@@ -235,6 +235,113 @@ def success_dialog():
         st.markdown(st.session_state.modal_message)
 
 # ---------------------------------------------------------------------------
+# Header detection helpers
+# ---------------------------------------------------------------------------
+
+def _detect_has_headers(raw_bytes: bytes) -> bool:
+    """
+    Heuristic: does the CSV's first row look like column headers?
+
+    Returns True if every value in the first row is a non-numeric string
+    and at least one column in subsequent rows contains numeric data.
+    Falls back to True (the pandas default) when uncertain.
+    """
+    try:
+        df = pd.read_csv(io.BytesIO(raw_bytes), header=None, nrows=20)
+    except Exception:
+        return True
+
+    if len(df) < 2:
+        return False
+
+    first_row = df.iloc[0]
+
+    # If any first-row value is numeric, it's likely data, not a header
+    for val in first_row:
+        if pd.isna(val):
+            continue
+        try:
+            float(str(val))
+            return False
+        except (ValueError, TypeError):
+            pass
+
+    # Check if rows 2+ have at least some numeric data
+    rest = df.iloc[1:]
+    for col in rest.columns:
+        coerced = pd.to_numeric(rest[col], errors="coerce")
+        if coerced.notna().any():
+            return True
+
+    # All-string data throughout — assume headers (common convention)
+    return True
+
+
+def _on_header_toggle(file_key: str) -> None:
+    """Callback: re-parse CSV when the user toggles the header checkbox."""
+    has_headers = st.session_state.get(f"_has_headers_{file_key}", True)
+    raw = st.session_state.get("_csv_raw_bytes")
+
+    # Try to recover raw bytes from the uploaded file if not cached
+    if raw is None:
+        uf = st.session_state.get("uploaded_file")
+        if uf is not None:
+            try:
+                uf.seek(0)
+                raw = uf.read()
+                st.session_state._csv_raw_bytes = raw
+            except Exception:
+                return
+
+    if raw is None:
+        return
+
+    if has_headers:
+        df = pd.read_csv(io.BytesIO(raw))
+    else:
+        df = pd.read_csv(io.BytesIO(raw), header=None)
+        df.columns = [f"Column {_col_letter(i)}" for i in range(len(df.columns))]
+
+    st.session_state.edited_data_cache[file_key] = df
+
+    # Reset column-related state since column names changed
+    st.session_state.selected_columns = []
+    st.session_state.selected_rows = []
+    st.session_state.last_grid_selection = None
+    st.session_state.checkbox_key_onecol += 1
+    st.session_state.checkbox_key_twocol += 1
+
+
+def _render_header_settings(uploaded_file) -> None:
+    """
+    Render the header-detection toggle.
+
+    Shown between the file action buttons and the grid.
+    """
+    if uploaded_file is None:
+        return
+
+    file_key = f"{uploaded_file.name}_{uploaded_file.size}"
+    cache = st.session_state.get("edited_data_cache", {})
+    if file_key not in cache:
+        return
+
+    # --- Header toggle ---
+    detected = st.session_state.get(f"_headers_detected_{file_key}", True)
+    toggle_key = f"_has_headers_{file_key}"
+    st.session_state.setdefault(toggle_key, detected)
+
+    st.checkbox(
+        "First row contains headers",
+        key=toggle_key,
+        on_change=_on_header_toggle,
+        args=(file_key,),
+    )
+
+
+
+
+# ---------------------------------------------------------------------------
 # Public interface
 # ---------------------------------------------------------------------------
 
@@ -290,6 +397,7 @@ def render_homepage(base_dir: str) -> None:
                 st.session_state._csv_loading = False
                 st.rerun()
                 return
+            st.session_state._csv_raw_bytes = raw
             st.session_state._csv_future = _get_executor().submit(
                 lambda data: pd.read_csv(io.BytesIO(data)), raw
             )
@@ -300,6 +408,24 @@ def render_homepage(base_dir: str) -> None:
                 file_key = f"{uf.name}_{uf.size}"
                 if "edited_data_cache" not in st.session_state:
                     st.session_state.edited_data_cache = {}
+
+                # Auto-detect whether the first row is headers
+                raw = st.session_state.get("_csv_raw_bytes")
+                if raw is not None:
+                    detected = _detect_has_headers(raw)
+                else:
+                    detected = True
+                st.session_state[f"_headers_detected_{file_key}"] = detected
+                st.session_state.setdefault(f"_has_headers_{file_key}", detected)
+
+                if not detected:
+                    # Re-parse without headers and generate column names
+                    if raw is not None:
+                        df = pd.read_csv(io.BytesIO(raw), header=None)
+                    df.columns = [
+                        f"Column {_col_letter(i)}" for i in range(len(df.columns))
+                    ]
+
                 st.session_state.edited_data_cache[file_key] = df
             except Exception as exc:
                 st.session_state.modal_message = f"Failed to parse CSV: {exc}"
@@ -348,6 +474,9 @@ def render_homepage(base_dir: str) -> None:
                 "result_message": result_message,
                 "table":          meta["table"],
                 "data":           meta["data"],
+                "columns":        meta.get("columns", []),
+                "rows":           meta.get("rows", []),
+                "measurement_levels": meta.get("measurement_levels", {}),
             }
             handle_result(run)
 
@@ -434,6 +563,9 @@ def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
         _clear_file_state()
         st.rerun()
 
+    # --- Header settings (toggle + rename) ---
+    _render_header_settings(uploaded_file)
+
     # --- Grid / table display ---
     edited_table = _render_grid(uploaded_file)
 
@@ -506,8 +638,13 @@ def _clear_file_state() -> None:
         checkbox's individual state.
     """
     for key in ("uploaded_file", "saved_table", "edited_data_cache",
-                 "_csv_loading", "_csv_future", "_raw_grid_selection"):
+                 "_csv_loading", "_csv_future", "_raw_grid_selection", "_csv_raw_bytes"):
         st.session_state.pop(key, None)
+
+    # Clear per-file header detection state
+    for key in list(st.session_state.keys()):
+        if key.startswith(("_headers_detected_", "_has_headers_")):
+            del st.session_state[key]
 
     st.session_state.has_file = False
 
@@ -630,22 +767,45 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
 
     result = aggrid_range(records, columns, key=grid_key)
 
-    # The component returns {"selections": [...], "editedData": [...] | null}
+    # The component returns {"selections": [...], "editedData": [...] | null, "renamedHeaders": {...} | null}
     if isinstance(result, dict):
         selection = result.get("selections", [])
         edited_data = result.get("editedData")
+        renamed_headers = result.get("renamedHeaders")
     else:
         # Fallback for old format (list of ranges)
         selection = result
         edited_data = None
+        renamed_headers = None
 
     # Apply cell edits back to the DataFrame
     if edited_data is not None:
         df = pd.DataFrame(edited_data, columns=df.columns)
 
+    # Apply header renames from the grid component
+    if renamed_headers and isinstance(renamed_headers, dict):
+        rename_map = {}
+        for old_name, new_name in renamed_headers.items():
+            new_name = str(new_name).strip()
+            if old_name in df.columns and new_name and new_name != old_name:
+                rename_map[old_name] = new_name
+        if rename_map:
+            # Ensure no duplicate names
+            new_cols = [rename_map.get(c, c) for c in df.columns]
+            if len(set(new_cols)) == len(new_cols):
+                df = df.rename(columns=rename_map)
+                # Reset column selections since names changed
+                st.session_state.selected_columns = []
+                st.session_state.selected_rows = []
+                st.session_state.checkbox_key_onecol += 1
+                st.session_state.checkbox_key_twocol += 1
+
     apply_grid_selection_to_filters(selection, df)
     st.session_state["_raw_grid_selection"] = selection
-    st.caption("**Tip:** Click and drag to select a range of cells. "
+
+    st.markdown("")
+    st.caption("**Tip:** Click a header to select a column. "
+               "Double-click a header to rename it. "
                "Double-click a cell to edit its value.")
 
     if selection:
@@ -783,12 +943,15 @@ def _render_analysis_config(
 
     col1, col2 = _render_column_row_selectors(edited_table, data_ready)
 
+    # --- Compute data characteristics for smart checkbox disabling ---
+    data_info = _compute_data_info(edited_table, col1, col2, data_ready)
+
     st.markdown("---")
 
     mean, median, mode, variance, std, percentiles, \
         pearson, spearman, least_squares_regression, chi_squared, variation, \
         custom_flags, invalid_params = \
-        _render_computation_options(data_ready, col1, col2)
+        _render_computation_options(data_ready, col1, col2, data_info)
 
     st.markdown("---")
 
@@ -924,6 +1087,28 @@ def _render_column_row_selectors(
             unsafe_allow_html=True,
         )
 
+    # --- Measurement-level tagging per selected column (Req 4.1-4.2) ---
+    _MEASUREMENT_LEVELS = ["Nominal", "Ordinal", "Interval", "Ratio"]
+    if col1 and data_ready and edited_table is not None:
+        with st.expander("Column Measurement Types", expanded=False):
+            ml_dict = st.session_state.get("column_measurement_levels", {})
+            for c in col1:
+                # Auto-detect default: numeric → Interval, text → Nominal
+                if c not in ml_dict:
+                    coerced = pd.to_numeric(edited_table[c], errors="coerce")
+                    ml_dict[c] = "Interval" if coerced.notna().all() and len(coerced) > 0 else "Nominal"
+                ml_dict[c] = st.selectbox(
+                    c,
+                    _MEASUREMENT_LEVELS,
+                    index=_MEASUREMENT_LEVELS.index(ml_dict.get(c, "Nominal")),
+                    key=f"ml_{c}",
+                )
+            # Remove stale entries for columns no longer selected
+            ml_dict = {k: v for k, v in ml_dict.items() if k in col1}
+            st.session_state["column_measurement_levels"] = ml_dict
+    else:
+        st.session_state["column_measurement_levels"] = {}
+
     # --- Checkbox reset logic (unchanged behaviour) ---
     prev_cols = st.session_state.get("last_cols_selected", [])
     if len(prev_cols) > 0 and len(col1) == 0:
@@ -949,28 +1134,128 @@ def _render_column_row_selectors(
 # selection flags that get passed to _handle_run_analysis.
 # ============================================================================
 
+def _compute_data_info(
+    edited_table: pd.DataFrame | None,
+    col1: list,
+    col2: list,
+    data_ready: bool,
+) -> dict:
+    """
+    Analyze the currently selected data to determine which methods are
+    eligible.  Returns a dict with:
+
+        num_selected_cols   – number of columns selected
+        num_numeric_cols    – how many of those columns are numeric
+        num_rows            – number of data rows in the selection
+        all_numeric         – True if every selected column is numeric
+        has_numeric         – True if at least one selected column is numeric
+    """
+    if not data_ready or not col1:
+        return {
+            "num_selected_cols": 0,
+            "num_numeric_cols": 0,
+            "num_rows": 0,
+            "all_numeric": False,
+            "has_numeric": False,
+            "num_interval_ratio": 0,
+            "num_ordinal_plus": 0,
+        }
+
+    subset = edited_table[col1]
+    if col2:
+        # Re-index to 1-based to match the row selector values
+        subset = subset.copy()
+        subset.index = range(1, len(subset) + 1)
+        subset = subset.loc[subset.index.isin(col2)]
+
+    num_rows = len(subset)
+
+    # A column is "numeric" if pd.to_numeric can coerce every non-null value
+    numeric_count = 0
+    for c in subset.columns:
+        coerced = pd.to_numeric(subset[c], errors="coerce")
+        if coerced.notna().all() or subset[c].isna().all():
+            numeric_count += 1
+
+    # Measurement-level counts from user tags
+    ml = st.session_state.get("column_measurement_levels", {})
+    num_interval_ratio = sum(1 for c in col1 if ml.get(c) in ("Interval", "Ratio"))
+    num_ordinal_plus = sum(1 for c in col1 if ml.get(c) in ("Ordinal", "Interval", "Ratio"))
+
+    return {
+        "num_selected_cols": len(col1),
+        "num_numeric_cols": numeric_count,
+        "num_rows": num_rows,
+        "all_numeric": numeric_count == len(col1) and len(col1) > 0,
+        "has_numeric": numeric_count > 0,
+        "num_interval_ratio": num_interval_ratio,
+        "num_ordinal_plus": num_ordinal_plus,
+    }
+
+
+# ============================================================================
+# ⭐ STATISTICAL METHODS SELECTED BY USER
+# Return values: mean, median, mode, variance, std_dev, percentiles (one-column)
+#                pearson, spearman, regression, chi_square, binomial, variation
+# ============================================================================
+# The following function renders checkboxes for: Mean, Median, Mode, Variance,
+# Standard Deviation, Percentiles, Pearson, Spearman, Regression, Chi-Square,
+# Binomial, and Coefficient of Variation. The return values are the method
+# selection flags that get passed to _handle_run_analysis.
+# ============================================================================
+
 def _render_computation_options(
     data_ready: bool,
     col1: list,
-    col2: list
+    col2: list,
+    data_info: dict,
 ) -> tuple:
     """
     Render the 12 computation checkboxes in two columns.
 
-    Disable rules:
+    Disable rules (real-time, based on the current selection):
         - All checkboxes: disabled if no data is loaded (data_ready=False)
-        - One-column methods: disabled if no column is selected
-        - Two-column methods: disabled if fewer than 2 columns are selected
+        - One-column numeric methods (Mean, Median, Mode, Std Dev, Percentiles):
+              disabled if no numeric column selected
+        - Variance: disabled if < 1 numeric column OR < 2 rows (ddof=1)
+        - Pearson / Spearman: disabled if < 2 numeric columns OR < 3 rows
+        - Least Squares Regression: disabled if < 2 numeric columns OR < 2 rows
+        - Chi-Square: disabled if < 1 numeric column OR < 2 rows
+        - Binomial: disabled if < 1 numeric column
+        - Coefficient of Variation: disabled if no numeric column
 
     Returns:
-        Tuple of 12 booleans in order:
-        (mean, median, mode, variance, std_dev, percentiles,
-         pearson, spearman, regression, chi_square, variation)
+        Tuple of 11 booleans + custom_flags dict + invalid_params bool.
     """
     st.header("Computation Options", anchor=False)
 
-    disable_one_col = not data_ready or len(col1) < 1
-    disable_two_cols = not data_ready or len(col1) < 2
+    # --- Derive disable flags from data_info ---
+    n_cols = data_info["num_selected_cols"]
+    n_num  = data_info["num_numeric_cols"]
+    n_rows = data_info["num_rows"]
+    has_num = data_info["has_numeric"]
+    all_num = data_info["all_numeric"]
+    n_ir   = data_info.get("num_interval_ratio", 0)  # interval/ratio columns
+    n_ord  = data_info.get("num_ordinal_plus", 0)     # ordinal+ columns
+
+    # Interval/ratio methods: Mean, Median, Std Dev, Percentiles, CV
+    dis_1num = not data_ready or n_num < 1 or n_ir < 1
+    # Variance needs interval/ratio AND ≥2 rows (sample variance, ddof=1)
+    dis_var  = not data_ready or n_num < 1 or n_ir < 1 or n_rows < 2
+    # Mode works on any measurement level — just needs data
+    dis_mode = not data_ready or n_num < 1
+    # Pearson: needs ≥2 interval/ratio columns AND ≥3 rows
+    dis_corr = not data_ready or n_num < 2 or n_ir < 2 or n_rows < 3
+    # Spearman: works on ordinal+, needs ≥2 ordinal+ columns AND ≥3 rows
+    dis_spear = not data_ready or n_num < 2 or n_ord < 2 or n_rows < 3
+    # Least-squares regression: needs ≥2 interval/ratio columns AND ≥2 rows
+    dis_lsr  = not data_ready or n_num < 2 or n_ir < 2 or n_rows < 2
+    # Chi-Square: needs ≥1 numeric column AND ≥2 observed values
+    dis_chi  = not data_ready or n_num < 1 or n_rows < 2
+    # Binomial: needs ≥1 numeric column (data is cast to int/float)
+    dis_binom = not data_ready or n_num < 1
+    # Coefficient of Variation: needs ≥1 interval/ratio column
+    dis_cv   = not data_ready or n_num < 1 or n_ir < 1
 
     # If user drops from >=2 columns to 1 column,
     # reset two-column statistical method checkboxes
@@ -980,19 +1265,19 @@ def _render_computation_options(
     c1, c2 = st.columns(2)
 
     with c1:
-        mean        = st.checkbox("Mean",                disabled=disable_one_col,  key=f"mean_c1_{k1}")
-        median      = st.checkbox("Median",              disabled=disable_one_col,  key=f"median_c1_{k1}")
-        mode        = st.checkbox("Mode",                disabled=disable_one_col,  key=f"mode_c1_{k1}")
-        variance    = st.checkbox("Variance",            disabled=disable_one_col,  key=f"variance_c1_{k1}")
-        std         = st.checkbox("Standard Deviation",  disabled=disable_one_col,  key=f"std_c1_{k1}")
-        percentiles = st.checkbox("Percentiles",         disabled=disable_one_col,  key=f"percentiles_c1_{k1}")
+        mean        = st.checkbox("Mean",                disabled=dis_1num,  key=f"mean_c1_{k1}")        and not dis_1num
+        median      = st.checkbox("Median",              disabled=dis_1num,  key=f"median_c1_{k1}")      and not dis_1num
+        mode        = st.checkbox("Mode",                disabled=dis_mode,  key=f"mode_c1_{k1}")        and not dis_mode
+        variance    = st.checkbox("Variance",            disabled=dis_var,   key=f"variance_c1_{k1}")    and not dis_var
+        std         = st.checkbox("Standard Deviation",  disabled=dis_1num,  key=f"std_c1_{k1}")         and not dis_1num
+        percentiles = st.checkbox("Percentiles",         disabled=dis_1num,  key=f"percentiles_c1_{k1}") and not dis_1num
 
     with c2:
-        pearson                = st.checkbox("Pearson's Correlation",     disabled=disable_two_cols, key=f"pearson_c2_{k2}")
-        spearman               = st.checkbox("Spearman's Rank",           disabled=disable_two_cols, key=f"spearman_c2_{k2}")
-        least_squares_regression = st.checkbox("Least Squares Regression",  disabled=disable_two_cols, key=f"least_squares_regression_c2_{k2}")
-        chi_squared            = st.checkbox("Chi-Square Test",           disabled=disable_one_col,  key=f"chi_squared_c2_{k1}")
-        variation              = st.checkbox("Coefficient of Variation",  disabled=disable_one_col,  key=f"variation_c2_{k1}")
+        pearson                = st.checkbox("Pearson's Correlation",     disabled=dis_corr,  key=f"pearson_c2_{k2}")                and not dis_corr
+        spearman               = st.checkbox("Spearman's Rank",           disabled=dis_spear, key=f"spearman_c2_{k2}")               and not dis_spear
+        least_squares_regression = st.checkbox("Least Squares Regression",  disabled=dis_lsr,  key=f"least_squares_regression_c2_{k2}") and not dis_lsr
+        chi_squared            = st.checkbox("Chi-Square Test",           disabled=dis_chi,  key=f"chi_squared_c2_{k1}")            and not dis_chi
+        variation              = st.checkbox("Coefficient of Variation",  disabled=dis_cv,   key=f"variation_c2_{k1}")              and not dis_cv
 
     # --- Conditional parameter inputs (appear inline when the method is checked) ---
     invalid_params = False
@@ -1007,7 +1292,7 @@ def _render_computation_options(
                 key="percentile_values_input",
                 placeholder="e.g. 10, 25, 50, 75, 90",
                 help="Enter any values between 0 and 100, separated by commas.",
-                disabled=disable_one_col,
+                disabled=dis_1num,
             )
         try:
             parsed_pcts = [float(v.strip()) for v in percentile_input_val.split(",") if v.strip()]
@@ -1020,8 +1305,51 @@ def _render_computation_options(
             with pcol:
                 _param_warning("Values must be valid numbers between 0 and 100.")
 
+    if st.session_state.get("viz_binomial", False) and not dis_binom:
+        if percentiles:
+            st.markdown("<div style='margin-top:0.25rem'></div>", unsafe_allow_html=True)
+        st.markdown("**Binomial Parameters**")
+        bn1, bn2, bn3, bn4 = st.columns(4)
+        with bn1:
+            st.number_input(
+                "n (trials)", min_value=1, max_value=100000,
+                value=10, step=1,
+                key="binomial_n",
+                help="Total number of trials.",
+                disabled=dis_binom,
+            )
+        with bn2:
+            st.number_input(
+                "p (probability)", min_value=0.0, max_value=1.0,
+                value=0.5, step=0.01, format="%.4f",
+                key="binomial_p",
+                help="Probability of success on each trial (0 – 1).",
+                disabled=dis_binom,
+            )
+        with bn3:
+            st.number_input(
+                "k min", min_value=0,
+                value=0, step=1,
+                key="binomial_k_min",
+                help="Minimum number of successes (start of k-range).",
+                disabled=dis_binom,
+            )
+        with bn4:
+            st.number_input(
+                "k max", min_value=0,
+                value=10, step=1,
+                key="binomial_k_max",
+                help="Maximum number of successes (end of k-range).",
+                disabled=dis_binom,
+            )
+        k_min_val = st.session_state.get("binomial_k_min", 0)
+        k_max_val = st.session_state.get("binomial_k_max", 10)
+        if k_min_val > k_max_val:
+            invalid_params = True
+            _param_warning("k min must be ≤ k max.")
+
     # --- Custom methods ---
-    custom_flags = _render_custom_method_checkboxes(data_ready, col1)
+    custom_flags = _render_custom_method_checkboxes(data_ready, col1, data_info)
 
     st.session_state["_analysis_invalid_params"] = invalid_params
 
@@ -1035,12 +1363,13 @@ def _render_computation_options(
 def _render_custom_method_checkboxes(
     data_ready: bool,
     col1: list,
+    data_info: dict,
 ) -> dict[str, bool]:
     """
     Render checkboxes for any user-defined custom methods.
 
     Reads the custom_methods.json registry and renders one checkbox per
-    entry, respecting the method's input_type for disable logic.
+    entry, respecting the method's input_type and numeric requirements.
 
     Returns:
         Dict mapping custom method ID → bool (checked/unchecked).
@@ -1053,6 +1382,7 @@ def _render_custom_method_checkboxes(
         kc = st.session_state.get("checkbox_key_custom", 0)
         k1 = st.session_state.checkbox_key_onecol
         k2 = st.session_state.checkbox_key_twocol
+        n_num = data_info["num_numeric_cols"]
 
         flags = {}
         cm1, cm2 = st.columns(2)
@@ -1062,17 +1392,18 @@ def _render_custom_method_checkboxes(
             itype = entry.get("input_type", "one_column")
 
             if itype == "two_column":
-                disabled = not data_ready or len(col1) < 2
+                disabled = not data_ready or n_num < 2
                 key_suffix = f"{k2}_{kc}"
             else:
-                disabled = not data_ready or len(col1) < 1
+                disabled = not data_ready or n_num < 1
                 key_suffix = f"{k1}_{kc}"
 
             col_target = cm1 if idx % 2 == 0 else cm2
             with col_target:
-                flags[mid] = st.checkbox(
+                checked = st.checkbox(
                     label, disabled=disabled, key=f"{mid}_{key_suffix}"
                 )
+                flags[mid] = checked and not disabled
     else:
         flags = {}
 
@@ -1595,14 +1926,14 @@ def _render_visualization_options(
     v1, v2 = st.columns(2)
 
     with v1:
-        hist    = st.checkbox("Pie Chart",                     key="viz_hist",    disabled=disable_one_col)
-        box     = st.checkbox("Vertical Bar Chart",            key="viz_box",     disabled=disable_one_col)
-        scatter = st.checkbox("Horizontal Bar Chart",          key="viz_scatter", disabled=disable_one_col)
+        hist    = st.checkbox("Pie Chart",                     key="viz_hist",    disabled=disable_one_col)  and not disable_one_col
+        box     = st.checkbox("Vertical Bar Chart",            key="viz_box",     disabled=disable_one_col)  and not disable_one_col
+        scatter = st.checkbox("Horizontal Bar Chart",          key="viz_scatter", disabled=disable_one_col)  and not disable_one_col
 
     with v2:
-        line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_two_cols)
-        heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_two_cols)
-        binomial = st.checkbox("Binomial Distribution",        key="viz_binomial", disabled=disable_one_col)
+        line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_two_cols) and not disable_two_cols
+        heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_two_cols) and not disable_two_cols
+        binomial = st.checkbox("Binomial Distribution",        key="viz_binomial", disabled=disable_one_col) and not disable_one_col
 
     return hist, box, scatter, line, heatmap, binomial
 
@@ -1772,7 +2103,6 @@ def _handle_run_analysis(
     for k, v in method_flags.items():
         if v and k in _BACKEND_CHART_IDS:
             req = {"type": k}
-
             if k == "binomial":
                 req.update({
                     "n": int(binomial_n),
@@ -1811,6 +2141,9 @@ def _handle_run_analysis(
         "visualizations": [VIZ_NAMES[k] for k in _BACKEND_CHART_IDS if method_flags.get(k)],
         "table":          edited_table,
         "data":           parsed_data.reset_index(drop=True),
+        "columns":        col1,
+        "rows":           col2,
+        "measurement_levels": dict(st.session_state.get("column_measurement_levels", {})),
     }
     st.session_state._compute_future = _get_executor().submit(
         _background_run,

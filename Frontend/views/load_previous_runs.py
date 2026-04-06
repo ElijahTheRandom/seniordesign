@@ -28,6 +28,7 @@ from datetime import timezone
 
 from class_templates.message_structure import Message
 from frontend_handler import handle_result
+from backend_handler import BackendHandler
 
 SAVED_RUNS_FILE = os.path.join(_PROJECT_ROOT, "results_cache", "saved_runs.json")
 
@@ -232,14 +233,15 @@ def _render_saved_run_card(entry: dict, saved_runs: list) -> None:
 
 def _load_run_from_cache(entry: dict) -> None:
     """
-    Reconstruct a run dict from the cache folder and add it to session state.
+    Re-execute a saved run from its cached inputs and add to session state.
 
     Steps:
         1. Find the results JSON in the cache folder.
-        2. Parse it into a Message object.
-        3. Load the table CSV (if saved).
-        4. Build the run dict and add to analysis_runs.
-        5. Navigate to the run.
+        2. Extract the original inputs (data, methods, graphics, metadata).
+        3. Re-execute the computation via BackendHandler.
+        4. Load the table CSV (if saved).
+        5. Build the run dict and add to analysis_runs.
+        6. Navigate to the run.
     """
     cache_folder = entry["cache_folder"]
 
@@ -269,17 +271,23 @@ def _load_run_from_cache(entry: dict) -> None:
         st.error(f"Failed to read cached results: {exc}")
         return
 
-    # 2. Reconstruct the Message object
-    result_message = Message(
+    # 2. Re-execute the computation with original inputs
+    request = Message(
         dataset_id=data_dict.get("dataset_id"),
         dataset_version=data_dict.get("dataset_version"),
         metadata=data_dict.get("metadata", []),
         selection=data_dict.get("selection", {}),
         methods=data_dict.get("methods", []),
         graphics=data_dict.get("graphics", []),
-        results=data_dict.get("results", []),
-        run_folder=cache_folder,
+        data=data_dict.get("data", []),
     )
+
+    try:
+        handler = BackendHandler()
+        result_message = handler.handle_request(request)
+    except Exception as exc:
+        st.error(f"Replay failed: {exc}")
+        return
 
     # 3. Load the table CSV (saved by the Save Run action)
     table_path = os.path.join(cache_folder, "table.csv")

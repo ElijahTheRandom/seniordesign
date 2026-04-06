@@ -1,8 +1,5 @@
-import base64
-
 import numpy as np
-import matplotlib.pyplot as plt
-from io import BytesIO
+
 
 class LeastSquaresRegression:
     def __init__(self, data, metadata, params=None):
@@ -15,8 +12,8 @@ class LeastSquaresRegression:
     def _applicable(self):
         # Check whether this statistic is valid for the given data selection
         if self.data is None or len(self.data) < 2 or len(self.data[0]) != len(self.data[1]):
-            return False
-        return True
+            return "Least Squares Regression requires exactly 2 columns of equal length"
+        return None
 
     def _generate_return_structure(self, value):
         # Check whether this statistic is valid for the given data selection
@@ -25,8 +22,8 @@ class LeastSquaresRegression:
             "ok": True,
             "value": value,
             "error": None,
-            "loss_of_precision": False,  # Could be the regression error
-            "params_used": len(self.data[0]) + len(self.data[1])
+            "loss_of_precision": False,
+            "params_used": self.params
         }
 
     def _generate_return_structure_error(self, error_message):
@@ -41,11 +38,9 @@ class LeastSquaresRegression:
 
     def compute(self):
         # Perform the statistical computation and return a standardized result dictionary
-        _applicable = self._applicable()
-        if not _applicable:
-            return self._generate_return_structure_error(
-                "Least Squares Regression requires exactly 2 columns of equal length"
-            )
+        reason = self._applicable()
+        if reason is not None:
+            return self._generate_return_structure_error(reason)
         
         try:
             # Turn the xs and ys into np arrays
@@ -61,12 +56,6 @@ class LeastSquaresRegression:
             ss_tot = float(np.sum((y - np.mean(y)) ** 2))
             r_squared = 1 - ss_res / ss_tot if ss_tot != 0 else 0.0
 
-            # Line for the plot
-            xFit = np.linspace(x.min(), x.max(), 200)
-            yFit = slope * xFit + intercept
-
-            chart_b64 = self.create_graphic(x, y, xFit, yFit)
-
             # Return a compact equation string that fits better in the card
             value = f"y = {slope:.3f}x + {intercept:.3f}"
 
@@ -76,21 +65,7 @@ class LeastSquaresRegression:
         results = self._generate_return_structure(value)
         return results
 
-    def create_graphic(self, xs, ys, xLine, yLine):
-        # Generate a chart or visualization object for the computed results
-        # Use the non-interactive Agg backend so this is safe to call from threads.
-        plt.switch_backend("Agg")
-        fig = plt.figure()
-        plt.scatter(xs, ys)
-        plt.plot(xLine, yLine)
-        plt.xlabel("X")
-        plt.ylabel("Y")
-        plt.title("Least Squares Regression Line")
-
-        # Save the image to memory, get it, and return it
-        buffer = BytesIO()
-        plt.savefig(buffer, format = "png", bbox_inches = "tight")
-        plt.close(fig)
-
-        buffer.seek(0)
-        return base64.b64encode(buffer.getvalue()).decode("utf-8")
+    def create_graphic(self, results):
+        # No standalone graphic for least squares regression
+        # (the best_fit chart class handles the visualization)
+        pass

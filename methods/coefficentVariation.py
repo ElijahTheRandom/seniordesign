@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.stats import variation
-from class_templates import message_structure
 
 class CoefficientVariation:
     def __init__(self, data, metadata, params=None):
@@ -13,14 +12,14 @@ class CoefficientVariation:
     def _applicable(self):
         # Check whether this statistic is valid for the given data selection
         if self.data is None or len(self.data) == 0:
-            return False
+            return "Coefficient of variation is undefined for empty data or data with a mean of zero"
         try:
             flat = np.asarray(self.data, dtype=float).flatten()
             if len(flat) == 0 or np.mean(flat) == 0:
-                return False
+                return "Coefficient of variation is undefined for empty data or data with a mean of zero"
         except (ValueError, TypeError):
-            return False
-        return True
+            return "Coefficient of variation is undefined for empty data or data with a mean of zero"
+        return None
 
 
     def _generate_return_structure(self, value):
@@ -30,7 +29,7 @@ class CoefficientVariation:
             "ok": True,
             "value": value,
             "error": None,
-            "loss_precision": False,
+            "loss_of_precision": False,
             "params_used": self.params
         }
         return results
@@ -41,18 +40,16 @@ class CoefficientVariation:
             "ok": False,
             "value": None,
             "error": error_message,
-            "loss_precision": False,
+            "loss_of_precision": False,
             "params_used": self.params
         }
         return results
 
     def compute(self):
         # Perform the statistical computation and return a standardized result dictionary
-        _applicable = self._applicable()
-        if not _applicable:
-            return self._generate_return_structure_error(
-                "Coefficient of variation is undefined for empty data or data with a mean of zero"
-            )
+        reason = self._applicable()
+        if reason is not None:
+            return self._generate_return_structure_error(reason)
         
         # Main Computation Logic
         try:

@@ -985,12 +985,25 @@ div[data-testid="stSelectbox"] div[data-baseweb="select"] {
     border-radius: 4px !important;
 }
 
+/* Override the generic baseweb "select > div" padding/border that clips text */
+div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    min-height: auto !important;
+    overflow: visible !important;
+}
+
 div[data-testid="stSelectbox"] div[role="combobox"] {
     border: 1px solid #e4781d !important;
     border-radius: 4px !important;
-    padding: 2px 6px !important;
+    padding: 8px 10px !important;
+    min-height: 2.4rem !important;
     box-shadow: 0 0 0 1px #e4781d !important;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    overflow: visible !important;
+    line-height: 1.4 !important;
 }
 
 div[data-testid="stSelectbox"] div[role="combobox"]:hover {

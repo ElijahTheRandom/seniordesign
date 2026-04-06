@@ -11,8 +11,8 @@ class Mode:
     def _applicable(self):
         # Check whether this statistic is valid for the given data selection
         if self.data is None or len(self.data) == 0:
-            return False
-        return True
+            return "No numerical data provided"
+        return None
 
 
     def _generate_return_structure(self, value):
@@ -22,7 +22,7 @@ class Mode:
             "ok": True,
             "value": value,
             "error": None,
-            "loss_precision": False,
+            "loss_of_precision": False,
             "params_used": self.params
         }
         return results
@@ -33,21 +33,26 @@ class Mode:
             "ok": False,
             "value": None,
             "error": error_message,
-            "loss_precision": False,
+            "loss_of_precision": False,
             "params_used": self.params
         }
         return results
 
     def compute(self):
         # Perform the statistical computation and return a standardized result dictionary
-        _applicable = self._applicable()
-        if not _applicable:
-            return self._generate_return_structure_error("No numerical data provided")
+        reason = self._applicable()
+        if reason is not None:
+            return self._generate_return_structure_error(reason)
         
         # Placeholder for the main computation logic
         try:
             flat = self.data.flatten() if hasattr(self.data, 'flatten') else self.data
-            mode_value = float(statistics.mode(flat))
+            raw_mode = statistics.mode(flat)
+            # Keep numeric values as float; leave strings as-is
+            try:
+                mode_value = float(raw_mode)
+            except (ValueError, TypeError):
+                mode_value = raw_mode
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 
