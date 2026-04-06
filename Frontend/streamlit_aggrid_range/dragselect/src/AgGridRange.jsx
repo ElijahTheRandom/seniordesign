@@ -105,9 +105,20 @@ const AgGridRange = (props) => {
             };
         });
 
+        // If the user has made edits, include the current row data so that
+        // a selection event never overwrites a prior cell edit in Streamlit's
+        // component state.  Without this, onRangeSelectionChanged would send
+        // editedData: null and Python would see no edits on the next rerun.
+        let currentEditedData = null;
+        if (hasEdits && event.api) {
+            const updatedRows = [];
+            event.api.forEachNode(node => updatedRows.push({...node.data}));
+            currentEditedData = updatedRows;
+        }
+
         Streamlit.setComponentValue({
             selections: formattedRanges,
-            editedData: null
+            editedData: currentEditedData
         });
     }
 
