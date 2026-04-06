@@ -47,6 +47,9 @@ import io
 import os
 import sys
 import uuid
+import json
+
+import streamlit.components.v1 as components
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 from pathlib import Path
@@ -78,6 +81,21 @@ from custom_methods_loader import (
     delete_custom_method,
 )
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+def _img_to_b64(filename: str) -> str:
+    path = Path(BASE_DIR) / "pages" / "assets" / filename
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+_favicon_icons = json.dumps([
+    _img_to_b64("ps_main_man.png"),
+    _img_to_b64("ElijahSquirrel.png"),
+    _img_to_b64("AshtonSquirrel.png"),
+    _img_to_b64("ChrisSquirrel.png"),
+    _img_to_b64("HyattSquirrel.png"),
+    _img_to_b64("SamSquirrel.png"),
+])
 
 @st.cache_resource
 def _get_backend_handler():
@@ -226,6 +244,31 @@ def render_homepage(base_dir: str) -> None:
         base_dir: Absolute path to the frontend directory. Used to
                   resolve asset paths passed down to child functions.
     """
+
+    components.html(
+        f"""
+        <script>
+        (function() {{
+            const icons = {_favicon_icons};
+            let i = 0;
+            function rotateFavicon() {{
+                let link = window.parent.document.querySelector("link[rel~='icon']");
+                if (!link) {{
+                    link = window.parent.document.createElement("link");
+                    link.rel = "icon";
+                    window.parent.document.head.appendChild(link);
+                }}
+                link.type = "image/png";
+                link.href = "data:image/png;base64," + icons[i % icons.length];
+                i++;
+            }}
+            rotateFavicon();
+            setInterval(rotateFavicon, 1000);
+        }})();
+        </script>
+        """,
+        height=0,
+    )
 
     # ------------------------------------------------------------------
     # CSV loading: poll for completion

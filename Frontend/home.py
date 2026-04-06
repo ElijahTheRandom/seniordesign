@@ -13,7 +13,7 @@ def _img_to_b64(filename: str) -> str:
         return base64.b64encode(f.read()).decode()
 
 _favicon_icons = json.dumps([
-    _img_to_b64("PStheMainMan.png"),
+    _img_to_b64("ps_main_man.png"),
     _img_to_b64("ElijahSquirrel.png"),
     _img_to_b64("AshtonSquirrel.png"),
     _img_to_b64("ChrisSquirrel.png"),
