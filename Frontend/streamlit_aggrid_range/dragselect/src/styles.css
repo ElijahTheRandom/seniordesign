@@ -33,17 +33,40 @@
     border: none;
 }
 
-/* Hide scrollbars but keep scrolling */
+/* Styled scrollbars — visible and color-scheme consistent */
 .ag-theme-alpine .ag-body-horizontal-scroll-viewport,
-.ag-theme-alpine .ag-body-vertical-scroll-viewport,
-.ag-theme-alpine .ag-virtual-list-viewport {
-    scrollbar-width: none;           /* Firefox */
-    -ms-overflow-style: none;        /* IE / Edge */
+.ag-theme-alpine .ag-body-vertical-scroll-viewport {
+    scrollbar-width: thin;                                              /* Firefox */
+    scrollbar-color: rgba(228, 120, 29, 0.6) rgba(255, 255, 255, 0.05); /* Firefox thumb / track */
 }
-.ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar,
-.ag-theme-alpine .ag-body-vertical-scroll-viewport::-webkit-scrollbar,
-.ag-theme-alpine .ag-virtual-list-viewport::-webkit-scrollbar {
-    display: none;                   /* Chrome / Safari / Opera */
+
+.ag-theme-alpine .ag-body-vertical-scroll-viewport::-webkit-scrollbar {
+    width: 8px;
+}
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar {
+    height: 8px;
+}
+
+.ag-theme-alpine .ag-body-vertical-scroll-viewport::-webkit-scrollbar-track,
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 4px;
+}
+
+.ag-theme-alpine .ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb,
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb {
+    background: rgba(228, 120, 29, 0.6);
+    border-radius: 4px;
+}
+
+.ag-theme-alpine .ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb:hover,
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb:hover {
+    background: rgba(228, 120, 29, 0.9);
+}
+
+.ag-theme-alpine .ag-body-vertical-scroll-viewport::-webkit-scrollbar-corner,
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-corner {
+    background: #141414;
 }
 
 html, body {
@@ -57,33 +80,10 @@ html, body {
     transition: background-color 0.2s;
 }
 
-/* Invisible custom scrollbar tracks */
-.ag-theme-alpine .ag-body-vertical-scroll-viewport,
-.ag-theme-alpine .ag-body-horizontal-scroll-viewport {
-    background: transparent !important;
-}
-
+/* Scrollbar container backgrounds — match grid background */
 .ag-theme-alpine .ag-body-vertical-scroll,
 .ag-theme-alpine .ag-body-horizontal-scroll {
-    background: transparent !important;
-}
-
-.ag-theme-alpine .ag-body-vertical-scroll-viewport,
-.ag-theme-alpine .ag-body-horizontal-scroll-viewport,
-.ag-theme-alpine .ag-body-vertical-scroll,
-.ag-theme-alpine .ag-body-horizontal-scroll {
-    background-color: transparent !important;
-    color: transparent !important;
-}
-
-.ag-body-vertical-scroll-viewport::-webkit-scrollbar-track,
-.ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track {
-    background: transparent !important;
-}
-
-.ag-body-vertical-scroll-viewport::-webkit-scrollbar-corner,
-.ag-body-horizontal-scroll-viewport::-webkit-scrollbar-corner {
-    background: transparent !important;
+    background: #141414;
 }
 
 /* Inline header rename overlay */
