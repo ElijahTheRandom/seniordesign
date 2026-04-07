@@ -66,7 +66,7 @@ def validate_numeric(
     numeric_methods = {
         "mean", "median", "mode", "standard_deviation", "variance",
         "pearson", "spearman", "least_squares_regression", "percentile", "coefficient_variation",
-        "chisquared", "binomial",
+        "chisquared",
         "scat_plot", "best_fit",
     }
     # Custom methods (prefixed with 'custom_') also require numeric data
