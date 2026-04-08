@@ -55,7 +55,13 @@ from utils.helpers import df_to_ascii_table
 from frontend_handler import handle_result
 from logic.run_manager import build_success_save_message
 
+from PIL import ImageOps
+
 SAVED_RUNS_FILE = os.path.join(_PROJECT_ROOT, "results_cache", "saved_runs.json")
+
+# ADDITIONAL BOOL FOR TESTING PURPOSES
+# REPLACE THIS WITH SHARED VARIABLE CONTROLLING LIGHT MODE
+lightMode = False
 
 if "show_success_save_dialog" not in st.session_state:
     st.session_state.show_success_save_dialog = False
@@ -221,10 +227,20 @@ def _render_visualizations(run: dict, show_divider: bool = True) -> None:
 
     for idx, chart in enumerate(graphics):
         if chart.get("ok") and chart.get("path"):
-            st.image(chart["path"])
+            
+            image = Image.open(chart["path"])
+            # Test for Light Mode
+            if lightMode and chart["type"] != "binomial":
+                image = ImageOps.invert(image.convert("RGB"))
+            st.image(image)
+
             # --- Req 3.7: JPEG download button ---
             try:
                 img = Image.open(chart["path"])
+                # Light Mode Test
+                if lightMode and chart["type"] != "binomial":
+                    img = ImageOps.invert(img.convert("RGB"))
+
                 buf = BytesIO()
                 rgb = img.convert("RGB")  # JPEG requires RGB
                 rgb.save(buf, format="JPEG", quality=95)
