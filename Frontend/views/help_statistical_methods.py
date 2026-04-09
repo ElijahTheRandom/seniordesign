@@ -12,6 +12,27 @@ PUBLIC INTERFACE:
 """
 
 import streamlit as st
+import base64
+import json
+import os
+import streamlit.components.v1 as components
+from pathlib import Path
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def _img_to_b64(filename: str) -> str:
+    path = Path(BASE_DIR).parent / "pages" / "assets" / filename
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+_favicon_icons = json.dumps([
+    _img_to_b64("ps_main_man.png"),
+    _img_to_b64("ElijahSquirrel.png"),
+    _img_to_b64("AshtonSquirrel.png"),
+    _img_to_b64("ChrisSquirrel.png"),
+    _img_to_b64("HyattSquirrel.png"),
+    _img_to_b64("SamSquirrel.png"),
+])
 
 st.markdown("""
 <style>
@@ -29,6 +50,8 @@ def render_help_statistical_methods() -> None:
     Displays information about the various statistical methods
     available in the PS Analytics application.
     """
+    components.html(f"""<script>(function(){{const icons={_favicon_icons};let i=0;function r(){{let l=window.parent.document.querySelector("link[rel~='icon']");if(!l){{l=window.parent.document.createElement("link");l.rel="icon";window.parent.document.head.appendChild(l);}}l.type="image/png";l.href="data:image/png;base64,"+icons[i%icons.length];i++;}}r();setInterval(r,1000);}})();</script>""", height=0)
+
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown(
         "<hr style='margin: 0; border: none; height: 1px; "

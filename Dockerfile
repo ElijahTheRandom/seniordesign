@@ -14,7 +14,7 @@ RUN cd dragselect \
 RUN test -f /app/dragselect/build/index.html \
     || (echo "ERROR: React build output missing!" && exit 1)
 
-FROM python:3.14-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 

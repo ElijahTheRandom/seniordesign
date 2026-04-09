@@ -40,18 +40,22 @@ from views.results  import render_results
 from views.comparison import render_comparison
 from views.help_statistical_methods import render_help_statistical_methods
 from views.load_previous_runs import render_load_previous_runs
+from PIL import Image
+from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Page config — must be the very first Streamlit call
 # ---------------------------------------------------------------------------
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Make sure to keep layout = wide and initial_sidebar_state = collapsed
 # These settings keep everything from getting stuck centered and screwing up the layout 
 # and keeps the sidebar closed when the user first opens the program
 st.set_page_config(
     page_title="PS Analytics",
-    page_icon=os.path.join(BASE_DIR, "assets", "PStheMainMan.png"),
     layout="wide",
+    page_icon=Image.open(Path(BASE_DIR) / "pages" / "assets" / "ps_main_man.png"),
     initial_sidebar_state="collapsed",
 )
 

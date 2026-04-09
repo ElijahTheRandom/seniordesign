@@ -23,6 +23,27 @@ if _PROJECT_ROOT not in sys.path:
 
 import streamlit as st
 import pandas as pd
+import base64
+import json
+import streamlit.components.v1 as components
+from pathlib import Path
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def _img_to_b64(filename: str) -> str:
+    path = Path(BASE_DIR).parent / "pages" / "assets" / filename
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+_favicon_icons = json.dumps([
+    _img_to_b64("ps_main_man.png"),
+    _img_to_b64("ElijahSquirrel.png"),
+    _img_to_b64("AshtonSquirrel.png"),
+    _img_to_b64("ChrisSquirrel.png"),
+    _img_to_b64("HyattSquirrel.png"),
+    _img_to_b64("SamSquirrel.png"),
+])
+
 from datetime import datetime
 from datetime import timezone
 
@@ -71,6 +92,8 @@ def render_load_previous_runs() -> None:
     a Load button. Clicking Load reconstructs the run from the cached
     results and navigates to the results tab.
     """
+    components.html(f"""<script>(function(){{const icons={_favicon_icons};let i=0;function r(){{let l=window.parent.document.querySelector("link[rel~='icon']");if(!l){{l=window.parent.document.createElement("link");l.rel="icon";window.parent.document.head.appendChild(l);}}l.type="image/png";l.href="data:image/png;base64,"+icons[i%icons.length];i++;}}r();setInterval(r,1000);}})();</script>""", height=0)
+
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
 
     st.markdown(

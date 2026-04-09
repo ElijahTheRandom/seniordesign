@@ -40,6 +40,27 @@ SESSION STATE WRITTEN:
 import sys
 import os
 import json
+import base64
+import json
+import streamlit.components.v1 as components
+from pathlib import Path
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def _img_to_b64(filename: str) -> str:
+    path = Path(BASE_DIR).parent / "pages" / "assets" / filename
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+_favicon_icons = json.dumps([
+    _img_to_b64("ps_main_man.png"),
+    _img_to_b64("ElijahSquirrel.png"),
+    _img_to_b64("AshtonSquirrel.png"),
+    _img_to_b64("ChrisSquirrel.png"),
+    _img_to_b64("HyattSquirrel.png"),
+    _img_to_b64("SamSquirrel.png"),
+])
+
 from datetime import datetime
 
 _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
@@ -84,6 +105,8 @@ def render_results(run: dict, base_dir: str) -> None:
                                   methods, visualizations }
         base_dir: Absolute path to the frontend directory.
     """
+    components.html(f"""<script>(function(){{const icons={_favicon_icons};let i=0;function r(){{let l=window.parent.document.querySelector("link[rel~='icon']");if(!l){{l=window.parent.document.createElement("link");l.rel="icon";window.parent.document.head.appendChild(l);}}l.type="image/png";l.href="data:image/png;base64,"+icons[i%icons.length];i++;}}r();setInterval(r,1000);}})();</script>""", height=0)
+
     # Only compute cards if not already cached on the run
     if "cards" not in run:
         run = handle_result(run)
