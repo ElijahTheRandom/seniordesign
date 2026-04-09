@@ -4,6 +4,7 @@ import os
 import base64
 import json
 from pathlib import Path
+from PIL import Image
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -23,7 +24,8 @@ _favicon_icons = json.dumps([
 
 st.set_page_config(
     page_title="PS Analytics",
-    layout="wide"
+    layout="wide",
+    page_icon=Image.open(Path(BASE_DIR) / "pages" / "assets" / "ps_main_man.png")
 )
 
 st.markdown("""
