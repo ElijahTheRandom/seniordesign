@@ -685,7 +685,7 @@ def _render_grid(uploaded_file) -> pd.DataFrame | None:
 
     else:
         st.info("Upload a CSV file to view it in the interactive grid.")
-        return pd.DataFrame(columns=["Enter your data..."])
+        return None
 
 
 def _render_grid_from_file(uploaded_file) -> pd.DataFrame:
@@ -721,7 +721,7 @@ def _render_grid_from_file(uploaded_file) -> pd.DataFrame:
 
     except Exception as e:
         st.error(f"Error processing file: {e}")
-        return pd.DataFrame(columns=["Enter your data..."])
+        return None
 
 
 def _render_grid_from_cache() -> pd.DataFrame:
@@ -1466,6 +1466,12 @@ def _render_custom_method_transfer_controls():
     method_count = len(registry)
     exportable_names = {entry["display_name"]: entry["id"] for entry in registry}
 
+    st.markdown("### Transfer Custom Methods")
+    st.caption(
+        f"You currently have {method_count} custom method(s). "
+        "Export a selected bundle or import a previously exported one."
+    )
+
     selected_export_names = []
     if exportable_names:
         selected_export_names = st.multiselect(
@@ -1498,11 +1504,6 @@ def _render_custom_method_transfer_controls():
     exported_method_count = len(json.loads(bundle_json).get("methods", []))
     bundle_name = f"custom_methods_export_{time.strftime('%Y%m%d_%H%M%S')}.json"
 
-    st.markdown("### Transfer Custom Methods")
-    st.caption(
-        f"You currently have {method_count} custom method(s). "
-        "Export a selected bundle or import a previously exported one."
-    )
     st.caption(
         f"The current export will include {exported_method_count} custom method(s). "
         "Standard built-in methods remain available automatically after import."
@@ -1987,13 +1988,16 @@ def _manage_methods_dialog():
     b1, b2, b3 = st.columns(3)
     with b1:
         if st.button("Create", key="cm_manage_create_btn", use_container_width=True):
-            _create_method_dialog()
+            st.session_state["cm_pending_dialog"] = "create"
+            st.rerun()
     with b2:
         if st.button("Edit", key="cm_manage_edit_btn", use_container_width=True):
-            _edit_method_dialog()
+            st.session_state["cm_pending_dialog"] = "edit"
+            st.rerun()
     with b3:
         if st.button("Delete", key="cm_manage_delete_btn", use_container_width=True):
-            _delete_method_dialog()
+            st.session_state["cm_pending_dialog"] = "delete"
+            st.rerun()
 
     st.markdown("---")
     _render_custom_method_transfer_controls()
@@ -2007,6 +2011,17 @@ def _user_defined_computation_options():
     """
     if st.button("Manage", key="cm_manage_btn", use_container_width=True):
         _manage_methods_dialog()
+
+    # Handle sub-dialog routing set from within _manage_methods_dialog.
+    # Calling @st.dialog functions directly inside another @st.dialog raises
+    # StreamlitAPIException, so we set a flag and rerun instead.
+    pending = st.session_state.pop("cm_pending_dialog", None)
+    if pending == "create":
+        _create_method_dialog()
+    elif pending == "edit":
+        _edit_method_dialog()
+    elif pending == "delete":
+        _delete_method_dialog()
 
 # ============================================================================
 # ⭐ VISUALIZATION OPTIONS SELECTED BY USER
