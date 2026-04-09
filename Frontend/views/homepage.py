@@ -240,6 +240,21 @@ def success_dialog():
 # Header detection helpers
 # ---------------------------------------------------------------------------
 
+def _col_letter(index: int) -> str:
+    """Convert a zero-based column index to Excel-style letters (A, B, ..., AA)."""
+    if index < 0:
+        return "A"
+
+    letters = ""
+    n = index
+    while True:
+        n, remainder = divmod(n, 26)
+        letters = chr(ord("A") + remainder) + letters
+        if n == 0:
+            break
+        n -= 1
+    return letters
+
 def _detect_has_headers(raw_bytes: bytes) -> bool:
     """
     Heuristic: does the CSV's first row look like column headers?
@@ -966,7 +981,7 @@ def _render_analysis_config(
     computation_selected = any([
         mean, median, mode, variance, std, percentiles,
         pearson, spearman, least_squares_regression, chi_squared, variation,
-        hist, box, scatter, line, heatmap,
+        hist, box, scatter, line, heatmap, binomial,
     ] + list(custom_flags.values()))
 
     _handle_run_analysis(
@@ -2052,6 +2067,7 @@ def _render_visualization_options(
 
     disable_one_col  = not data_ready or len(col1) < 1
     disable_two_cols = not data_ready or len(col1) < 2
+    disable_binomial = False
 
     v1, v2 = st.columns(2)
 
@@ -2063,10 +2079,10 @@ def _render_visualization_options(
     with v2:
         line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_two_cols) and not disable_two_cols
         heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_two_cols) and not disable_two_cols
-        binomial = st.checkbox("Binomial Distribution",        key="viz_binomial", disabled=disable_one_col) and not disable_one_col
+        binomial = st.checkbox("Binomial Distribution",        key="viz_binomial", disabled=disable_binomial) and not disable_binomial
 
     # --- Binomial parameter inputs (below the checkbox) ---
-    dis_binom = not data_ready or data_info["num_numeric_cols"] < 1
+    dis_binom = disable_binomial
     if binomial and not dis_binom:
         st.markdown("**Binomial Parameters**")
         bn1, bn2, bn3, bn4 = st.columns(4)
@@ -2181,6 +2197,7 @@ def _handle_run_analysis(
     line                   = method_flags.get("line", False)
     heatmap                = method_flags.get("heatmap", False)
     custom_flags           = method_flags.get("custom_flags", {})
+    binomial_only_run      = binomial and not data_ready
 
     already_computing = st.session_state.get("_compute_future") is not None
     _invalid = st.session_state.get("_analysis_invalid_params", False) or invalid_params
@@ -2189,7 +2206,7 @@ def _handle_run_analysis(
         "Run Analysis",
         key="run_analysis",
         use_container_width=True,
-        disabled=not (data_ready and computation_selected) or already_computing or _invalid
+        disabled=not ((data_ready and computation_selected) or binomial_only_run) or already_computing or _invalid
     )
 
     if not run_clicked:
@@ -2197,18 +2214,22 @@ def _handle_run_analysis(
 
     # --- Slice to selected columns and rows ---
     # Convert to 1-based index so row selections align with multiselect values
-    edited_table_for_loc = edited_table.copy()
-    edited_table_for_loc.index = range(1, len(edited_table_for_loc) + 1)
+    if edited_table is not None:
+        edited_table_for_loc = edited_table.copy()
+        edited_table_for_loc.index = range(1, len(edited_table_for_loc) + 1)
 
-    # Apply column/row filters depending on what the user selected
-    if col1 and col2:
-        parsed_data = edited_table_for_loc.loc[col2, col1].copy()
-    elif col1:
-        parsed_data = edited_table_for_loc[col1].copy()
-    elif col2:
-        parsed_data = edited_table_for_loc.loc[col2].copy()
+        # Apply column/row filters depending on what the user selected
+        if col1 and col2:
+            parsed_data = edited_table_for_loc.loc[col2, col1].copy()
+        elif col1:
+            parsed_data = edited_table_for_loc[col1].copy()
+        elif col2:
+            parsed_data = edited_table_for_loc.loc[col2].copy()
+        else:
+            parsed_data = edited_table_for_loc.copy()
     else:
-        parsed_data = edited_table_for_loc.copy()
+        # Binomial can run from manual parameters without any uploaded dataset.
+        parsed_data = pd.DataFrame()
 
     # ========================================================================
     # ⭐ PACKAGE ANALYSIS DATA: SELECTED COLUMNS, ROWS, METHODS & VISUALIZATIONS
@@ -2312,7 +2333,7 @@ def _handle_run_analysis(
         "run_name":       f"Run {run_count}",
         "methods":        methods,
         "visualizations": [VIZ_NAMES[k] for k in _BACKEND_CHART_IDS if method_flags.get(k)],
-        "table":          edited_table,
+        "table":          edited_table if edited_table is not None else pd.DataFrame(),
         "data":           parsed_data.reset_index(drop=True),
         "columns":        col1,
         "rows":           col2,
