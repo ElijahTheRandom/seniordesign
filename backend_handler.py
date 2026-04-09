@@ -354,7 +354,7 @@ class BackendHandler:
 
     def _build_toolbox(self, exclude_id, metadata):
         """
-        Build a toolbox dict of callable wrappers for all custom methods,
+        Build a toolbox dict of callable wrappers for all statistical methods,
         excluding *exclude_id* to prevent direct self-recursion.
 
         Each toolbox entry is a callable:
@@ -367,9 +367,6 @@ class BackendHandler:
         toolbox: dict = {}
 
         for method_id, method_class in self.statistical_methods.items():
-            if not method_id.startswith("custom_"):
-                continue
-
             def _make_tool(cls=method_class, mid=method_id):
                 def tool_fn(tool_data, tool_params=None):
                     if mid in _call_stack:
@@ -379,7 +376,10 @@ class BackendHandler:
                         )
                     _call_stack.add(mid)
                     try:
-                        instance = cls(tool_data, metadata, tool_params, toolbox=toolbox)
+                        if mid.startswith("custom_"):
+                            instance = cls(tool_data, metadata, tool_params, toolbox=toolbox)
+                        else:
+                            instance = cls(tool_data, metadata, tool_params)
                         result = instance.compute()
                         if result.get("ok"):
                             return result["value"]
