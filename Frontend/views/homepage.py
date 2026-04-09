@@ -81,6 +81,8 @@ from custom_methods_loader import (
     delete_custom_method,
     get_available_tools_info,
     detect_dependency_cycles,
+    export_custom_methods_bundle,
+    import_custom_methods_bundle,
 )
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1429,6 +1431,7 @@ def _clear_cm_dialog_state():
         "_cm_edit_code_input",
         "_cm_edit_prev_input", "_cm_edit_prev_preset",
         "_cm_edit_prev_method",
+        "cm_import_file",
     ):
         st.session_state.pop(k, None)
 
@@ -1449,6 +1452,132 @@ def _after_method_change():
         st.session_state.get("checkbox_key_custom", 0) + 1
     )
     _clear_cm_dialog_state()
+
+
+def _format_tool_option_label(tool: dict) -> str:
+    """Build a user-friendly toolbox label that distinguishes standard/custom methods."""
+    source_label = "Standard" if tool.get("source") == "standard" else "Custom"
+    return f"{tool['display_name']} ({source_label})"
+
+
+def _render_custom_method_transfer_controls():
+    """Render export/import controls for the current custom method bundle."""
+    registry = load_custom_methods_registry()
+    method_count = len(registry)
+    exportable_names = {entry["display_name"]: entry["id"] for entry in registry}
+
+    selected_export_names = []
+    if exportable_names:
+        selected_export_names = st.multiselect(
+            "Choose custom methods to export",
+            options=list(exportable_names.keys()),
+            default=list(exportable_names.keys()),
+            key="cm_export_selection",
+            help=(
+                "Pick the custom methods to include in the bundle. "
+                "Built-in standard methods stay available automatically and are not exported."
+            ),
+        )
+
+    selected_export_ids = [exportable_names[name] for name in selected_export_names]
+    include_dependencies = st.checkbox(
+        "Also include any custom-method dependencies",
+        value=True,
+        key="cm_export_include_dependencies",
+        disabled=not selected_export_ids,
+        help=(
+            "If a selected custom method depends on other custom methods, "
+            "include those helper methods automatically."
+        ),
+    )
+
+    bundle_json = export_custom_methods_bundle(
+        selected_method_ids=selected_export_ids or [],
+        include_dependencies=include_dependencies,
+    )
+    exported_method_count = len(json.loads(bundle_json).get("methods", []))
+    bundle_name = f"custom_methods_export_{time.strftime('%Y%m%d_%H%M%S')}.json"
+
+    st.markdown("### Transfer Custom Methods")
+    st.caption(
+        f"You currently have {method_count} custom method(s). "
+        "Export a selected bundle or import a previously exported one."
+    )
+    st.caption(
+        f"The current export will include {exported_method_count} custom method(s). "
+        "Standard built-in methods remain available automatically after import."
+    )
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.download_button(
+            "Export Selection",
+            data=bundle_json,
+            file_name=bundle_name,
+            mime="application/json",
+            use_container_width=True,
+            key="cm_export_btn",
+            disabled=not selected_export_ids,
+        )
+
+    with c2:
+        import_clicked = st.button(
+            "Import Bundle",
+            key="cm_import_btn",
+            use_container_width=True,
+        )
+
+    uploaded_bundle = st.file_uploader(
+        "Import custom methods JSON",
+        type=["json"],
+        key="cm_import_file",
+        label_visibility="collapsed",
+    )
+
+    if import_clicked:
+        if uploaded_bundle is None:
+            st.warning("Choose a JSON export file before importing.")
+        else:
+            summary = import_custom_methods_bundle(uploaded_bundle.getvalue())
+            if summary["imported"]:
+                _after_method_change()
+
+            st.session_state["cm_import_summary"] = summary
+            st.rerun()
+
+    summary = st.session_state.get("cm_import_summary")
+    if summary:
+        imported = summary.get("imported", [])
+        duplicates = summary.get("skipped_duplicates", [])
+        invalid = summary.get("skipped_invalid", [])
+
+        if imported:
+            imported_names = ", ".join(item["display_name"] for item in imported)
+            st.success(
+                f"Imported {len(imported)} custom method(s): {imported_names}"
+            )
+        elif not duplicates and not invalid:
+            st.info("No custom methods were imported.")
+
+        if duplicates:
+            duplicate_lines = "\n".join(
+                f"- {item['display_name'] or item['id']}: {item['reason']}"
+                for item in duplicates
+            )
+            st.warning(
+                "Skipped duplicate custom methods:\n"
+                f"{duplicate_lines}"
+            )
+
+        if invalid:
+            invalid_lines = "\n".join(
+                f"- {(item['display_name'] or item['id'] or 'Unknown entry')}: {item['reason']}"
+                for item in invalid
+            )
+            st.error(
+                "Some custom methods could not be imported:\n"
+                f"{invalid_lines}"
+            )
 
 
 # ========================= CREATE DIALOG ====================================
@@ -1520,19 +1649,22 @@ def _create_method_dialog():
     st.markdown(
         "**Compute Logic** — Write Python code that produces a `result` variable. "
         "You have access to `data` (the selected columns), `params` (dict), "
-        "and `toolbox` (dict of callable custom methods). "
+        "and `toolbox` (dict of callable built-in and custom methods). "
         "`numpy` is imported as `np` in the generated file."
     )
 
     # --- Toolbox: dependency selection ---
     available_tools = get_available_tools_info()
     if available_tools:
-        tool_options = {t["display_name"]: t["id"] for t in available_tools}
+        tool_options = {
+            _format_tool_option_label(t): t["id"]
+            for t in available_tools
+        }
         selected_tool_names = st.multiselect(
-            "Use other custom methods (toolbox)",
+            "Use toolbox methods",
             options=list(tool_options.keys()),
             help=(
-                "Select custom methods this method depends on. "
+                "Select built-in or custom methods this method depends on. "
                 "They will be available via the `toolbox` dict in your code."
             ),
             key="custom_method_deps",
@@ -1698,7 +1830,7 @@ def _edit_method_dialog():
     st.markdown(
         "**Compute Logic** — Write Python code that produces a `result` variable. "
         "You have access to `data` (the selected columns), `params` (dict), "
-        "and `toolbox` (dict of callable custom methods). "
+        "and `toolbox` (dict of callable built-in and custom methods). "
         "`numpy` is imported as `np` in the generated file."
     )
 
@@ -1706,15 +1838,20 @@ def _edit_method_dialog():
     available_tools = get_available_tools_info(exclude_id=method_id)
     existing_deps = entry.get("dependencies", [])
     if available_tools:
-        tool_options = {t["display_name"]: t["id"] for t in available_tools}
-        reverse_map = {t["id"]: t["display_name"] for t in available_tools}
-        default_names = [reverse_map[d] for d in existing_deps if d in reverse_map]
+        tool_options = {
+            _format_tool_option_label(t): t["id"]
+            for t in available_tools
+        }
+        default_names = [
+            label for label, tool_id in tool_options.items()
+            if tool_id in existing_deps
+        ]
         selected_tool_names = st.multiselect(
-            "Use other custom methods (toolbox)",
+            "Use toolbox methods",
             options=list(tool_options.keys()),
             default=default_names,
             help=(
-                "Select custom methods this method depends on. "
+                "Select built-in or custom methods this method depends on. "
                 "They will be available via the `toolbox` dict in your code."
             ),
             key="_cm_edit_deps",
@@ -1834,23 +1971,42 @@ def _delete_method_dialog():
             st.rerun()
 
 
-# ========================= THREE PERMANENT BUTTONS ==========================
+# ========================= MANAGE DIALOG ====================================
+
+@st.dialog("Manage Custom Methods", width="large")
+def _manage_methods_dialog():
+    """Central hub for create/edit/delete/export/import custom method actions."""
+    registry = load_custom_methods_registry()
+
+    st.markdown(
+        "Manage your saved custom methods from one place. "
+        "Open the create, edit, or delete dialogs, or transfer methods with export/import."
+    )
+    st.caption(f"Currently saved: {len(registry)} custom method(s)")
+
+    b1, b2, b3 = st.columns(3)
+    with b1:
+        if st.button("Create", key="cm_manage_create_btn", use_container_width=True):
+            _create_method_dialog()
+    with b2:
+        if st.button("Edit", key="cm_manage_edit_btn", use_container_width=True):
+            _edit_method_dialog()
+    with b3:
+        if st.button("Delete", key="cm_manage_delete_btn", use_container_width=True):
+            _delete_method_dialog()
+
+    st.markdown("---")
+    _render_custom_method_transfer_controls()
+
+
+# ========================= SINGLE ENTRY BUTTON ==============================
 
 def _user_defined_computation_options():
     """
-    Render three permanent buttons for custom method management:
-    Create, Edit, and Delete.
+    Render a single entry point for custom method management.
     """
-    b1, b2, b3 = st.columns(3)
-    with b1:
-        if st.button("Create", key="cm_create_btn", use_container_width=True):
-            _create_method_dialog()
-    with b2:
-        if st.button("Edit", key="cm_edit_btn", use_container_width=True):
-            _edit_method_dialog()
-    with b3:
-        if st.button("Delete", key="cm_delete_btn", use_container_width=True):
-            _delete_method_dialog()
+    if st.button("Manage", key="cm_manage_btn", use_container_width=True):
+        _manage_methods_dialog()
 
 # ============================================================================
 # ⭐ VISUALIZATION OPTIONS SELECTED BY USER
