@@ -551,7 +551,7 @@ def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
         The currently active DataFrame (either from the uploaded file or
         restored from saved_table), or None if no data is loaded.
     """
-    st.header("Data Input & Table", anchor=False)
+    st.markdown("# Data Input & Table")
 
     # --- File upload / remove flow ---
     if "uploaded_file" not in st.session_state:
@@ -951,7 +951,7 @@ def _render_analysis_config(
         edited_table:  The current DataFrame from the left panel, or None.
         **method_flags: Boolean values for all computation + viz checkboxes, keyed by name.
     """
-    st.header("Analysis Configuration", anchor=False)
+    st.markdown("# **Analysis Configuration**")
 
     data_ready = (
         edited_table is not None
@@ -1245,7 +1245,7 @@ def _render_computation_options(
     Returns:
         Tuple of 11 booleans + custom_flags dict + invalid_params bool.
     """
-    st.header("Computation Options", anchor=False)
+    st.markdown("## Computation Options")
 
     # --- Derive disable flags from data_info ---
     n_cols = data_info["num_selected_cols"]
@@ -1351,7 +1351,7 @@ def _render_custom_method_checkboxes(
     """
     registry = load_custom_methods_registry()
 
-    st.subheader("**Custom Methods**")
+    st.markdown("### Custom Methods")
 
     if registry:
         kc = st.session_state.get("checkbox_key_custom", 0)
@@ -1989,7 +1989,7 @@ def _delete_method_dialog():
 
 # ========================= MANAGE DIALOG ====================================
 
-@st.dialog("Manage Custom Methods", width="large")
+@st.dialog("**Manage Custom Methods**", width="large")
 def _manage_methods_dialog():
     """Central hub for create/edit/delete/export/import custom method actions."""
     registry = load_custom_methods_registry()
@@ -2063,7 +2063,7 @@ def _render_visualization_options(
     Returns:
         Tuple of 5 booleans: (hist, box, scatter, line, heatmap)
     """
-    st.header("Visualization Options", anchor=False)
+    st.markdown("## Visualization Options")
 
     disable_one_col  = not data_ready or len(col1) < 1
     disable_two_cols = not data_ready or len(col1) < 2

@@ -30,7 +30,7 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-html, body, .stApp, * { font-family: "Source Sans Pro", sans-serif !important; }
+html, body, .stApp, * { font-family: 'Roboto Mono', monospace !important; }
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
@@ -120,8 +120,9 @@ components.html(
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-* {{ font-family: "Source Sans Pro", sans-serif !important; }}
+* {{ font-family: 'Roboto Mono', monospace !important; }}
 :root {{
   --bg:#ffffff; --text:#0f172a; --muted:#64748b;
   --border:#e5e7eb; --accent:#e4781d;
