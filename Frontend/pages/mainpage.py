@@ -55,7 +55,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 st.set_page_config(
     page_title="PS Analytics",
     layout="wide",
-    page_icon=Image.open(Path(BASE_DIR) / "pages" / "assets" / "ps_main_man.png"),
+    page_icon=Image.open(Path(BASE_DIR) / "pages" / "assets" / "PStheMainMan.png"),
     initial_sidebar_state="collapsed",
 )
 

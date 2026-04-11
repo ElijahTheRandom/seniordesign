@@ -16,6 +16,7 @@ import sys
 import os
 import json
 import glob
+from PIL import Image
 
 _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 if _PROJECT_ROOT not in sys.path:
@@ -28,22 +29,6 @@ import json
 import streamlit.components.v1 as components
 from pathlib import Path
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-def _img_to_b64(filename: str) -> str:
-    path = Path(BASE_DIR).parent / "pages" / "assets" / filename
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
-_favicon_icons = json.dumps([
-    _img_to_b64("ps_main_man.png"),
-    _img_to_b64("ElijahSquirrel.png"),
-    _img_to_b64("AshtonSquirrel.png"),
-    _img_to_b64("ChrisSquirrel.png"),
-    _img_to_b64("HyattSquirrel.png"),
-    _img_to_b64("SamSquirrel.png"),
-])
-
 from datetime import datetime
 from datetime import timezone
 
@@ -53,38 +38,6 @@ from backend_handler import BackendHandler
 
 SAVED_RUNS_FILE = os.path.join(_PROJECT_ROOT, "results_cache", "saved_runs.json")
 
-st.markdown("""
-<style>
-div.analysis-card {
-    background: linear-gradient(145deg, #2e2f34, #272a30);
-    border: 1px solid rgba(228, 120, 29, 0.15);
-    border-radius: 12px;
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 0.5rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.08), 0 6px 12px rgba(0,0,0,0.12);
-}
-
-/* HEADER */
-.analysis-card-header {
-    font-size: 1.8rem !important;
-    font-weight: 700 !important;
-    color: #E4781D !important;
-}
-
-/* SUBTEXT */
-.analysis-card-subtext {
-    font-size: 0.85rem !important;
-    color: rgba(255,255,255,0.65) !important;
-}
-
-/* META */
-.analysis-card-meta {
-    font-size: 0.8rem !important;
-    color: rgba(255,255,255,0.45) !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
 def render_load_previous_runs() -> None:
     """
     Render the load previous runs page.
@@ -93,8 +46,6 @@ def render_load_previous_runs() -> None:
     a Load button. Clicking Load reconstructs the run from the cached
     results and navigates to the results tab.
     """
-    components.html(f"""<script>(function(){{const icons={_favicon_icons};let i=0;function r(){{let l=window.parent.document.querySelector("link[rel~='icon']");if(!l){{l=window.parent.document.createElement("link");l.rel="icon";window.parent.document.head.appendChild(l);}}l.type="image/png";l.href="data:image/png;base64,"+icons[i%icons.length];i++;}}r();setInterval(r,1000);}})();</script>""", height=0)
-
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
 
     st.markdown(

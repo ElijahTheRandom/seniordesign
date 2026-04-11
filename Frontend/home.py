@@ -8,24 +8,10 @@ from PIL import Image
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def _img_to_b64(filename: str) -> str:
-    path = Path(BASE_DIR) / "pages" / "assets" / filename
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
-_favicon_icons = json.dumps([
-    _img_to_b64("ps_main_man.png"),
-    _img_to_b64("ElijahSquirrel.png"),
-    _img_to_b64("AshtonSquirrel.png"),
-    _img_to_b64("ChrisSquirrel.png"),
-    _img_to_b64("HyattSquirrel.png"),
-    _img_to_b64("SamSquirrel.png"),
-])
-
 st.set_page_config(
     page_title="PS Analytics",
     layout="wide",
-    page_icon=Image.open(Path(BASE_DIR) / "pages" / "assets" / "ps_main_man.png")
+    page_icon=Image.open(Path(BASE_DIR) / "pages" / "assets" / "PStheMainMan.png")
 )
 
 st.markdown("""
@@ -330,29 +316,6 @@ h1, p, .eyebrow {{ text-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }}
 </section>
 
 </div>
-
-<script>
-(function() {{
-    const icons = {_favicon_icons};
-    let i = 0;
-
-    function rotateFavicon() {{
-        let link = window.parent.document.querySelector("link[rel~='icon']");
-        if (!link) {{
-            link = window.parent.document.createElement("link");
-            link.rel = "icon";
-            window.parent.document.head.appendChild(link);
-        }}
-        link.type = "image/png";
-        link.href = "data:image/png;base64," + icons[i % icons.length];
-        i++;
-    }}
-
-    rotateFavicon();
-    setInterval(rotateFavicon, 1000);
-}})();
-</script>
-
 </body>
 </html>
 """,

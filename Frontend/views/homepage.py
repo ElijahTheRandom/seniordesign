@@ -58,6 +58,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import streamlit as st
 from streamlit_aggrid_range import aggrid_range
+from PIL import Image
 
 from utils.helpers import apply_grid_selection_to_filters, normalize_grid_selection
 from logic.run_manager import (
@@ -86,20 +87,6 @@ from custom_methods_loader import (
 )
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-def _img_to_b64(filename: str) -> str:
-    path = Path(BASE_DIR) / "pages" / "assets" / filename
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
-_favicon_icons = json.dumps([
-    _img_to_b64("ps_main_man.png"),
-    _img_to_b64("ElijahSquirrel.png"),
-    _img_to_b64("AshtonSquirrel.png"),
-    _img_to_b64("ChrisSquirrel.png"),
-    _img_to_b64("HyattSquirrel.png"),
-    _img_to_b64("SamSquirrel.png"),
-])
 
 @st.cache_resource
 def _get_backend_handler():
@@ -138,6 +125,17 @@ def _param_warning(msg: str) -> None:
         unsafe_allow_html=True,
     )
 
+def _is_table_meaningful(df):
+    if df is None or df.empty:
+        return False
+    return df.dropna(how="all").shape[0] > 0
+
+def _is_user_table_edited(df: pd.DataFrame | None) -> bool:
+    if df is None or df.empty:
+        return False
+
+    # Detect ANY non-empty value (even text)
+    return df.astype(str).apply(lambda col: col.str.strip().ne("")).any().any()
 
 _GIF_PATH = Path(__file__).parent.parent / "pages" / "assets" / "ThinkingAhSquirrel.GIF"
 
@@ -371,31 +369,6 @@ def render_homepage(base_dir: str) -> None:
                   resolve asset paths passed down to child functions.
     """
 
-    components.html(
-        f"""
-        <script>
-        (function() {{
-            const icons = {_favicon_icons};
-            let i = 0;
-            function rotateFavicon() {{
-                let link = window.parent.document.querySelector("link[rel~='icon']");
-                if (!link) {{
-                    link = window.parent.document.createElement("link");
-                    link.rel = "icon";
-                    window.parent.document.head.appendChild(link);
-                }}
-                link.type = "image/png";
-                link.href = "data:image/png;base64," + icons[i % icons.length];
-                i++;
-            }}
-            rotateFavicon();
-            setInterval(rotateFavicon, 1000);
-        }})();
-        </script>
-        """,
-        height=0,
-    )
-
     # ------------------------------------------------------------------
     # CSV loading: poll for completion
     # ------------------------------------------------------------------
@@ -449,6 +422,11 @@ def render_homepage(base_dir: str) -> None:
                 st.session_state.show_error_dialog = True
             st.session_state._csv_loading = False
             st.session_state._csv_future = None
+
+            st.session_state.selected_columns = []
+            st.session_state.selected_rows = []
+            st.session_state["_raw_grid_selection"] = []
+
             st.rerun()
             return
         # Still loading (or just kicked off) — open the loading dialog.
@@ -553,32 +531,26 @@ def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
     """
     st.header("Data Input & Table", anchor=False)
 
-    # --- File upload / remove flow ---
-    if "uploaded_file" not in st.session_state:
-        uploaded_file = st.file_uploader(
-            "Upload CSV File",
-            type="csv",
-            key="uploaded_csv"
-        )
-        if uploaded_file is not None:
-            st.session_state.uploaded_file = uploaded_file
-            st.session_state.has_file = True
-            st.session_state._csv_loading = True
-            st.rerun()
-
-        st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
-
-    else:
-        uploaded_file = st.session_state.uploaded_file
-        _render_file_action_buttons(uploaded_file)
-
-    # Sync the local variable with session state (handles post-rerun state)
     uploaded_file = st.session_state.get("uploaded_file")
 
-    # Detect if the user clicked the native Streamlit ✕ on the uploader
-    if uploaded_file is None and "uploaded_file" in st.session_state:
-        _clear_file_state()
+    uploader_key = f"homepage_file_uploader_{st.session_state.get('_uploader_key', 0)}"
+    new_file = st.file_uploader(
+        "Upload a CSV file",
+        type=["csv"],
+        key=uploader_key,
+        label_visibility="collapsed",
+    )
+    if new_file is not None:
+        st.session_state._uploader_had_file = True
+        st.session_state.uploaded_file = new_file
+        st.session_state.has_file = True
+        st.session_state._csv_loading = True
+        st.session_state._csv_future = None
         st.rerun()
+
+    uploaded_file = st.session_state.get("uploaded_file")
+
+    _render_file_action_buttons(uploaded_file)
 
     # --- Header settings (toggle + rename) ---
     _render_header_settings(uploaded_file)
@@ -588,52 +560,46 @@ def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
 
     # Persist edits so they survive reruns
     if edited_table is not None:
-        st.session_state.saved_table = edited_table
+        if uploaded_file is not None:
+            st.session_state.saved_table = edited_table
+        elif _is_user_table_edited(edited_table):
+            st.session_state.saved_table = edited_table
 
     return edited_table
 
 
 def _render_file_action_buttons(uploaded_file) -> None:
-    """
-    Render the Remove and Download buttons shown after a file is loaded.
+    if uploaded_file is not None:
+        file_key = f"{uploaded_file.name}_{uploaded_file.size}"
+        if "edited_data_cache" not in st.session_state:
+            st.session_state.edited_data_cache = {}
+        if file_key not in st.session_state.edited_data_cache:
+            uploaded_file.seek(0)
+            st.session_state.edited_data_cache[file_key] = pd.read_csv(uploaded_file)
+        current_df = st.session_state.edited_data_cache[file_key]
+    else:
+        current_df = st.session_state.get("blank_table")
 
-    Remove: clears all file-related state and reruns.
-    Download: exports the current (possibly edited) table as CSV.
-
-    Args:
-        uploaded_file: The UploadedFile object from st.file_uploader.
-    """
-    file_key = f"{uploaded_file.name}_{uploaded_file.size}"
-
-    # Ensure cache entry exists before trying to read it for download
-    if "edited_data_cache" not in st.session_state:
-        st.session_state.edited_data_cache = {}
-
-    if file_key not in st.session_state.edited_data_cache:
-        uploaded_file.seek(0)
-        temp_df = pd.read_csv(uploaded_file)
-        st.session_state.edited_data_cache[file_key] = temp_df
+    table_exists = _is_table_meaningful(current_df)
 
     col_download, col_remove, _ = st.columns([1, 1, 2])
 
+    has_content = uploaded_file is not None or _is_user_table_edited(st.session_state.get("saved_table")) or _is_user_table_edited(st.session_state.get("blank_table"))
+
     with col_remove:
-        if st.button("Remove", key="remove_file_btn", use_container_width=True):
+        if st.button("Remove", key="remove_file_btn", use_container_width=True, disabled=not has_content):
             _clear_file_state()
             st.rerun()
 
     with col_download:
-        csv_bytes = (
-            st.session_state.edited_data_cache[file_key]
-            .to_csv(index=False)
-            .encode("utf-8")
-        )
+        csv_bytes = current_df.to_csv(index=False).encode("utf-8") if current_df is not None and not current_df.empty else b""
         st.download_button(
-            label="Download",
+            "Download",
             data=csv_bytes,
-            file_name=f"edited_{uploaded_file.name}",
+            file_name="edited_table.csv",
             mime="text/csv",
             use_container_width=True,
-            key="download_edited"
+            disabled=not table_exists or not has_content,
         )
 
     st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
@@ -655,7 +621,8 @@ def _clear_file_state() -> None:
         checkbox's individual state.
     """
     for key in ("uploaded_file", "saved_table", "edited_data_cache",
-                 "_csv_loading", "_csv_future", "_raw_grid_selection", "_csv_raw_bytes"):
+             "_csv_loading", "_csv_future", "_raw_grid_selection",
+             "_csv_raw_bytes", "_uploader_had_file"):
         st.session_state.pop(key, None)
 
     # Clear per-file header detection state
@@ -664,6 +631,10 @@ def _clear_file_state() -> None:
             del st.session_state[key]
 
     st.session_state.has_file = False
+    st.session_state.blank_table = pd.DataFrame(
+        [["" for _ in range(6)] for _ in range(15)],
+        columns=[f"Col {i+1}" for i in range(6)]
+    )
 
     # Keep previously selected values valid if the underlying DataFrame changed
     # (prevents Streamlit from crashing when a column disappears between reruns)
@@ -672,6 +643,7 @@ def _clear_file_state() -> None:
     st.session_state.last_grid_selection = None
     st.session_state.checkbox_key_onecol += 1
     st.session_state.checkbox_key_twocol += 1
+    st.session_state["_uploader_key"] = st.session_state.get("_uploader_key", 0) + 1
 
 
 def _render_grid(uploaded_file) -> pd.DataFrame | None:
@@ -699,8 +671,18 @@ def _render_grid(uploaded_file) -> pd.DataFrame | None:
         return _render_grid_from_cache()
 
     else:
-        st.info("Upload a CSV file to view it in the interactive grid.")
-        return None
+        # --- Create blank editable table on first load ---
+        if "blank_table" not in st.session_state:
+            st.session_state.blank_table = pd.DataFrame(
+                [["" for _ in range(6)] for _ in range(15)],
+                columns=[f"Col {i+1}" for i in range(6)]
+            )
+
+        df = st.session_state.blank_table
+        df = _display_aggrid(df, grid_key="grid_blank")
+        st.session_state.blank_table = df
+
+        return df
 
 
 def _render_grid_from_file(uploaded_file) -> pd.DataFrame:
@@ -953,11 +935,7 @@ def _render_analysis_config(
     """
     st.header("Analysis Configuration", anchor=False)
 
-    data_ready = (
-        edited_table is not None
-        and len(edited_table.columns) > 0
-        and len(edited_table) > 0
-    )
+    data_ready = _is_table_meaningful(edited_table)
 
     col1, col2 = _render_column_row_selectors(edited_table, data_ready)
 
@@ -1168,6 +1146,13 @@ def _compute_data_info(
         all_numeric         – True if every selected column is numeric
         has_numeric         – True if at least one selected column is numeric
     """
+    # Clear stale column selections if they no longer exist in the current table
+    if edited_table is not None and col1:
+        valid = [c for c in col1 if c in edited_table.columns]
+        if len(valid) != len(col1):
+            st.session_state.selected_columns = valid
+            col1 = valid
+
     if not data_ready or not col1:
         return {
             "num_selected_cols": 0,
