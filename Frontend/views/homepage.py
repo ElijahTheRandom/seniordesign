@@ -237,21 +237,11 @@ def error_dialog():
 
 @st.dialog("Success")
 def success_dialog():
-    # If user opted out, don't show the modal
-    if st.session_state.get("hide_success_modal"):
-        return
-
-    img_path = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
     col_img, col_text = st.columns([1, 1.5], gap="medium")
     with col_img:
         st.image(img_path, width=500)
     with col_text:
         st.markdown(st.session_state.modal_message)
-
-    dont_show = st.checkbox("Don't show this again", key="dont_show_success_modal")
-    if dont_show:
-        st.session_state["hide_success_modal"] = True
-
 # ---------------------------------------------------------------------------
 # Header detection helpers
 # ---------------------------------------------------------------------------
@@ -435,6 +425,7 @@ def render_homepage(base_dir: str) -> None:
         (function() {{
             const moonB64 = "{_moon_b64}";
             const sunB64  = "{_sun_b64}";
+            nowDark = true;
             const STORAGE_KEY = "ps_analytics_theme";
             const STYLE_ID    = "ps-light-mode-overrides";
             const LIGHT_CSS   = `{_light_css}`;
@@ -499,9 +490,9 @@ def render_homepage(base_dir: str) -> None:
                     btn.style.background = "rgba(228,120,29,0.12)";
                 }});
                 btn.addEventListener("click", () => {{
-                    const nowDark = isDark();
                     localStorage.setItem(STORAGE_KEY, nowDark ? "light" : "dark");
                     applyTheme(!nowDark);
+                    nowDark = isDark();
                     renderBtn();
                 }});
 
@@ -635,7 +626,7 @@ def render_homepage(base_dir: str) -> None:
             st.session_state._loading_caption = "Running analysis\u2026 this won't take long."
             _loading_dialog()
 
-    if st.session_state.get("show_success_dialog") and not st.session_state.get("hide_success_modal"):
+    if st.session_state.get("show_success_dialog"):
         success_dialog()
         st.session_state.show_success_dialog = False
 
