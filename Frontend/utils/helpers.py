@@ -18,33 +18,9 @@ THE RULE FOR THIS FILE:
     No `import streamlit`. No `st.*` calls. No session state access.
     If a function needs to render something, it belongs in views/, not here.
 """
-
-import base64
 import os
 
 import pandas as pd
-
-
-# ---------------------------------------------------------------------------
-# File Utilities
-# ---------------------------------------------------------------------------
-
-def image_to_base64(path: str) -> str:
-    """
-    Read an image file from disk and return its base64-encoded string.
-
-    Used to embed images directly in HTML/CSS without a separate HTTP
-    request — necessary inside st.markdown() blocks.
-
-    Args:
-        path: Absolute or relative path to the image file.
-
-    Returns:
-        A base64-encoded UTF-8 string of the file's raw bytes.
-    """
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
 
 # ---------------------------------------------------------------------------
 # DataFrame Utilities
@@ -232,36 +208,3 @@ def apply_grid_selection_to_filters(
     st.session_state["selected_columns"] = normalized["columns"]
     st.session_state["selected_rows"] = normalized["rows"]
     st.session_state["last_grid_selection"] = signature
-
-
-# ---------------------------------------------------------------------------
-# Streamlit Utilities
-# ---------------------------------------------------------------------------
-
-def render_modal_content(img_path: str, message: str) -> None:
-    """
-    Render an image centred above a message body inside a modal container.
-
-    Used by both the error modal (warningSquirrel) and success modal
-    (huzzahAhSquirrel) in mainpage.py.
-
-    Args:
-        img_path: Absolute path to the image asset to display.
-        message:  Multi-line string. Blank lines become vertical spacers.
-    """
-    from PIL import Image
-    # Import here to avoid a circular dependency if this module is ever
-    # tested standalone. `st` is the only Streamlit symbol we need and
-    # only for session state — no rendering happens here.
-    import streamlit as st
-
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        if os.path.exists(img_path):
-            st.image(Image.open(img_path))
-        else:
-            st.error(f"Image not found: {img_path}")
-
-    st.markdown("---")
-    for line in message.split("\n"):
-        st.markdown(line if line.strip() else "")
