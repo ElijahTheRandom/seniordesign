@@ -38,6 +38,7 @@ from views.sidebar  import render_sidebar
 from views.homepage import render_homepage
 from views.results  import render_results
 from views.comparison import render_comparison
+from views.homepage import render_theme_toggle
 from views.help_statistical_methods import render_help_statistical_methods
 from views.load_previous_runs import render_load_previous_runs
 from PIL import Image
@@ -72,6 +73,10 @@ inject_styles() # Keeps the customized look
 
 render_sidebar() # Fires up the sidebar and all of its functions, buttons, etc.
 
+# ---------------------------------------------------------------------------
+# Theme Toggle — present on every page
+# ---------------------------------------------------------------------------
+render_theme_toggle()
 # ---------------------------------------------------------------------------
 # Main content — route to homepage, selected run, or comparison
 # ---------------------------------------------------------------------------
