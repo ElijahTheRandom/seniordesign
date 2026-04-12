@@ -1811,6 +1811,88 @@ div[data-testid="stDialog"] header {
     hyphens: auto;
 }
 
+/* ==========================================================================
+   20. Expander (Column Measurement Types)
+   ========================================================================== */
+
+/* Give the expander a clear visual boundary and bottom gap */
+div[data-testid="stExpander"] {
+    border: 1px solid rgba(228, 120, 29, 0.25) !important;
+    border-radius: 10px !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.75rem !important;
+    background: rgba(20, 20, 20, 0.5) !important;
+    overflow: visible !important;
+    position: relative !important;
+    z-index: 10 !important;
+}
+
+/* Expander header row */
+div[data-testid="stExpander"] summary,
+div[data-testid="stExpander"] details > summary {
+    padding: 0.55rem 0.9rem !important;
+    border-radius: 10px !important;
+    font-weight: 500 !important;
+    font-size: 0.88rem !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+    cursor: pointer !important;
+}
+
+/* Expander body — must not clip dropdown popovers */
+div[data-testid="stExpanderDetails"],
+div[data-testid="stExpander"] details {
+    overflow: visible !important;
+}
+
+div[data-testid="stExpanderDetails"] > div {
+    padding: 0.25rem 0.5rem 0.5rem !important;
+    overflow: visible !important;
+}
+
+/* Tighten the gap between selectbox rows inside the expander */
+div[data-testid="stExpander"] div[data-testid="stSelectbox"] {
+    margin-bottom: 0.35rem !important;
+}
+
+/* Expander selectbox — dark box, orange arrow only */
+div[data-testid="stExpander"] div[data-testid="stSelectbox"] div[data-baseweb="select"] {
+    background-color: rgba(15, 15, 15, 0.6) !important;
+}
+
+div[data-testid="stExpander"] div[data-testid="stSelectbox"] div[role="combobox"] {
+    background-color: rgba(15, 15, 15, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: none !important;
+}
+
+div[data-testid="stExpander"] div[data-testid="stSelectbox"] div[role="combobox"]:hover {
+    border-color: rgba(228, 120, 29, 0.45) !important;
+    box-shadow: none !important;
+}
+
+div[data-testid="stExpander"] div[data-testid="stSelectbox"] div[role="combobox"][aria-expanded="true"],
+div[data-testid="stExpander"] div[data-testid="stSelectbox"] div[role="combobox"]:focus,
+div[data-testid="stExpander"] div[data-testid="stSelectbox"] div[role="combobox"]:focus-visible {
+    border-color: rgba(228, 120, 29, 0.6) !important;
+    box-shadow: 0 0 0 2px rgba(228, 120, 29, 0.2) !important;
+}
+
+/* Keep the chevron arrow orange, but remove the orange box behind it */
+div[data-testid="stExpander"] div[data-testid="stSelectbox"] svg {
+    fill: #e4781d !important;
+}
+
+div[data-testid="stExpander"] div[data-testid="stSelectbox"] .st-ep,
+div[data-testid="stExpander"] div[data-testid="stSelectbox"] [class*="st-ep"] {
+    background-color: transparent !important;
+}
+
+/* Target the indicator container (the box wrapping the arrow SVG) */
+div[data-testid="stExpander"] div[data-testid="stSelectbox"] div[data-baseweb="select"] div[role="combobox"] > div:last-child {
+    background-color: transparent !important;
+    background: transparent !important;
+}
+
 /* Other text */
 .analysis-subtext {
     font-size: 0.9rem;
