@@ -41,32 +41,7 @@ import sys
 import os
 import json
 import base64
-import json
 import streamlit.components.v1 as components
-from pathlib import Path
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-def _img_to_b64(filename: str) -> str:
-    path = Path(BASE_DIR).parent / "pages" / "assets" / filename
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
-_favicon_icons = json.dumps([
-    _img_to_b64("ps_main_man.png"),
-    _img_to_b64("ElijahSquirrel.png"),
-    _img_to_b64("AshtonSquirrel.png"),
-    _img_to_b64("ChrisSquirrel.png"),
-    _img_to_b64("HyattSquirrel.png"),
-    _img_to_b64("SamSquirrel.png"),
-])
-
-from datetime import datetime
-from io import BytesIO
-
-_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if _PROJECT_ROOT not in sys.path:
-    sys.path.append(_PROJECT_ROOT)
 from pathlib import Path
 import streamlit as st
 import pandas as pd
@@ -77,6 +52,15 @@ from frontend_handler import handle_result
 from logic.run_manager import build_success_save_message
 
 from PIL import ImageOps
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+from datetime import datetime
+from io import BytesIO
+
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.append(_PROJECT_ROOT)
 
 SAVED_RUNS_FILE = os.path.join(_PROJECT_ROOT, "results_cache", "saved_runs.json")
 
@@ -113,7 +97,6 @@ def render_results(run: dict, base_dir: str) -> None:
                                   methods, visualizations }
         base_dir: Absolute path to the frontend directory.
     """
-    components.html(f"""<script>(function(){{const icons={_favicon_icons};let i=0;function r(){{let l=window.parent.document.querySelector("link[rel~='icon']");if(!l){{l=window.parent.document.createElement("link");l.rel="icon";window.parent.document.head.appendChild(l);}}l.type="image/png";l.href="data:image/png;base64,"+icons[i%icons.length];i++;}}r();setInterval(r,1000);}})();</script>""", height=0)
 
     # Only compute cards if not already cached on the run
     if "cards" not in run:
@@ -255,6 +238,27 @@ def _render_visualizations(run: dict, show_divider: bool = True) -> None:
             if lightMode and chart["type"] != "binomial":
                 image = ImageOps.invert(image.convert("RGB"))
             st.image(image)
+
+            # --- Req 3.7: JPEG download button ---
+            try:
+                img = Image.open(chart["path"])
+                # Light Mode Test
+                if lightMode and chart["type"] != "binomial":
+                    img = ImageOps.invert(img.convert("RGB"))
+
+                buf = BytesIO()
+                rgb = img.convert("RGB")  # JPEG requires RGB
+                rgb.save(buf, format="JPEG", quality=95)
+                chart_type = chart.get("type", f"chart_{idx}")
+                st.download_button(
+                    "Download Visualization",
+                    data=buf.getvalue(),
+                    file_name=f"{run.get('name', 'run')} {chart_type.replace('_', ' ').title()}.jpg",
+                    mime="image/jpeg",
+                    key=f"dl_jpeg_{run.get('id', '')}_{idx}",
+                )
+            except Exception:
+                pass  # If conversion fails, skip the button silently
         else:
             st.error(f"{chart.get('type', 'Chart')}: {chart.get('error', 'Failed to generate')}")
 

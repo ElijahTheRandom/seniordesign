@@ -20,20 +20,6 @@ from pathlib import Path
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def _img_to_b64(filename: str) -> str:
-    path = Path(BASE_DIR).parent / "pages" / "assets" / filename
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
-_favicon_icons = json.dumps([
-    _img_to_b64("ps_main_man.png"),
-    _img_to_b64("ElijahSquirrel.png"),
-    _img_to_b64("AshtonSquirrel.png"),
-    _img_to_b64("ChrisSquirrel.png"),
-    _img_to_b64("HyattSquirrel.png"),
-    _img_to_b64("SamSquirrel.png"),
-])
-
 st.markdown("""
 <style>
 div[data-testid="stAppViewContainer"] .block-container {
@@ -50,7 +36,6 @@ def render_help_statistical_methods() -> None:
     Displays information about the various statistical methods
     available in the PS Analytics application.
     """
-    components.html(f"""<script>(function(){{const icons={_favicon_icons};let i=0;function r(){{let l=window.parent.document.querySelector("link[rel~='icon']");if(!l){{l=window.parent.document.createElement("link");l.rel="icon";window.parent.document.head.appendChild(l);}}l.type="image/png";l.href="data:image/png;base64,"+icons[i%icons.length];i++;}}r();setInterval(r,1000);}})();</script>""", height=0)
 
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown(
@@ -183,7 +168,7 @@ def render_help_statistical_methods() -> None:
             """
             The **median** is the middle value of a dataset when values are sorted in order.
 
-            - **Odd count:** the median is the single middle value.
+            - ** Odd count:** the median is the single middle value.
             - **Even count:** the median is the average of the two middle values.
 
             All values in the selection must be **numeric**.
