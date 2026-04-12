@@ -2367,11 +2367,6 @@ def render_theme_toggle():
         html {
             filter: invert(1) !important;
         }
-        html img,
-        html video,
-        html [data-testid="stImage"] img {
-            filter: invert(1) !important;
-        }
     """
     components.html(
         f"""
