@@ -101,6 +101,15 @@ _favicon_icons = json.dumps([
     _img_to_b64("SamSquirrel.png"),
 ])
 
+def _get_theme_icon_b64(filename: str) -> str:
+    """Load a theme icon (moon/sun) from the assets folder as base64."""
+    path = Path(BASE_DIR) / "pages" / "assets" / filename
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+_MOON_ICON_B64 = _get_theme_icon_b64("moonIcon.png")
+_SUN_ICON_B64  = _get_theme_icon_b64("sunIcon.png")
+
 @st.cache_resource
 def _get_backend_handler():
     return BackendHandler()
@@ -228,14 +237,11 @@ def error_dialog():
 
 @st.dialog("Success")
 def success_dialog():
-    img_path = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
-
     col_img, col_text = st.columns([1, 1.5], gap="medium")
     with col_img:
         st.image(img_path, width=500)
     with col_text:
         st.markdown(st.session_state.modal_message)
-
 # ---------------------------------------------------------------------------
 # Header detection helpers
 # ---------------------------------------------------------------------------
@@ -390,6 +396,116 @@ def render_homepage(base_dir: str) -> None:
             }}
             rotateFavicon();
             setInterval(rotateFavicon, 1000);
+        }})();
+        </script>
+        """,
+        height=0,
+    )
+        
+    # # ------------------------------------------------------------------
+    # # Theme toggle: floating moon/sun button in the top-right toolbar area.
+    # # Injects a <style> tag into the parent document to override Streamlit's
+    # # CSS variables with a light-mode palette when active.
+    # # ------------------------------------------------------------------
+    _moon_b64 = _MOON_ICON_B64
+    _sun_b64  = _SUN_ICON_B64
+    _light_css = _light_css = """
+        html {
+            filter: invert(1) !important;
+        }
+        html img,
+        html video,
+        html [data-testid="stImage"] img {
+            filter: invert(1) !important;
+        }
+    """
+    components.html(
+        f"""
+        <script>
+        (function() {{
+            const moonB64 = "{_moon_b64}";
+            const sunB64  = "{_sun_b64}";
+            nowDark = true;
+            const STORAGE_KEY = "ps_analytics_theme";
+            const STYLE_ID    = "ps-light-mode-overrides";
+            const LIGHT_CSS   = `{_light_css}`;
+
+            function isDark() {{
+                return (localStorage.getItem(STORAGE_KEY) || "dark") === "dark";
+            }}
+
+            function applyTheme(dark) {{
+                const doc = window.parent.document;
+                let styleEl = doc.getElementById(STYLE_ID);
+                if (!dark) {{
+                    if (!styleEl) {{
+                        styleEl = doc.createElement("style");
+                        styleEl.id = STYLE_ID;
+                        doc.head.appendChild(styleEl);
+                    }}
+                    styleEl.textContent = LIGHT_CSS;
+                }} else {{
+                    if (styleEl) styleEl.remove();
+                }}
+            }}
+
+            function renderBtn() {{
+                const doc = window.parent.document;
+                const old = doc.getElementById("ps-theme-btn");
+                if (old) old.remove();
+
+                const dark = isDark();
+                const btn  = doc.createElement("button");
+                btn.id = "ps-theme-btn";
+                btn.title = dark ? "Switch to Light Mode" : "Switch to Dark Mode";
+                btn.style.cssText = [
+                    "position:absolute",
+                    "top:16px",
+                    "right:122px",
+                    "z-index:99999",
+                    "width:27.99px",
+                    "height:27.99px",
+                    "padding:4px",
+                    "border-radius:6px",
+                    "border:1px solid rgba(228,120,29,0.45)",
+                    "background:rgba(228,120,29,0.12)",
+                    "cursor:pointer",
+                    "display:flex",
+                    "align-items:center",
+                    "justify-content:center",
+                    "transition:background 0.2s"
+                ].join(";");
+
+                const img = doc.createElement("img");
+                img.src = dark
+                    ? "data:image/png;base64," + sunB64
+                    : "data:image/png;base64," + moonB64;
+                img.style.cssText = "width:22px;height:22px;object-fit:contain;filter:invert(1)";
+                btn.appendChild(img);
+
+                btn.addEventListener("mouseenter", () => {{
+                    btn.style.background = "rgba(228,120,29,0.28)";
+                }});
+                btn.addEventListener("mouseleave", () => {{
+                    btn.style.background = "rgba(228,120,29,0.12)";
+                }});
+                btn.addEventListener("click", () => {{
+                    localStorage.setItem(STORAGE_KEY, nowDark ? "light" : "dark");
+                    applyTheme(!nowDark);
+                    nowDark = isDark();
+                    renderBtn();
+                }});
+
+                const container = doc.querySelector('[data-testid="stAppViewContainer"]') || doc.body;
+                container.appendChild(btn);
+            }}
+
+            applyTheme(isDark());
+            if (window.parent.document.body) {{
+                renderBtn();
+            }} else {{
+                window.parent.addEventListener("DOMContentLoaded", renderBtn);
+            }}
         }})();
         </script>
         """,
@@ -551,7 +667,7 @@ def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
         The currently active DataFrame (either from the uploaded file or
         restored from saved_table), or None if no data is loaded.
     """
-    st.header("Data Input & Table", anchor=False)
+    st.markdown("# Data Input & Table")
 
     # --- File upload / remove flow ---
     if "uploaded_file" not in st.session_state:
@@ -951,7 +1067,7 @@ def _render_analysis_config(
         edited_table:  The current DataFrame from the left panel, or None.
         **method_flags: Boolean values for all computation + viz checkboxes, keyed by name.
     """
-    st.header("Analysis Configuration", anchor=False)
+    st.markdown("# **Analysis Configuration**")
 
     data_ready = (
         edited_table is not None
@@ -1245,7 +1361,7 @@ def _render_computation_options(
     Returns:
         Tuple of 11 booleans + custom_flags dict + invalid_params bool.
     """
-    st.header("Computation Options", anchor=False)
+    st.markdown("## Computation Options")
 
     # --- Derive disable flags from data_info ---
     n_cols = data_info["num_selected_cols"]
@@ -1351,7 +1467,7 @@ def _render_custom_method_checkboxes(
     """
     registry = load_custom_methods_registry()
 
-    st.subheader("**Custom Methods**")
+    st.markdown("### Custom Methods")
 
     if registry:
         kc = st.session_state.get("checkbox_key_custom", 0)
@@ -1989,7 +2105,7 @@ def _delete_method_dialog():
 
 # ========================= MANAGE DIALOG ====================================
 
-@st.dialog("Manage Custom Methods", width="large")
+@st.dialog("**Manage Custom Methods**", width="large")
 def _manage_methods_dialog():
     """Central hub for create/edit/delete/export/import custom method actions."""
     registry = load_custom_methods_registry()
@@ -2063,7 +2179,7 @@ def _render_visualization_options(
     Returns:
         Tuple of 5 booleans: (hist, box, scatter, line, heatmap)
     """
-    st.header("Visualization Options", anchor=False)
+    st.markdown("## Visualization Options")
 
     disable_one_col  = not data_ready or len(col1) < 1
     disable_two_cols = not data_ready or len(col1) < 2

@@ -51,6 +51,8 @@ def render_sidebar() -> None:
         st.header("Analysis Runs")
 
         # Render different UI based on compare mode
+        if len(st.session_state.analysis_runs) < 1:
+            st.markdown("*Statistically speaking, you haven't run anything yet...*")
         if st.session_state.get("compare_mode_active", False):
             _render_compare_mode()
         else:

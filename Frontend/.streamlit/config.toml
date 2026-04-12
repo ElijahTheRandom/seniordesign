@@ -2,6 +2,7 @@
 showSidebarNavigation = false
 
 [theme]
+font = "Montserrat:https://fonts.googleapis.com/css2?family=Montserrat&display=swap&ital@1"
 base="dark"
 primaryColor = "rgba(228,120,29,0.10)"
 backgroundColor = "#0e1117"
