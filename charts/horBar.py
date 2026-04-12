@@ -94,8 +94,6 @@ class HorBar:
             return False
 
     def _create_chart(self):
-        pio.renderers.default = "vscode"
-
         # Check if we should count label frequencies instead of using raw values
         if self.params.get("count_labels", False) or not self._is_numeric_data():
             # Count frequency of each unique label

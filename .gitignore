@@ -6,3 +6,4 @@ __pycache__
 results_cache
 test_run.py
 .github
+CLAUDE.md
