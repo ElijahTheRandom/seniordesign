@@ -34,20 +34,6 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def _img_to_b64(filename: str) -> str:
-    path = Path(BASE_DIR).parent / "pages" / "assets" / filename
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
-_favicon_icons = json.dumps([
-    _img_to_b64("ps_main_man.png"),
-    _img_to_b64("ElijahSquirrel.png"),
-    _img_to_b64("AshtonSquirrel.png"),
-    _img_to_b64("ChrisSquirrel.png"),
-    _img_to_b64("HyattSquirrel.png"),
-    _img_to_b64("SamSquirrel.png"),
-])
-
 from utils.helpers import df_to_ascii_table
 from views.results import (
     _render_stat_cards,
@@ -76,7 +62,6 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
         selected_run_ids: List of run IDs to compare.
         base_dir:         Absolute path to the frontend directory.
     """
-    components.html(f"""<script>(function(){{const icons={_favicon_icons};let i=0;function r(){{let l=window.parent.document.querySelector("link[rel~='icon']");if(!l){{l=window.parent.document.createElement("link");l.rel="icon";window.parent.document.head.appendChild(l);}}l.type="image/png";l.href="data:image/png;base64,"+icons[i%icons.length];i++;}}r();setInterval(r,1000);}})();</script>""", height=0)
 
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown(
