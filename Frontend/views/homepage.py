@@ -234,6 +234,38 @@ def success_dialog():
     with col_text:
         st.markdown(st.session_state.modal_message)
 
+
+@st.dialog("Create Blank Table")
+def _create_blank_table_dialog() -> None:
+    """
+    Dialog that prompts the user to enter dimensions for a new blank table.
+    On confirmation, creates the DataFrame and sets blank_table_created = True.
+    """
+    st.markdown("Set the initial dimensions for your blank table.")
+
+    col_r, col_c = st.columns(2)
+    with col_r:
+        rows = st.number_input("Rows", min_value=1, max_value=500, value=10, step=1)
+    with col_c:
+        cols = st.number_input("Columns", min_value=1, max_value=50, value=5, step=1)
+
+    col_ok, col_cancel = st.columns(2)
+    with col_ok:
+        if st.button("Create", type="primary", use_container_width=True):
+            col_names = [f"Col {i + 1}" for i in range(int(cols))]
+            st.session_state.blank_table = pd.DataFrame(
+                [["" for _ in range(int(cols))] for _ in range(int(rows))],
+                columns=col_names,
+            )
+            st.session_state.blank_table_created = True
+            # Store dimensions so we can reset to same size after Remove
+            st.session_state._blank_table_dims = (int(rows), int(cols))
+            st.rerun()
+    with col_cancel:
+        if st.button("Cancel", use_container_width=True):
+            st.rerun()
+
+
 # ---------------------------------------------------------------------------
 # Header detection helpers
 # ---------------------------------------------------------------------------
@@ -547,10 +579,16 @@ def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
         st.session_state._csv_loading = True
         st.session_state._csv_future = None
         st.rerun()
+    elif st.session_state.get("_uploader_had_file"):
+        # User clicked the ✕ inside the file uploader — treat as Remove
+        _clear_file_state(revert_to_blank=True)
+        st.rerun()
 
     uploaded_file = st.session_state.get("uploaded_file")
 
-    _render_file_action_buttons(uploaded_file)
+    # Reserve a placeholder for action buttons so they can be rendered *after*
+    # the grid returns the current DataFrame (fixing a one-rerun enable delay).
+    btn_placeholder = st.empty()
 
     # --- Header settings (toggle + rename) ---
     _render_header_settings(uploaded_file)
@@ -558,60 +596,89 @@ def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
     # --- Grid / table display ---
     edited_table = _render_grid(uploaded_file)
 
-    # Persist edits so they survive reruns
-    if edited_table is not None:
-        if uploaded_file is not None:
-            st.session_state.saved_table = edited_table
-        elif _is_user_table_edited(edited_table):
-            st.session_state.saved_table = edited_table
+    # Persist edits so they survive reruns (file tables only;
+    # blank table edits are stored in blank_table by _render_grid).
+    if edited_table is not None and uploaded_file is not None:
+        st.session_state.saved_table = edited_table
+
+    # Now fill the button placeholder with up-to-date data
+    with btn_placeholder.container():
+        _render_file_action_buttons(uploaded_file, edited_table)
 
     return edited_table
 
 
-def _render_file_action_buttons(uploaded_file) -> None:
-    if uploaded_file is not None:
-        file_key = f"{uploaded_file.name}_{uploaded_file.size}"
-        if "edited_data_cache" not in st.session_state:
-            st.session_state.edited_data_cache = {}
-        if file_key not in st.session_state.edited_data_cache:
-            uploaded_file.seek(0)
-            st.session_state.edited_data_cache[file_key] = pd.read_csv(uploaded_file)
-        current_df = st.session_state.edited_data_cache[file_key]
-    else:
-        current_df = st.session_state.get("blank_table")
+def _render_file_action_buttons(uploaded_file, current_df: pd.DataFrame | None = None) -> None:
+    """
+    Render Remove and Download action buttons.
 
-    table_exists = _is_table_meaningful(current_df)
+    Args:
+        uploaded_file: The active UploadedFile, or None.
+        current_df:    The DataFrame currently shown in the grid.  When
+                       provided (i.e. called *after* the grid renders) the
+                       buttons reflect the latest edits without a one-rerun
+                       delay.
+    """
+    # Resolve the DataFrame to use for the download payload
+    if current_df is None:
+        if uploaded_file is not None:
+            file_key = f"{uploaded_file.name}_{uploaded_file.size}"
+            cache = st.session_state.get("edited_data_cache", {})
+            current_df = cache.get(file_key)
+        else:
+            current_df = st.session_state.get("blank_table")
+
+    # A file is loaded, or the blank table has at least one non-empty cell
+    is_file_mode = uploaded_file is not None
+    blank_has_content = _is_user_table_edited(current_df) if not is_file_mode else False
+    has_content = is_file_mode or blank_has_content
+
+    # Download is only meaningful when there is data to export
+    table_has_data = _is_table_meaningful(current_df) and has_content
 
     col_download, col_remove, _ = st.columns([1, 1, 2])
 
-    has_content = uploaded_file is not None or _is_user_table_edited(st.session_state.get("saved_table")) or _is_user_table_edited(st.session_state.get("blank_table"))
-
     with col_remove:
         if st.button("Remove", key="remove_file_btn", use_container_width=True, disabled=not has_content):
-            _clear_file_state()
+            if is_file_mode:
+                # Removing an imported file → revert to a fresh blank table
+                _clear_file_state(revert_to_blank=True)
+            else:
+                # Removing the blank table → back to the creation prompt
+                _clear_file_state(revert_to_blank=False)
             st.rerun()
 
     with col_download:
-        csv_bytes = current_df.to_csv(index=False).encode("utf-8") if current_df is not None and not current_df.empty else b""
+        csv_bytes = (
+            current_df.to_csv(index=False).encode("utf-8")
+            if current_df is not None and not current_df.empty
+            else b""
+        )
         st.download_button(
             "Download",
             data=csv_bytes,
             file_name="edited_table.csv",
             mime="text/csv",
             use_container_width=True,
-            disabled=not table_exists or not has_content,
+            disabled=not table_has_data,
         )
 
     st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
 
 
-def _clear_file_state() -> None:
+def _clear_file_state(revert_to_blank: bool = True) -> None:
     """
     Reset all file and selection state back to defaults.
 
     Called when the user clicks Remove or the native uploader ✕ button.
     Increments checkbox key counters so Streamlit re-renders all
     checkboxes in their default unchecked state.
+
+    Args:
+        revert_to_blank: When True (default), immediately create a fresh
+            blank table using the previously saved dimensions (or 10×5
+            defaults) so the grid shows a blank table rather than the
+            "Create" prompt.  Pass False to go back to the creation prompt.
 
     WHY KEY COUNTERS WORK:
         Streamlit identifies widgets by their `key` argument. When a key
@@ -631,10 +698,21 @@ def _clear_file_state() -> None:
             del st.session_state[key]
 
     st.session_state.has_file = False
-    st.session_state.blank_table = pd.DataFrame(
-        [["" for _ in range(6)] for _ in range(15)],
-        columns=[f"Col {i+1}" for i in range(6)]
-    )
+
+    if revert_to_blank:
+        # Restore a fresh blank table using the user's previous dimensions
+        prev_dims = st.session_state.get("_blank_table_dims", (10, 5))
+        rows, cols = prev_dims
+        col_names = [f"Col {i + 1}" for i in range(cols)]
+        st.session_state.blank_table = pd.DataFrame(
+            [["" for _ in range(cols)] for _ in range(rows)],
+            columns=col_names,
+        )
+        st.session_state.blank_table_created = True
+    else:
+        # Go back to the creation prompt
+        st.session_state.pop("blank_table", None)
+        st.session_state.blank_table_created = False
 
     # Keep previously selected values valid if the underlying DataFrame changed
     # (prevents Streamlit from crashing when a column disappears between reruns)
@@ -667,22 +745,28 @@ def _render_grid(uploaded_file) -> pd.DataFrame | None:
     if uploaded_file is not None:
         return _render_grid_from_file(uploaded_file)
 
+    elif st.session_state.get("blank_table_created") and st.session_state.get("blank_table") is not None:
+        # User explicitly created a blank table — show the editable grid
+        df = st.session_state.blank_table
+        df = _display_aggrid(df, grid_key="grid_blank", is_blank_table=True)
+        st.session_state.blank_table = df
+        return df
+
     elif st.session_state.get("saved_table") is not None:
+        # Imported file data cached from a previous rerun (UploadedFile expired)
         return _render_grid_from_cache()
 
     else:
-        # --- Create blank editable table on first load ---
-        if "blank_table" not in st.session_state:
-            st.session_state.blank_table = pd.DataFrame(
-                [["" for _ in range(6)] for _ in range(15)],
-                columns=[f"Col {i+1}" for i in range(6)]
-            )
-
-        df = st.session_state.blank_table
-        df = _display_aggrid(df, grid_key="grid_blank")
-        st.session_state.blank_table = df
-
-        return df
+        # No table yet — prompt the user to create one or import a file
+        st.markdown(
+            "<div style='padding: 2rem 0 1rem 0; text-align: center; color: #888;'>"
+            "Create a blank table to start entering data, or upload a CSV file above."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        if st.button("Create Blank Table", type="primary", use_container_width=False):
+            _create_blank_table_dialog()
+        return None
 
 
 def _render_grid_from_file(uploaded_file) -> pd.DataFrame:
@@ -742,7 +826,7 @@ def _render_grid_from_cache() -> pd.DataFrame:
         return st.session_state.saved_table
 
 
-def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
+def _display_aggrid(df: pd.DataFrame, grid_key: str, is_blank_table: bool = False) -> pd.DataFrame:
     """
     Render the AG Grid Range component and return the (possibly edited) DataFrame.
 
@@ -754,32 +838,56 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
     updated values.
 
     Args:
-        df:       The DataFrame to display.
-        grid_key: A unique key for this grid instance. Must be stable
-                  across reruns for the same data to avoid grid flicker.
+        df:             The DataFrame to display.
+        grid_key:       A unique key for this grid instance. Must be stable
+                        across reruns for the same data to avoid grid flicker.
+        is_blank_table: When True, the grid is in "expandable" mode — Tab
+                        on the last column adds a new column, Enter on the
+                        last row adds a new row.
 
     Returns:
-        The DataFrame, updated with any cell edits.
+        The DataFrame, updated with any cell edits or structural expansions.
     """
     records = df.where(pd.notna(df), other=None).to_dict("records")
     columns = [{"field": c} for c in df.columns]
 
-    result = aggrid_range(records, columns, key=grid_key)
+    result = aggrid_range(records, columns, key=grid_key, expandable=is_blank_table)
 
-    # The component returns {"selections": [...], "editedData": [...] | null, "renamedHeaders": {...} | null}
+    # The component returns:
+    #   { selections, editedData, renamedHeaders, newColumns? }
+    # newColumns is a list of field names when the React component added a
+    # column locally (Tab expansion).  expandRows is True when Enter was
+    # pressed on the last row.
     if isinstance(result, dict):
         selection = result.get("selections", [])
         edited_data = result.get("editedData")
         renamed_headers = result.get("renamedHeaders")
+        new_columns = result.get("newColumns")  # list[str] | None
     else:
         # Fallback for old format (list of ranges)
         selection = result
         edited_data = None
         renamed_headers = None
+        new_columns = None
+
+    # --- Column expansion (Tab key on last column in blank table) ----------
+    # The React component added a new column to its local state and reported
+    # the full ordered column list via `newColumns`.  Expand the DataFrame to
+    # match so the new column persists across reruns.
+    if new_columns and isinstance(new_columns, list) and is_blank_table:
+        for col in new_columns:
+            if col not in df.columns:
+                df[col] = ""
+        # Reorder / align to the reported column order
+        df = df.reindex(columns=new_columns, fill_value="")
 
     # Apply cell edits back to the DataFrame
     if edited_data is not None:
-        df = pd.DataFrame(edited_data, columns=df.columns)
+        if new_columns and isinstance(new_columns, list) and is_blank_table:
+            # editedData already includes the expanded column structure
+            df = pd.DataFrame(edited_data).reindex(columns=new_columns, fill_value="")
+        else:
+            df = pd.DataFrame(edited_data, columns=df.columns)
 
     # Apply header renames from the grid component
     if renamed_headers and isinstance(renamed_headers, dict):

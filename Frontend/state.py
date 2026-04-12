@@ -79,6 +79,10 @@ def initialize_session_state() -> None:
     # Whether a CSV file is currently loaded.
     st.session_state.setdefault("has_file", False)
 
+    # Whether the user has explicitly created a blank table.
+    # False = show "Create Blank Table" prompt; True = show the blank grid.
+    st.session_state.setdefault("blank_table_created", False)
+
     # The raw uploaded file object (UploadedFile or None).
     # Intentionally NOT set here — its presence/absence is used as a
     # signal for "has the user uploaded a file this session?"

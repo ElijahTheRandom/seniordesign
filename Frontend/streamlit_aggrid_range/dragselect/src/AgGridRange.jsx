@@ -10,7 +10,7 @@ import "ag-grid-community/styles/ag-theme-alpine.css"
 import "./styles.css"
 
 const AgGridRange = (props) => {
-    const { rowData, columnDefs } = props.args
+    const { rowData, columnDefs, expandable } = props.args
 
     const [gridApi, setGridApi] = useState(null)
     const [selectedColIds, setSelectedColIds] = useState(new Set())
@@ -28,6 +28,38 @@ const AgGridRange = (props) => {
     const editInputRef = useRef(null)
     const headerClickTimers = useRef({})
     const ctrlPressed = useRef(false)
+
+    // ---------------------------------------------------------------------------
+    // Local column / row state for Tab/Enter expansion (blank tables only)
+    // ---------------------------------------------------------------------------
+    // We keep a local copy of column defs and row data so that when the user
+    // expands the table (Tab → new column, Enter → new row) the grid re-renders
+    // immediately without waiting for the Python rerun.  Python is notified via
+    // setComponentValue so that it can persist the new structure.
+    //
+    // Sync strategy: only re-initialize from props when the *shape* of the data
+    // changes (different number of columns or rows).  This prevents Python's
+    // echo-back after a setComponentValue call from wiping out a local expansion
+    // the user just made.
+    const [localCols, setLocalCols] = useState(() => columnDefs)
+    const [localRows, setLocalRows] = useState(() => rowData)
+
+    // Track the last shape we received from Python so we can detect genuine
+    // prop changes vs. echoed-back data.
+    const lastPropsShapeRef = useRef(
+        JSON.stringify({ c: columnDefs.map(d => d.field), r: rowData.length })
+    )
+
+    useEffect(() => {
+        const shape = JSON.stringify({ c: columnDefs.map(d => d.field), r: rowData.length })
+        if (shape !== lastPropsShapeRef.current) {
+            lastPropsShapeRef.current = shape
+            setLocalCols(columnDefs)
+            setLocalRows(rowData)
+            setRenamedHeaders({})
+            setHasEdits(false)
+        }
+    }, [columnDefs, rowData])
 
     // Track Ctrl/Meta key state reliably via global listeners
     useEffect(() => {
@@ -47,7 +79,7 @@ const AgGridRange = (props) => {
 
     // Track renamed headers — merge incoming columnDefs field names with renames
     const effectiveColumnDefs = useMemo(() => {
-        return columnDefs.map(col => {
+        return localCols.map(col => {
             const renamed = renamedHeaders[col.field]
             return {
                 ...col,
@@ -55,7 +87,7 @@ const AgGridRange = (props) => {
                 headerClass: selectedColIds.has(col.field) ? 'full-column-selected' : ''
             }
         })
-    }, [columnDefs, selectedColIds, renamedHeaders])
+    }, [localCols, selectedColIds, renamedHeaders])
 
     // Auto-resize height on mount and updates
     useEffect(() => {
@@ -169,6 +201,8 @@ const AgGridRange = (props) => {
         });
 
         setHasEdits(true);
+        // Also sync localRows so expansion logic sees the latest data
+        setLocalRows(updatedRows);
         Streamlit.setComponentValue({
             selections: formattedRanges,
             editedData: updatedRows,
@@ -208,7 +242,7 @@ const AgGridRange = (props) => {
     }), [])
 
     // Helper: send current state to Streamlit
-    const sendValue = useCallback((api, overrideEdited) => {
+    const sendValue = useCallback((api, overrideEdited, extraCols) => {
         const cellRanges = api.getCellRanges() || [];
         const formattedRanges = cellRanges.map((range) => {
             let startRow = range.startRow ? range.startRow.rowIndex : 0;
@@ -220,9 +254,168 @@ const AgGridRange = (props) => {
         Streamlit.setComponentValue({
             selections: formattedRanges,
             editedData: overrideEdited !== undefined ? overrideEdited : null,
-            renamedHeaders: Object.keys(renamedHeaders).length > 0 ? renamedHeaders : null
+            renamedHeaders: Object.keys(renamedHeaders).length > 0 ? renamedHeaders : null,
+            newColumns: extraCols || null,
         });
     }, [renamedHeaders]);
+
+    // -------------------------------------------------------------------------
+    // Tab/Enter expansion helpers (only active when expandable === true)
+    // -------------------------------------------------------------------------
+
+    // Generate a unique column name that doesn't clash with existing ones
+    const nextColName = useCallback((cols) => {
+        const existingNums = cols
+            .map(c => {
+                const m = c.field.match(/^Col\s+(\d+)$/i)
+                return m ? parseInt(m[1], 10) : 0
+            })
+        const max = existingNums.length > 0 ? Math.max(...existingNums) : cols.length
+        return `Col ${max + 1}`
+    }, [])
+
+    // Add a new column to the right of the current grid
+    const addColumn = useCallback((api) => {
+        const newField = nextColName(localCols)
+        const newCol = { field: newField }
+        const updatedCols = [...localCols, newCol]
+
+        // Collect current row data from the grid (includes any unsaved edits)
+        const currentRows = []
+        if (api) {
+            api.forEachNode(node => currentRows.push({ ...node.data }))
+        } else {
+            currentRows.push(...localRows)
+        }
+        // Append the new column key with an empty value to every row
+        const updatedRows = currentRows.map(row => ({ ...row, [newField]: "" }))
+
+        // Update local state so the grid re-renders immediately
+        setLocalCols(updatedCols)
+        setLocalRows(updatedRows)
+        setHasEdits(true)
+
+        // Update the shape ref so the next prop sync doesn't reset us
+        lastPropsShapeRef.current = JSON.stringify({
+            c: updatedCols.map(d => d.field),
+            r: updatedRows.length
+        })
+
+        // Notify Python
+        const formattedRanges = api ? (api.getCellRanges() || []).map(range => {
+            let s = range.startRow ? range.startRow.rowIndex : 0
+            let e = range.endRow ? range.endRow.rowIndex : 0
+            if (s > e) { const t = s; s = e; e = t; }
+            return { startRow: s, endRow: e, columns: range.columns.map(c => c.colId) }
+        }) : []
+
+        Streamlit.setComponentValue({
+            selections: formattedRanges,
+            editedData: updatedRows,
+            renamedHeaders: Object.keys(renamedHeaders).length > 0 ? renamedHeaders : null,
+            newColumns: updatedCols.map(c => c.field),
+        })
+
+        return newField
+    }, [localCols, localRows, renamedHeaders, nextColName])
+
+    // Add a new empty row at the bottom of the grid
+    const addRow = useCallback((api) => {
+        const emptyRow = Object.fromEntries(localCols.map(c => [c.field, ""]))
+
+        const currentRows = []
+        if (api) {
+            api.forEachNode(node => currentRows.push({ ...node.data }))
+        } else {
+            currentRows.push(...localRows)
+        }
+        const updatedRows = [...currentRows, emptyRow]
+
+        setLocalRows(updatedRows)
+        setHasEdits(true)
+
+        // Update the shape ref
+        lastPropsShapeRef.current = JSON.stringify({
+            c: localCols.map(d => d.field),
+            r: updatedRows.length
+        })
+
+        const formattedRanges = api ? (api.getCellRanges() || []).map(range => {
+            let s = range.startRow ? range.startRow.rowIndex : 0
+            let e = range.endRow ? range.endRow.rowIndex : 0
+            if (s > e) { const t = s; s = e; e = t; }
+            return { startRow: s, endRow: e, columns: range.columns.map(c => c.colId) }
+        }) : []
+
+        Streamlit.setComponentValue({
+            selections: formattedRanges,
+            editedData: updatedRows,
+            renamedHeaders: Object.keys(renamedHeaders).length > 0 ? renamedHeaders : null,
+            newColumns: null,
+        })
+
+        return updatedRows.length - 1  // index of new row
+    }, [localCols, localRows, renamedHeaders])
+
+    // tabToNextCell: intercept Tab on the last column when expandable
+    const tabToNextCell = useCallback((params) => {
+        if (!expandable) return params.nextCellPosition
+
+        const api = params.api || gridApi
+        if (!api) return params.nextCellPosition
+
+        const allCols = api.getAllDisplayedColumns()
+        const lastCol = allCols.length > 0 ? allCols[allCols.length - 1] : null
+        const currentColId = params.previousCellPosition?.column?.getColId()
+
+        if (lastCol && currentColId === lastCol.getColId()) {
+            // Pressed Tab while on the last column — add a new column
+            const newField = addColumn(api)
+
+            // After React re-renders with the new column, try to focus its
+            // first cell in the same row.  We use a short timeout to allow
+            // the grid to process the new columnDef before calling setFocusedCell.
+            const rowIndex = params.previousCellPosition?.rowIndex ?? 0
+            setTimeout(() => {
+                if (api) {
+                    api.setFocusedCell(rowIndex, newField)
+                    api.startEditingCell({ rowIndex, colKey: newField })
+                }
+            }, 50)
+
+            return null  // Prevent default AG Grid Tab navigation
+        }
+
+        return params.nextCellPosition
+    }, [expandable, gridApi, addColumn])
+
+    // onCellKeyDown: intercept Enter on the last row when expandable
+    const onCellKeyDown = useCallback((params) => {
+        if (!expandable) return
+        if (params.event?.key !== "Enter") return
+
+        const api = params.api
+        if (!api) return
+
+        const rowCount = api.getDisplayedRowCount()
+        const currentRowIndex = params.rowIndex
+
+        if (currentRowIndex === rowCount - 1) {
+            // Pressed Enter on the last row — add a new row
+            params.event.preventDefault()
+            params.event.stopPropagation()
+
+            const newRowIndex = addRow(api)
+            const colId = params.column?.getColId()
+
+            setTimeout(() => {
+                if (api) {
+                    api.setFocusedCell(newRowIndex, colId)
+                    api.startEditingCell({ rowIndex: newRowIndex, colKey: colId })
+                }
+            }, 50)
+        }
+    }, [expandable, addRow])
 
     // Header click: single = select column, double = rename
     const onColumnHeaderClicked = useCallback((params) => {
@@ -355,17 +548,13 @@ const AgGridRange = (props) => {
         setEditValue("");
     }, []);
 
-    // Container style - ensure it has height for grid to render if not autoHeight
-    // Using autoHeight often requires DOM layout adjustment, but let's try fixed constraint or full width 
-    // with autoHeight for Streamlit smooth embedding.
+    // Container style
     const containerStyle = useMemo(() => ({
         width: "100%",
-        height: `${containerHeight}px`,  // your fixed height
-        paddingBottom: "20px",           // reserve space for horizontal scrollbar
-        boxSizing: "border-box"           // make padding count inside height
+        height: `${containerHeight}px`,
+        paddingBottom: "20px",
+        boxSizing: "border-box"
     }), [containerHeight]);
-
-    // If we want dynamic height, we can use domLayout='autoHeight' and call setFrameHeight repeatedly.
 
     return (
         <div className="ag-theme-alpine" style={{ ...containerStyle, position: "relative" }}>
@@ -397,7 +586,7 @@ const AgGridRange = (props) => {
                 </div>
             )}
             <AgGridReact
-                rowData={rowData}
+                rowData={localRows}
                 columnDefs={effectiveColumnDefs}
                 defaultColDef={defaultColDef}
                 onGridReady={onGridReady}
@@ -405,6 +594,8 @@ const AgGridRange = (props) => {
                 onRangeSelectionChanged={onRangeSelectionChanged}
                 onColumnHeaderClicked={onColumnHeaderClicked}
                 onCellValueChanged={onCellValueChanged}
+                onCellKeyDown={onCellKeyDown}
+                tabToNextCell={tabToNextCell}
                 suppressRowClickSelection={true}
                 rowSelection="multiple"
                 domLayout="normal"

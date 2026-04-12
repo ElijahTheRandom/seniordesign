@@ -32,7 +32,7 @@ else:
     _component_func = components.declare_component("aggrid_range", path=build_dir)
 
 
-def aggrid_range(data, columns, key=None):
+def aggrid_range(data, columns, key=None, expandable=False):
     """Create a new instance of "aggrid_range".
 
     Parameters
@@ -45,11 +45,15 @@ def aggrid_range(data, columns, key=None):
         An optional key that uniquely identifies this component. If this is
         None, and the component's arguments are changed, the component will
         be re-mounted in the Streamlit frontend and lose its current state.
+    expandable: bool
+        When True, pressing Tab on the last column adds a new column and
+        pressing Enter on the last row adds a new row.  Intended for blank
+        tables created by the user.  Default False.
 
     Returns
     -------
-    list of dict
-        The selected ranges.
+    dict
+        { selections, editedData, renamedHeaders, newColumns? }
     """
     # Call through to our private component function. Arguments we pass here
     # will be sent to the frontend, where they'll be available in an "args"
@@ -57,7 +61,13 @@ def aggrid_range(data, columns, key=None):
     #
     # "default" is a special argument that specifies the initial return
     # value of the component before the user has interacted with it.
-    component_value = _component_func(rowData=data, columnDefs=columns, key=key, default={"selections": [], "editedData": None})
+    component_value = _component_func(
+        rowData=data,
+        columnDefs=columns,
+        expandable=expandable,
+        key=key,
+        default={"selections": [], "editedData": None},
+    )
 
     # We could modify the value here, but we just return it
     return component_value
