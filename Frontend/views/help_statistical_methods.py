@@ -168,7 +168,7 @@ def render_help_statistical_methods() -> None:
             """
             The **median** is the middle value of a dataset when values are sorted in order.
 
-            - **Odd count:** the median is the single middle value.
+            - ** Odd count:** the median is the single middle value.
             - **Even count:** the median is the average of the two middle values.
 
             All values in the selection must be **numeric**.
