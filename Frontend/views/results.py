@@ -252,9 +252,9 @@ def _render_visualizations(run: dict, show_divider: bool = True) -> None:
                 rgb.save(buf, format="JPEG", quality=95)
                 chart_type = chart.get("type", f"chart_{idx}")
                 st.download_button(
-                    "Download JPEG",
+                    "Download Visualization",
                     data=buf.getvalue(),
-                    file_name=f"{run.get('name', 'run')}_{chart_type}.jpg",
+                    file_name=f"{run.get('name', 'run')} {chart_type.replace('_', ' ').title()}.jpg",
                     mime="image/jpeg",
                     key=f"dl_jpeg_{run.get('id', '')}_{idx}",
                 )
