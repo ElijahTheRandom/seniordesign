@@ -23,6 +23,13 @@ if _PROJECT_ROOT not in sys.path:
 
 import streamlit as st
 import pandas as pd
+import base64
+import json
+import streamlit.components.v1 as components
+from pathlib import Path
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 from datetime import datetime
 from datetime import timezone
 
@@ -72,6 +79,7 @@ def render_load_previous_runs() -> None:
     a Load button. Clicking Load reconstructs the run from the cached
     results and navigates to the results tab.
     """
+
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
 
     st.markdown(

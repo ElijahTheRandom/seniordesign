@@ -38,20 +38,25 @@ from views.sidebar  import render_sidebar
 from views.homepage import render_homepage
 from views.results  import render_results
 from views.comparison import render_comparison
+from views.homepage import render_theme_toggle
 from views.help_statistical_methods import render_help_statistical_methods
 from views.load_previous_runs import render_load_previous_runs
+from PIL import Image
+from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Page config — must be the very first Streamlit call
 # ---------------------------------------------------------------------------
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Make sure to keep layout = wide and initial_sidebar_state = collapsed
 # These settings keep everything from getting stuck centered and screwing up the layout 
 # and keeps the sidebar closed when the user first opens the program
 st.set_page_config(
     page_title="PS Analytics",
-    page_icon=os.path.join(BASE_DIR, "assets", "PStheMainMan.png"),
     layout="wide",
+    page_icon=Image.open(Path(BASE_DIR) / "pages" / "assets" / "PStheMainMan.png"),
     initial_sidebar_state="collapsed",
 )
 
@@ -68,6 +73,10 @@ inject_styles() # Keeps the customized look
 
 render_sidebar() # Fires up the sidebar and all of its functions, buttons, etc.
 
+# ---------------------------------------------------------------------------
+# Theme Toggle — present on every page
+# ---------------------------------------------------------------------------
+render_theme_toggle()
 # ---------------------------------------------------------------------------
 # Main content — route to homepage, selected run, or comparison
 # ---------------------------------------------------------------------------

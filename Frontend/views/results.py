@@ -40,12 +40,8 @@ SESSION STATE WRITTEN:
 import sys
 import os
 import json
-from datetime import datetime
-from io import BytesIO
-
-_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-if _PROJECT_ROOT not in sys.path:
-    sys.path.append(_PROJECT_ROOT)
+import base64
+import streamlit.components.v1 as components
 from pathlib import Path
 import streamlit as st
 import pandas as pd
@@ -56,6 +52,15 @@ from frontend_handler import handle_result
 from logic.run_manager import build_success_save_message
 
 from PIL import ImageOps
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+from datetime import datetime
+from io import BytesIO
+
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.append(_PROJECT_ROOT)
 
 SAVED_RUNS_FILE = os.path.join(_PROJECT_ROOT, "results_cache", "saved_runs.json")
 
@@ -92,6 +97,7 @@ def render_results(run: dict, base_dir: str) -> None:
                                   methods, visualizations }
         base_dir: Absolute path to the frontend directory.
     """
+
     # Only compute cards if not already cached on the run
     if "cards" not in run:
         run = handle_result(run)
@@ -227,7 +233,6 @@ def _render_visualizations(run: dict, show_divider: bool = True) -> None:
 
     for idx, chart in enumerate(graphics):
         if chart.get("ok") and chart.get("path"):
-            
             image = Image.open(chart["path"])
             # Test for Light Mode
             if lightMode and chart["type"] != "binomial":
@@ -246,9 +251,9 @@ def _render_visualizations(run: dict, show_divider: bool = True) -> None:
                 rgb.save(buf, format="JPEG", quality=95)
                 chart_type = chart.get("type", f"chart_{idx}")
                 st.download_button(
-                    "Download JPEG",
+                    "Download Visualization",
                     data=buf.getvalue(),
-                    file_name=f"{run.get('name', 'run')}_{chart_type}.jpg",
+                    file_name=f"{run.get('name', 'run')} {chart_type.replace('_', ' ').title()}.jpg",
                     mime="image/jpeg",
                     key=f"dl_jpeg_{run.get('id', '')}_{idx}",
                 )
@@ -311,18 +316,39 @@ def _export_run_dialog(run: dict):
         use_container_width=True,
     )
 
+def _build_charts_zip(run: dict) -> bytes:
+    """
+    Bundle all successfully generated chart PNGs for a run into a ZIP archive.
+
+    Returns the ZIP as raw bytes ready to pass to st.download_button.
+    """
+    import zipfile
+
+    graphics = getattr(run.get("result_message"), "graphics", None) or []
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for idx, chart in enumerate(graphics):
+            if chart.get("ok") and chart.get("path"):
+                chart_type = chart.get("type", f"chart_{idx}")
+                arcname = f"{chart_type}_{idx}.png"
+                zf.write(chart["path"], arcname=arcname)
+    buf.seek(0)
+    return buf.getvalue()
+
+
 def _render_action_buttons(run: dict) -> None:
     """
-    Render the Save / Export / Delete action buttons at the bottom.
+    Render the Save / Export / Export Charts / Delete action buttons at the bottom.
 
-    Save:   Persists the run to saved_runs.json and writes table CSV to cache.
-    Export: Downloads a plain-text .txt report of the run's results.
-    Delete: Removes the run from session state and navigates home.
+    Save:          Persists the run to saved_runs.json and writes table CSV to cache.
+    Export Run:    Downloads a plain-text .txt report of the run's results.
+    Export Charts: Downloads all chart images as a ZIP archive.
+    Delete:        Removes the run from session state and navigates home.
 
     Args:
         run: The run dict to act on.
     """
-    btn1, btn2, btn3 = st.columns(3)
+    btn1, btn2, btn3, btn4 = st.columns(4)
 
     with btn1:
         if st.button("Save Run", use_container_width=True):
@@ -334,6 +360,22 @@ def _render_action_buttons(run: dict) -> None:
             st.rerun()
 
     with btn3:
+        graphics = getattr(run.get("result_message"), "graphics", None) or []
+        has_charts = any(c.get("ok") and c.get("path") for c in graphics)
+        if has_charts:
+            charts_zip = _build_charts_zip(run)
+            st.download_button(
+                "Export Charts",
+                data=charts_zip,
+                file_name=f"{run.get('name', 'run')}_charts.zip",
+                mime="application/zip",
+                use_container_width=True,
+                key=f"dl_charts_{run.get('id', '')}",
+            )
+        else:
+            st.button("Export Charts", disabled=True, use_container_width=True)
+
+    with btn4:
         if st.button("Delete Run", use_container_width=True):
             st.session_state.analysis_runs = [
                 r for r in st.session_state.analysis_runs

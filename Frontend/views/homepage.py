@@ -81,23 +81,20 @@ from custom_methods_loader import (
     delete_custom_method,
     get_available_tools_info,
     detect_dependency_cycles,
+    export_custom_methods_bundle,
+    import_custom_methods_bundle,
 )
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-def _img_to_b64(filename: str) -> str:
+def _get_theme_icon_b64(filename: str) -> str:
+    """Load a theme icon (moon/sun) from the assets folder as base64."""
     path = Path(BASE_DIR) / "pages" / "assets" / filename
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
-_favicon_icons = json.dumps([
-    _img_to_b64("ps_main_man.png"),
-    _img_to_b64("ElijahSquirrel.png"),
-    _img_to_b64("AshtonSquirrel.png"),
-    _img_to_b64("ChrisSquirrel.png"),
-    _img_to_b64("HyattSquirrel.png"),
-    _img_to_b64("SamSquirrel.png"),
-])
+_MOON_ICON_B64 = _get_theme_icon_b64("moonIcon.png")
+_SUN_ICON_B64  = _get_theme_icon_b64("sunIcon.png")
 
 @st.cache_resource
 def _get_backend_handler():
@@ -377,6 +374,21 @@ def _show_success_toast() -> None:
 # Header detection helpers
 # ---------------------------------------------------------------------------
 
+def _col_letter(index: int) -> str:
+    """Convert a zero-based column index to Excel-style letters (A, B, ..., AA)."""
+    if index < 0:
+        return "A"
+
+    letters = ""
+    n = index
+    while True:
+        n, remainder = divmod(n, 26)
+        letters = chr(ord("A") + remainder) + letters
+        if n == 0:
+            break
+        n -= 1
+    return letters
+
 def _detect_has_headers(raw_bytes: bytes) -> bool:
     """
     Heuristic: does the CSV's first row look like column headers?
@@ -504,26 +516,111 @@ def render_homepage(base_dir: str) -> None:
         base_dir: Absolute path to the frontend directory. Used to
                   resolve asset paths passed down to child functions.
     """
-
+    # # ------------------------------------------------------------------
+    # # Theme toggle: floating moon/sun button in the top-right toolbar area.
+    # # Injects a <style> tag into the parent document to override Streamlit's
+    # # CSS variables with a light-mode palette when active.
+    # # ------------------------------------------------------------------
+    _moon_b64 = _MOON_ICON_B64
+    _sun_b64  = _SUN_ICON_B64
+    _light_css = _light_css = """
+        html {
+            filter: invert(1) !important;
+        }
+        html img,
+        html video,
+        html [data-testid="stImage"] img {
+            filter: invert(1) !important;
+        }
+    """
     components.html(
         f"""
         <script>
         (function() {{
-            const icons = {_favicon_icons};
-            let i = 0;
-            function rotateFavicon() {{
-                let link = window.parent.document.querySelector("link[rel~='icon']");
-                if (!link) {{
-                    link = window.parent.document.createElement("link");
-                    link.rel = "icon";
-                    window.parent.document.head.appendChild(link);
-                }}
-                link.type = "image/png";
-                link.href = "data:image/png;base64," + icons[i % icons.length];
-                i++;
+            const moonB64 = "{_moon_b64}";
+            const sunB64  = "{_sun_b64}";
+            nowDark = true;
+            const STORAGE_KEY = "ps_analytics_theme";
+            const STYLE_ID    = "ps-light-mode-overrides";
+            const LIGHT_CSS   = `{_light_css}`;
+
+            function isDark() {{
+                return (localStorage.getItem(STORAGE_KEY) || "dark") === "dark";
             }}
-            rotateFavicon();
-            setInterval(rotateFavicon, 1000);
+
+            function applyTheme(dark) {{
+                const doc = window.parent.document;
+                let styleEl = doc.getElementById(STYLE_ID);
+                if (!dark) {{
+                    if (!styleEl) {{
+                        styleEl = doc.createElement("style");
+                        styleEl.id = STYLE_ID;
+                        doc.head.appendChild(styleEl);
+                    }}
+                    styleEl.textContent = LIGHT_CSS;
+                }} else {{
+                    if (styleEl) styleEl.remove();
+                }}
+            }}
+
+            function renderBtn() {{
+                const doc = window.parent.document;
+                const old = doc.getElementById("ps-theme-btn");
+                if (old) old.remove();
+
+                const dark = isDark();
+                const btn  = doc.createElement("button");
+                btn.id = "ps-theme-btn";
+                btn.title = dark ? "Switch to Light Mode" : "Switch to Dark Mode";
+                btn.style.cssText = [
+                    "position:absolute",
+                    "top:16px",
+                    "right:122px",
+                    "z-index:99999",
+                    "width:27.99px",
+                    "height:27.99px",
+                    "padding:4px",
+                    "border-radius:6px",
+                    "border:1px solid rgba(228,120,29,0.45)",
+                    "background:rgba(228,120,29,0.12)",
+                    "cursor:pointer",
+                    "display:flex",
+                    "align-items:center",
+                    "justify-content:center",
+                    "transition:background 0.2s"
+                ].join(";");
+
+                const img = doc.createElement("img");
+                img.src = dark
+                    ? "data:image/png;base64," + sunB64
+                    : "data:image/png;base64," + moonB64;
+                const iconSize = dark ? "16px" : "22px";
+                img.style.cssText = "width:" + iconSize + ";height:" + iconSize + ";object-fit:contain;filter:invert(1)";
+                btn.appendChild(img);
+
+                btn.addEventListener("mouseenter", () => {{
+                    btn.style.background = "rgba(228,120,29,0.28)";
+                }});
+                btn.addEventListener("mouseleave", () => {{
+                    btn.style.background = "rgba(228,120,29,0.12)";
+                }});
+                btn.addEventListener("click", () => {{
+                    localStorage.setItem(STORAGE_KEY, nowDark ? "light" : "dark");
+                    applyTheme(!nowDark);
+                    nowDark = isDark();
+                    renderBtn();
+                }});
+
+                const container = doc.querySelector('[data-testid="stAppViewContainer"]') || doc.body;
+                container.appendChild(btn);
+            }}
+
+            applyTheme(isDark());
+            if (window.parent.document.body) {{
+                renderBtn();
+            }} else {{
+                window.parent.addEventListener("DOMContentLoaded", renderBtn);
+            }}
         }})();
         </script>
         """,
@@ -702,7 +799,7 @@ def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
         The currently active DataFrame (either from the uploaded file or
         restored from saved_table), or None if no data is loaded.
     """
-    st.header("Data Input & Table", anchor=False)
+    st.markdown("# Data Input & Table")
 
     # --- File upload / remove flow ---
     if "uploaded_file" not in st.session_state:
@@ -851,7 +948,7 @@ def _render_grid(uploaded_file) -> pd.DataFrame | None:
 
     else:
         st.info("Upload a CSV file to view it in the interactive grid.")
-        return pd.DataFrame(columns=["Enter your data..."])
+        return None
 
 
 def _render_grid_from_file(uploaded_file) -> pd.DataFrame:
@@ -888,7 +985,7 @@ def _render_grid_from_file(uploaded_file) -> pd.DataFrame:
 
     except Exception as e:
         st.error(f"Error processing file: {e}")
-        return pd.DataFrame(columns=["Enter your data..."])
+        return None
 
 
 def _render_grid_from_cache() -> pd.DataFrame:
@@ -1114,7 +1211,7 @@ def _render_analysis_config(
         edited_table:  The current DataFrame from the left panel, or None.
         **method_flags: Boolean values for all computation + viz checkboxes, keyed by name.
     """
-    st.header("Analysis Configuration", anchor=False)
+    st.markdown("# **Analysis Configuration**")
 
     data_ready = (
         edited_table is not None
@@ -1144,7 +1241,7 @@ def _render_analysis_config(
     computation_selected = any([
         mean, median, mode, variance, std, percentiles,
         pearson, spearman, least_squares_regression, chi_squared, variation,
-        hist, box, scatter, line, heatmap,
+        hist, box, scatter, line, heatmap, binomial,
     ] + list(custom_flags.values()))
 
     _handle_run_analysis(
@@ -1409,7 +1506,7 @@ def _render_computation_options(
     Returns:
         Tuple of 11 booleans + custom_flags dict + invalid_params bool.
     """
-    st.header("Computation Options", anchor=False)
+    st.markdown("## Computation Options")
 
     # --- Derive disable flags from data_info ---
     n_cols = data_info["num_selected_cols"]
@@ -1515,7 +1612,7 @@ def _render_custom_method_checkboxes(
     """
     registry = load_custom_methods_registry()
 
-    st.subheader("**Custom Methods**")
+    st.markdown("### Custom Methods")
 
     if registry:
         kc = st.session_state.get("checkbox_key_custom", 0)
@@ -1610,6 +1707,7 @@ def _clear_cm_dialog_state():
         "_cm_edit_code_input",
         "_cm_edit_prev_input", "_cm_edit_prev_preset",
         "_cm_edit_prev_method",
+        "cm_import_file",
     ):
         st.session_state.pop(k, None)
 
@@ -1630,6 +1728,133 @@ def _after_method_change():
         st.session_state.get("checkbox_key_custom", 0) + 1
     )
     _clear_cm_dialog_state()
+
+
+def _format_tool_option_label(tool: dict) -> str:
+    """Build a user-friendly toolbox label that distinguishes standard/custom methods."""
+    source_label = "Standard" if tool.get("source") == "standard" else "Custom"
+    return f"{tool['display_name']} ({source_label})"
+
+
+def _render_custom_method_transfer_controls():
+    """Render export/import controls for the current custom method bundle."""
+    registry = load_custom_methods_registry()
+    method_count = len(registry)
+    exportable_names = {entry["display_name"]: entry["id"] for entry in registry}
+
+    st.markdown("### Transfer Custom Methods")
+    st.caption(
+        f"You currently have {method_count} custom method(s). "
+        "Export a selected bundle or import a previously exported one."
+    )
+
+    selected_export_names = []
+    if exportable_names:
+        selected_export_names = st.multiselect(
+            "Choose custom methods to export",
+            options=list(exportable_names.keys()),
+            default=list(exportable_names.keys()),
+            key="cm_export_selection",
+            help=(
+                "Pick the custom methods to include in the bundle. "
+                "Built-in standard methods stay available automatically and are not exported."
+            ),
+        )
+
+    selected_export_ids = [exportable_names[name] for name in selected_export_names]
+    include_dependencies = st.checkbox(
+        "Also include any custom-method dependencies",
+        value=True,
+        key="cm_export_include_dependencies",
+        disabled=not selected_export_ids,
+        help=(
+            "If a selected custom method depends on other custom methods, "
+            "include those helper methods automatically."
+        ),
+    )
+
+    bundle_json = export_custom_methods_bundle(
+        selected_method_ids=selected_export_ids or [],
+        include_dependencies=include_dependencies,
+    )
+    exported_method_count = len(json.loads(bundle_json).get("methods", []))
+    bundle_name = f"custom_methods_export_{time.strftime('%Y%m%d_%H%M%S')}.json"
+
+    st.caption(
+        f"The current export will include {exported_method_count} custom method(s). "
+        "Standard built-in methods remain available automatically after import."
+    )
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.download_button(
+            "Export Selection",
+            data=bundle_json,
+            file_name=bundle_name,
+            mime="application/json",
+            use_container_width=True,
+            key="cm_export_btn",
+            disabled=not selected_export_ids,
+        )
+
+    with c2:
+        import_clicked = st.button(
+            "Import Bundle",
+            key="cm_import_btn",
+            use_container_width=True,
+        )
+
+    uploaded_bundle = st.file_uploader(
+        "Import custom methods JSON",
+        type=["json"],
+        key="cm_import_file",
+        label_visibility="collapsed",
+    )
+
+    if import_clicked:
+        if uploaded_bundle is None:
+            st.warning("Choose a JSON export file before importing.")
+        else:
+            summary = import_custom_methods_bundle(uploaded_bundle.getvalue())
+            if summary["imported"]:
+                _after_method_change()
+
+            st.session_state["cm_import_summary"] = summary
+            st.rerun()
+
+    summary = st.session_state.get("cm_import_summary")
+    if summary:
+        imported = summary.get("imported", [])
+        duplicates = summary.get("skipped_duplicates", [])
+        invalid = summary.get("skipped_invalid", [])
+
+        if imported:
+            imported_names = ", ".join(item["display_name"] for item in imported)
+            st.success(
+                f"Imported {len(imported)} custom method(s): {imported_names}"
+            )
+        elif not duplicates and not invalid:
+            st.info("No custom methods were imported.")
+
+        if duplicates:
+            duplicate_lines = "\n".join(
+                f"- {item['display_name'] or item['id']}: {item['reason']}"
+                for item in duplicates
+            )
+            st.warning(
+                "Skipped duplicate custom methods:\n"
+                f"{duplicate_lines}"
+            )
+
+        if invalid:
+            invalid_lines = "\n".join(
+                f"- {(item['display_name'] or item['id'] or 'Unknown entry')}: {item['reason']}"
+                for item in invalid
+            )
+            st.error(
+                "Some custom methods could not be imported:\n"
+                f"{invalid_lines}"
+            )
 
 
 # ========================= CREATE DIALOG ====================================
@@ -1701,19 +1926,22 @@ def _create_method_dialog():
     st.markdown(
         "**Compute Logic** — Write Python code that produces a `result` variable. "
         "You have access to `data` (the selected columns), `params` (dict), "
-        "and `toolbox` (dict of callable custom methods). "
+        "and `toolbox` (dict of callable built-in and custom methods). "
         "`numpy` is imported as `np` in the generated file."
     )
 
     # --- Toolbox: dependency selection ---
     available_tools = get_available_tools_info()
     if available_tools:
-        tool_options = {t["display_name"]: t["id"] for t in available_tools}
+        tool_options = {
+            _format_tool_option_label(t): t["id"]
+            for t in available_tools
+        }
         selected_tool_names = st.multiselect(
-            "Use other custom methods (toolbox)",
+            "Use toolbox methods",
             options=list(tool_options.keys()),
             help=(
-                "Select custom methods this method depends on. "
+                "Select built-in or custom methods this method depends on. "
                 "They will be available via the `toolbox` dict in your code."
             ),
             key="custom_method_deps",
@@ -1879,7 +2107,7 @@ def _edit_method_dialog():
     st.markdown(
         "**Compute Logic** — Write Python code that produces a `result` variable. "
         "You have access to `data` (the selected columns), `params` (dict), "
-        "and `toolbox` (dict of callable custom methods). "
+        "and `toolbox` (dict of callable built-in and custom methods). "
         "`numpy` is imported as `np` in the generated file."
     )
 
@@ -1887,15 +2115,20 @@ def _edit_method_dialog():
     available_tools = get_available_tools_info(exclude_id=method_id)
     existing_deps = entry.get("dependencies", [])
     if available_tools:
-        tool_options = {t["display_name"]: t["id"] for t in available_tools}
-        reverse_map = {t["id"]: t["display_name"] for t in available_tools}
-        default_names = [reverse_map[d] for d in existing_deps if d in reverse_map]
+        tool_options = {
+            _format_tool_option_label(t): t["id"]
+            for t in available_tools
+        }
+        default_names = [
+            label for label, tool_id in tool_options.items()
+            if tool_id in existing_deps
+        ]
         selected_tool_names = st.multiselect(
-            "Use other custom methods (toolbox)",
+            "Use toolbox methods",
             options=list(tool_options.keys()),
             default=default_names,
             help=(
-                "Select custom methods this method depends on. "
+                "Select built-in or custom methods this method depends on. "
                 "They will be available via the `toolbox` dict in your code."
             ),
             key="_cm_edit_deps",
@@ -2015,23 +2248,56 @@ def _delete_method_dialog():
             st.rerun()
 
 
-# ========================= THREE PERMANENT BUTTONS ==========================
+# ========================= MANAGE DIALOG ====================================
+
+@st.dialog("**Manage Custom Methods**", width="large")
+def _manage_methods_dialog():
+    """Central hub for create/edit/delete/export/import custom method actions."""
+    registry = load_custom_methods_registry()
+
+    st.markdown(
+        "Manage your saved custom methods from one place. "
+        "Open the create, edit, or delete dialogs, or transfer methods with export/import."
+    )
+    st.caption(f"Currently saved: {len(registry)} custom method(s)")
+
+    b1, b2, b3 = st.columns(3)
+    with b1:
+        if st.button("Create", key="cm_manage_create_btn", use_container_width=True):
+            st.session_state["cm_pending_dialog"] = "create"
+            st.rerun()
+    with b2:
+        if st.button("Edit", key="cm_manage_edit_btn", use_container_width=True):
+            st.session_state["cm_pending_dialog"] = "edit"
+            st.rerun()
+    with b3:
+        if st.button("Delete", key="cm_manage_delete_btn", use_container_width=True):
+            st.session_state["cm_pending_dialog"] = "delete"
+            st.rerun()
+
+    st.markdown("---")
+    _render_custom_method_transfer_controls()
+
+
+# ========================= SINGLE ENTRY BUTTON ==============================
 
 def _user_defined_computation_options():
     """
-    Render three permanent buttons for custom method management:
-    Create, Edit, and Delete.
+    Render a single entry point for custom method management.
     """
-    b1, b2, b3 = st.columns(3)
-    with b1:
-        if st.button("Create", key="cm_create_btn", use_container_width=True):
-            _create_method_dialog()
-    with b2:
-        if st.button("Edit", key="cm_edit_btn", use_container_width=True):
-            _edit_method_dialog()
-    with b3:
-        if st.button("Delete", key="cm_delete_btn", use_container_width=True):
-            _delete_method_dialog()
+    if st.button("Manage", key="cm_manage_btn", use_container_width=True):
+        _manage_methods_dialog()
+
+    # Handle sub-dialog routing set from within _manage_methods_dialog.
+    # Calling @st.dialog functions directly inside another @st.dialog raises
+    # StreamlitAPIException, so we set a flag and rerun instead.
+    pending = st.session_state.pop("cm_pending_dialog", None)
+    if pending == "create":
+        _create_method_dialog()
+    elif pending == "edit":
+        _edit_method_dialog()
+    elif pending == "delete":
+        _delete_method_dialog()
 
 # ============================================================================
 # ⭐ VISUALIZATION OPTIONS SELECTED BY USER
@@ -2058,10 +2324,11 @@ def _render_visualization_options(
     Returns:
         Tuple of 5 booleans: (hist, box, scatter, line, heatmap)
     """
-    st.header("Visualization Options", anchor=False)
+    st.markdown("## Visualization Options")
 
     disable_one_col  = not data_ready or len(col1) < 1
     disable_two_cols = not data_ready or len(col1) < 2
+    disable_binomial = False
 
     v1, v2 = st.columns(2)
 
@@ -2073,10 +2340,10 @@ def _render_visualization_options(
     with v2:
         line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_two_cols) and not disable_two_cols
         heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_two_cols) and not disable_two_cols
-        binomial = st.checkbox("Binomial Distribution",        key="viz_binomial", disabled=disable_one_col) and not disable_one_col
+        binomial = st.checkbox("Binomial Distribution",        key="viz_binomial", disabled=disable_binomial) and not disable_binomial
 
     # --- Binomial parameter inputs (below the checkbox) ---
-    dis_binom = not data_ready or data_info["num_numeric_cols"] < 1
+    dis_binom = disable_binomial
     if binomial and not dis_binom:
         st.markdown("**Binomial Parameters**")
         bn1, bn2, bn3, bn4 = st.columns(4)
@@ -2191,6 +2458,7 @@ def _handle_run_analysis(
     line                   = method_flags.get("line", False)
     heatmap                = method_flags.get("heatmap", False)
     custom_flags           = method_flags.get("custom_flags", {})
+    binomial_only_run      = binomial and not data_ready
 
     already_computing = st.session_state.get("_compute_future") is not None
     _invalid = st.session_state.get("_analysis_invalid_params", False) or invalid_params
@@ -2199,7 +2467,7 @@ def _handle_run_analysis(
         "Run Analysis",
         key="run_analysis",
         use_container_width=True,
-        disabled=not (data_ready and computation_selected) or already_computing or _invalid
+        disabled=not ((data_ready and computation_selected) or binomial_only_run) or already_computing or _invalid
     )
 
     if not run_clicked:
@@ -2207,18 +2475,22 @@ def _handle_run_analysis(
 
     # --- Slice to selected columns and rows ---
     # Convert to 1-based index so row selections align with multiselect values
-    edited_table_for_loc = edited_table.copy()
-    edited_table_for_loc.index = range(1, len(edited_table_for_loc) + 1)
+    if edited_table is not None:
+        edited_table_for_loc = edited_table.copy()
+        edited_table_for_loc.index = range(1, len(edited_table_for_loc) + 1)
 
-    # Apply column/row filters depending on what the user selected
-    if col1 and col2:
-        parsed_data = edited_table_for_loc.loc[col2, col1].copy()
-    elif col1:
-        parsed_data = edited_table_for_loc[col1].copy()
-    elif col2:
-        parsed_data = edited_table_for_loc.loc[col2].copy()
+        # Apply column/row filters depending on what the user selected
+        if col1 and col2:
+            parsed_data = edited_table_for_loc.loc[col2, col1].copy()
+        elif col1:
+            parsed_data = edited_table_for_loc[col1].copy()
+        elif col2:
+            parsed_data = edited_table_for_loc.loc[col2].copy()
+        else:
+            parsed_data = edited_table_for_loc.copy()
     else:
-        parsed_data = edited_table_for_loc.copy()
+        # Binomial can run from manual parameters without any uploaded dataset.
+        parsed_data = pd.DataFrame()
 
     # ========================================================================
     # ⭐ PACKAGE ANALYSIS DATA: SELECTED COLUMNS, ROWS, METHODS & VISUALIZATIONS
@@ -2322,7 +2594,7 @@ def _handle_run_analysis(
         "run_name":       f"Run {run_count}",
         "methods":        methods,
         "visualizations": [VIZ_NAMES[k] for k in _BACKEND_CHART_IDS if method_flags.get(k)],
-        "table":          edited_table,
+        "table":          edited_table if edited_table is not None else pd.DataFrame(),
         "data":           parsed_data.reset_index(drop=True),
         "columns":        col1,
         "rows":           col2,
@@ -2341,3 +2613,118 @@ def _handle_run_analysis(
     )
     st.session_state._loading_caption = "Running analysis… this won't take long."
     st.rerun()
+
+# ---------------------------------------------------------------------------
+# Light/Dark Mode Theme Toggler
+# ---------------------------------------------------------------------------
+def render_theme_toggle():
+    '''
+    Theme Toggle that inverts the HTML of an entire page
+    '''
+    _MOON_ICON_B64 = _img_to_b64("moonIcon.png")
+    _SUN_ICON_B64  = _img_to_b64("sunIcon.png")
+
+    _moon_b64 = _MOON_ICON_B64
+    _sun_b64  = _SUN_ICON_B64
+    _light_css = _light_css = """
+        html {
+            filter: invert(1) !important;
+        }
+        html img,
+        html video,
+        html [data-testid="stImage"] img {
+            filter: invert(1) !important;
+        }
+    """
+    components.html(
+        f"""
+        <script>
+        (function() {{
+            const moonB64 = "{_moon_b64}";
+            const sunB64  = "{_sun_b64}";
+            nowDark = true;
+            const STORAGE_KEY = "ps_analytics_theme";
+            const STYLE_ID    = "ps-light-mode-overrides";
+            const LIGHT_CSS   = `{_light_css}`;
+
+            function isDark() {{
+                return (localStorage.getItem(STORAGE_KEY) || "dark") === "dark";
+            }}
+
+            function applyTheme(dark) {{
+                const doc = window.parent.document;
+                let styleEl = doc.getElementById(STYLE_ID);
+                if (!dark) {{
+                    if (!styleEl) {{
+                        styleEl = doc.createElement("style");
+                        styleEl.id = STYLE_ID;
+                        doc.head.appendChild(styleEl);
+                    }}
+                    styleEl.textContent = LIGHT_CSS;
+                }} else {{
+                    if (styleEl) styleEl.remove();
+                }}
+            }}
+
+            function renderBtn() {{
+                const doc = window.parent.document;
+                const old = doc.getElementById("ps-theme-btn");
+                if (old) old.remove();
+
+                const dark = isDark();
+                const btn  = doc.createElement("button");
+                btn.id = "ps-theme-btn";
+                btn.title = dark ? "Switch to Light Mode" : "Switch to Dark Mode";
+                btn.style.cssText = [
+                    "position:absolute",
+                    "top:16px",
+                    "right:122px",
+                    "z-index:99999",
+                    "width:27.99px",
+                    "height:27.99px",
+                    "padding:4px",
+                    "border-radius:6px",
+                    "border:1px solid rgba(228,120,29,0.45)",
+                    "background:rgba(228,120,29,0.12)",
+                    "cursor:pointer",
+                    "display:flex",
+                    "align-items:center",
+                    "justify-content:center",
+                    "transition:background 0.2s"
+                ].join(";");
+
+                const img = doc.createElement("img");
+                img.src = dark
+                    ? "data:image/png;base64," + sunB64
+                    : "data:image/png;base64," + moonB64;
+                img.style.cssText = "width:22px;height:22px;object-fit:contain;filter:invert(1)";
+                btn.appendChild(img);
+
+                btn.addEventListener("mouseenter", () => {{
+                    btn.style.background = "rgba(228,120,29,0.28)";
+                }});
+                btn.addEventListener("mouseleave", () => {{
+                    btn.style.background = "rgba(228,120,29,0.12)";
+                }});
+                btn.addEventListener("click", () => {{
+                    localStorage.setItem(STORAGE_KEY, nowDark ? "light" : "dark");
+                    applyTheme(!nowDark);
+                    nowDark = isDark();
+                    renderBtn();
+                }});
+
+                const container = doc.querySelector('[data-testid="stAppViewContainer"]') || doc.body;
+                container.appendChild(btn);
+            }}
+
+            applyTheme(isDark());
+            if (window.parent.document.body) {{
+                renderBtn();
+            }} else {{
+                window.parent.addEventListener("DOMContentLoaded", renderBtn);
+            }}
+        }})();
+        </script>
+        """,
+        height=0,
+    )

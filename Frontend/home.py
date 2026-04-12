@@ -4,31 +4,20 @@ import os
 import base64
 import json
 from pathlib import Path
+from PIL import Image
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def _img_to_b64(filename: str) -> str:
-    path = Path(BASE_DIR) / "pages" / "assets" / filename
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
-_favicon_icons = json.dumps([
-    _img_to_b64("ps_main_man.png"),
-    _img_to_b64("ElijahSquirrel.png"),
-    _img_to_b64("AshtonSquirrel.png"),
-    _img_to_b64("ChrisSquirrel.png"),
-    _img_to_b64("HyattSquirrel.png"),
-    _img_to_b64("SamSquirrel.png"),
-])
 
 st.set_page_config(
     page_title="PS Analytics",
-    layout="wide"
+    layout="wide",
+    page_icon=Image.open(Path(BASE_DIR) / "pages" / "assets" / "PStheMainMan.png")
 )
 
 st.markdown("""
 <style>
-html, body, .stApp, * { font-family: "Source Sans Pro", sans-serif !important; }
+html, body, .stApp, * { font-family: 'Roboto Mono', monospace !important; }
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
@@ -64,7 +53,7 @@ st.markdown("""
 iframe { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; border: none; overflow: hidden; }
 :root { --cta-width: 200px; }
 div[data-testid="stButton"] {
-    position: fixed !important; left: 54.5%; top: 65%;
+    position: fixed !important; left: 54.5%; top: 67%;
     transform: translateX(-50%) translateZ(0); will-change: transform;
     z-index: 9999; width: 220px !important; max-width: 220px !important;
     min-width: 220px !important; transition: left 0.35s ease, top 0.35s ease;
@@ -118,8 +107,9 @@ components.html(
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-* {{ font-family: "Source Sans Pro", sans-serif !important; }}
+* {{ font-family: 'Roboto Mono', monospace !important; }}
 :root {{
   --bg:#ffffff; --text:#0f172a; --muted:#64748b;
   --border:#e5e7eb; --accent:#e4781d;
@@ -328,28 +318,6 @@ h1, p, .eyebrow {{ text-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; }}
 </section>
 
 </div>
-
-<script>
-(function() {{
-    const icons = {_favicon_icons};
-    let i = 0;
-
-    function rotateFavicon() {{
-        let link = window.parent.document.querySelector("link[rel~='icon']");
-        if (!link) {{
-            link = window.parent.document.createElement("link");
-            link.rel = "icon";
-            window.parent.document.head.appendChild(link);
-        }}
-        link.type = "image/png";
-        link.href = "data:image/png;base64," + icons[i % icons.length];
-        i++;
-    }}
-
-    rotateFavicon();
-    setInterval(rotateFavicon, 1000);
-}})();
-</script>
 
 </body>
 </html>

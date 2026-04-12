@@ -12,6 +12,13 @@ PUBLIC INTERFACE:
 """
 
 import streamlit as st
+import base64
+import json
+import os
+import streamlit.components.v1 as components
+from pathlib import Path
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 st.markdown("""
 <style>
@@ -29,6 +36,7 @@ def render_help_statistical_methods() -> None:
     Displays information about the various statistical methods
     available in the PS Analytics application.
     """
+
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown(
         "<hr style='margin: 0; border: none; height: 1px; "
@@ -160,7 +168,7 @@ def render_help_statistical_methods() -> None:
             """
             The **median** is the middle value of a dataset when values are sorted in order.
 
-            - **Odd count:** the median is the single middle value.
+            - ** Odd count:** the median is the single middle value.
             - **Even count:** the median is the average of the two middle values.
 
             All values in the selection must be **numeric**.

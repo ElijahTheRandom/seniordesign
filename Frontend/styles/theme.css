@@ -72,7 +72,7 @@ h2 {
 
 /* Styling only for the subsections/general text */
 h3 {
-    font-size: 1.25rem !important;
+    font-size: 1.4rem !important;
     margin-bottom: 1.2rem !important;
     font-weight: 600 !important;
 }
@@ -394,6 +394,21 @@ div[data-testid="column"]:hover {
                 inset 0 1px 0 rgba(255, 255, 255, 0.08),
                 0 0 20px rgba(228, 120, 29, 0.08) !important;
     transform: translateY(-2px) !important;
+}
+
+/* Disable the lift transform inside dialogs/modals to prevent layout shifts */
+[role="dialog"] div[data-testid="column"]:hover {
+    transform: none !important;
+}
+
+/* Suppress the slideIn animation on heading accents inside dialogs.
+   Without this the orange underline under h3 headings animates every
+   time the dialog rerenders (e.g. on checkbox toggle). */
+[role="dialog"] h2::after,
+[role="dialog"] h3::after {
+    animation: none !important;
+    width: 60px !important;
+    opacity: 1 !important;
 }
 
 /* Fix buttons inside columns */
@@ -861,8 +876,9 @@ div[data-testid="stDownloadButton"] button:active:not(:disabled) {
     border-color: rgba(228, 120, 29, 0.6) !important;
 }
 
-/* Generic emotion-cache button fallback and other stylings below */
-button[class*="st-emotion-cache-"] {
+/* Generic emotion-cache button fallback and other stylings below.
+   Exclude tooltip/help icon buttons so they are not styled orange. */
+button[class*="st-emotion-cache-"]:not([data-testid="stTooltipIcon"]):not([aria-label="More info"]) {
     background-color: rgba(228, 120, 29, 0.12) !important;
     border-width: 1px !important;
     border-style: solid !important;
@@ -870,9 +886,38 @@ button[class*="st-emotion-cache-"] {
     border-radius: 0.5rem !important;
 }
 
-button[class*="st-emotion-cache-"]:hover:not(:disabled) {
+button[class*="st-emotion-cache-"]:not([data-testid="stTooltipIcon"]):not([aria-label="More info"]):hover:not(:disabled) {
     background-color: rgba(228, 120, 29, 0.2) !important;
     border-color: rgba(228, 120, 29, 0.5) !important;
+}
+
+/* Tooltip / help icon buttons rendered by st.checkbox(help=...) etc.
+   Reset to a plain transparent icon button — no orange box/border. */
+div[data-testid="stTooltipIcon"] button,
+button[data-testid="stTooltipIcon"],
+button[aria-label="More info"] {
+    background: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    border-radius: 50% !important;
+    box-shadow: none !important;
+    padding: 2px !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: unset !important;
+    min-height: unset !important;
+    transform: none !important;
+    color: rgba(255, 255, 255, 0.45) !important;
+}
+
+div[data-testid="stTooltipIcon"] button:hover:not(:disabled),
+button[data-testid="stTooltipIcon"]:hover:not(:disabled),
+button[aria-label="More info"]:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    color: rgba(255, 255, 255, 0.75) !important;
 }
 
 /* Shared hover micro-animation for all buttons */
@@ -1634,9 +1679,10 @@ div[role="dialog"] {
     overflow: hidden !important;
 }
 
-div[data-testid="stDialog"] * {
-    animation: fadeInModal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-}
+/* Do NOT apply the open animation to every child — only the dialog wrapper.
+   The old rule caused all child elements to re-run fadeInModal on every
+   rerender (checkbox toggle, dropdown change, etc.), which made headings
+   flash and animated the underline accent on every interaction. */
 
 /* Close button spacing */
 div[data-baseweb="modal"] header {

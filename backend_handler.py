@@ -48,6 +48,16 @@ class BackendHandler:
         if self._chart_generation_methods is None:
             from charts.charts import charts_list
             self._chart_generation_methods = charts_list
+            # Pre-warm Kaleido on the main thread so that concurrent chart threads
+            # never race to initialize its subprocess under Python's import lock,
+            # which causes the "_ModuleLock('plotly.offline.offline') deadlock" error.
+            try:
+                import plotly.graph_objects as _go
+                import plotly.io as _pio
+                from io import BytesIO as _BytesIO
+                _pio.write_image(_go.Figure(), _BytesIO(), format="png", width=10, height=10)
+            except Exception:
+                pass
         return self._chart_generation_methods
 
     def _package_results(self, message, results):
@@ -354,7 +364,7 @@ class BackendHandler:
 
     def _build_toolbox(self, exclude_id, metadata):
         """
-        Build a toolbox dict of callable wrappers for all custom methods,
+        Build a toolbox dict of callable wrappers for all statistical methods,
         excluding *exclude_id* to prevent direct self-recursion.
 
         Each toolbox entry is a callable:
@@ -367,9 +377,6 @@ class BackendHandler:
         toolbox: dict = {}
 
         for method_id, method_class in self.statistical_methods.items():
-            if not method_id.startswith("custom_"):
-                continue
-
             def _make_tool(cls=method_class, mid=method_id):
                 def tool_fn(tool_data, tool_params=None):
                     if mid in _call_stack:
@@ -379,7 +386,10 @@ class BackendHandler:
                         )
                     _call_stack.add(mid)
                     try:
-                        instance = cls(tool_data, metadata, tool_params, toolbox=toolbox)
+                        if mid.startswith("custom_"):
+                            instance = cls(tool_data, metadata, tool_params, toolbox=toolbox)
+                        else:
+                            instance = cls(tool_data, metadata, tool_params)
                         result = instance.compute()
                         if result.get("ok"):
                             return result["value"]

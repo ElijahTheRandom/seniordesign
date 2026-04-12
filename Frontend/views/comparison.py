@@ -26,6 +26,13 @@ SESSION STATE WRITTEN:
 
 import streamlit as st
 import pandas as pd
+import base64
+import json
+import streamlit.components.v1 as components
+from pathlib import Path
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from utils.helpers import df_to_ascii_table
 from views.results import (
@@ -55,6 +62,7 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
         selected_run_ids: List of run IDs to compare.
         base_dir:         Absolute path to the frontend directory.
     """
+
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown(
         "<hr style='margin: 0; border: none; height: 1px; "

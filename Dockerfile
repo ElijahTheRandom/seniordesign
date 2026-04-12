@@ -14,18 +14,38 @@ RUN cd dragselect \
 RUN test -f /app/dragselect/build/index.html \
     || (echo "ERROR: React build output missing!" && exit 1)
 
-FROM python:3.14-slim
+FROM python:3.14-rc-slim
 
 WORKDIR /app
 
-# 3. Python deps
+# 3. System libraries required by kaleido's bundled Chromium binary
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libexpat1 \
+    libglib2.0-0 \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libcairo2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# 4. Python deps
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 4. Copy source
+# 5. Copy source
 COPY . .
 
-# 5. Copy built React output from temp container
+# 6. Copy built React output from temp container
 COPY --from=aggrid_build /app/dragselect/build ./Frontend/streamlit_aggrid_range/dragselect/build
 
 EXPOSE 8501
