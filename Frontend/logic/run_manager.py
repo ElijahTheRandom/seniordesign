@@ -144,8 +144,9 @@ def build_error_message(non_numeric_cells: list[dict]) -> str:
     """
     Build the user-facing error message for non-numeric data.
 
-    Shows up to 2 problem cells in detail, then summarises any
-    additional ones with "...and N more entries."
+    Shows up to 5 problem cells in detail, then summarises any
+    additional ones.  The final line is an actionable tip so the
+    dialog can display it separately (see error_dialog in homepage.py).
 
     Args:
         non_numeric_cells: List of problem-cell dicts from
@@ -154,12 +155,15 @@ def build_error_message(non_numeric_cells: list[dict]) -> str:
     Returns:
         A multi-line string suitable for display in the error modal.
     """
-    preview = non_numeric_cells[:2]
-    lines = ["**Invalid data found:**"]
+    total = len(non_numeric_cells)
+    preview = non_numeric_cells[:5]
+    cell_word = "cell" if total == 1 else "cells"
+    lines = [f"Non-numeric data detected \u2014 {total} {cell_word} cannot be processed:"]
     for cell in preview:
-        lines.append(f"- Row {cell['row']}, Col '{cell['column']}': '{cell['value']}'")
-    if len(non_numeric_cells) > 2:
-        lines.append(f"...and {len(non_numeric_cells) - 2} more entries.")
+        lines.append(f"- Row {cell['row']}, Column **{cell['column']}**: `{cell['value']}`")
+    if total > 5:
+        lines.append(f"*\u2026and {total - 5} more.*")
+    lines.append("Ensure all selected columns contain only numeric values before running.")
     return "\n".join(lines)
 
 # Success message sent to the user once their run tab has been generated and where to go

@@ -28,6 +28,9 @@ const AgGridRange = (props) => {
     const editInputRef = useRef(null)
     const headerClickTimers = useRef({})
     const ctrlPressed = useRef(false)
+    // Persists the last-known formatted ranges so we can restore them after
+    // AG Grid clears its range selection on rowData prop updates.
+    const lastKnownRanges = useRef([])
 
     // Track Ctrl/Meta key state reliably via global listeners
     useEffect(() => {
@@ -139,6 +142,9 @@ const AgGridRange = (props) => {
             currentEditedData = updatedRows;
         }
 
+        // Persist so onRowDataUpdated can restore after a rowData prop change
+        lastKnownRanges.current = formattedRanges;
+
         Streamlit.setComponentValue({
             selections: formattedRanges,
             editedData: currentEditedData,
@@ -223,6 +229,22 @@ const AgGridRange = (props) => {
             renamedHeaders: Object.keys(renamedHeaders).length > 0 ? renamedHeaders : null
         });
     }, [renamedHeaders]);
+
+    // After AG Grid processes a rowData prop update it clears its internal range
+    // selection.  Restore the last known selection so Streamlit reruns (which
+    // pass a new rowData array reference even when the data hasn't changed) don't
+    // visually wipe the user's highlight.
+    const onRowDataUpdated = useCallback((event) => {
+        if (!event.api || lastKnownRanges.current.length === 0) return;
+        event.api.clearRangeSelection();
+        lastKnownRanges.current.forEach(r => {
+            event.api.addCellRange({
+                columns: r.columns,
+                rowStartIndex: r.startRow,
+                rowEndIndex: r.endRow,
+            });
+        });
+    }, []);
 
     // Header click: single = select column, double = rename
     const onColumnHeaderClicked = useCallback((params) => {
@@ -403,6 +425,7 @@ const AgGridRange = (props) => {
                 onGridReady={onGridReady}
                 enableRangeSelection={true}
                 onRangeSelectionChanged={onRangeSelectionChanged}
+                onRowDataUpdated={onRowDataUpdated}
                 onColumnHeaderClicked={onColumnHeaderClicked}
                 onCellValueChanged={onCellValueChanged}
                 suppressRowClickSelection={true}

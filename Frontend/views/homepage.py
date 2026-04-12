@@ -138,6 +138,9 @@ def _param_warning(msg: str) -> None:
 
 
 _GIF_PATH = Path(__file__).parent.parent / "pages" / "assets" / "ThinkingAhSquirrel.GIF"
+# Pre-encode once at module load so the overlay JS never needs to re-read the file
+with open(_GIF_PATH, "rb") as _f:
+    _GIF_B64 = base64.b64encode(_f.read()).decode()
 
 
 def _show_loading_gif(caption: str = "Loading\u2026") -> None:
@@ -195,44 +198,180 @@ if "show_success_dialog" not in st.session_state:
 if "show_error_dialog" not in st.session_state:
     st.session_state.show_error_dialog = False
 
-@st.dialog("Please Wait")
-def _loading_dialog() -> None:
-    """Loading popup with animated GIF. Re-opens itself via st.rerun() until the
-    loading flag is cleared — giving a persistent dialog effect."""
-    caption = st.session_state.get("_loading_caption", "Loading\u2026")
-    with open(_GIF_PATH, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode()
-    col_img, col_text = st.columns([1, 1.5], gap="medium")
-    with col_img:
-        st.markdown(
-            f'<img src="data:image/gif;base64,{b64}" style="width:100%; border-radius:8px;" />',
-            unsafe_allow_html=True,
-        )
-    with col_text:
-        st.markdown(f"**{caption}**")
-    time.sleep(0.3)
-    st.rerun()
+if "_grid_version" not in st.session_state:
+    st.session_state._grid_version = 0
+
+def _show_loading_overlay(caption: str = "Loading\u2026") -> None:
+    """Inject a full-screen loading overlay into the parent document.
+
+    Appears instantly because it lives outside the Streamlit iframe.
+    Idempotent — a second call while the overlay is visible is a no-op.
+    Call _hide_loading_overlay() to remove it.
+    """
+    import json as _json
+    caption_json = _json.dumps(caption)
+    components.html(
+        f"""
+        <script>
+        (function() {{
+            const doc = window.parent.document;
+            if (doc.getElementById('ps-loading-overlay')) return;
+
+            if (!doc.getElementById('ps-loading-styles')) {{
+                const s = doc.createElement('style');
+                s.id = 'ps-loading-styles';
+                s.textContent = [
+                    '#ps-loading-overlay{{position:fixed;inset:0;background:rgba(0,0,0,0.72);',
+                    'display:flex;align-items:center;justify-content:center;z-index:10000;',
+                    'backdrop-filter:blur(3px)}}',
+                    '#ps-loading-overlay .ps-box{{background:#1e2530;border:1px solid rgba(228,120,29,0.4);',
+                    'border-radius:16px;padding:2rem 2.5rem;display:flex;flex-direction:column;',
+                    'align-items:center;gap:1rem;min-width:220px}}',
+                    '#ps-loading-overlay img{{width:140px;height:140px;object-fit:contain;border-radius:8px}}',
+                    '#ps-loading-overlay p{{color:#fff;font-size:0.95rem;margin:0;',
+                    'font-family:sans-serif;text-align:center;opacity:0.9}}',
+                ].join('');
+                doc.head.appendChild(s);
+            }}
+
+            const overlay = doc.createElement('div');
+            overlay.id = 'ps-loading-overlay';
+            const box = doc.createElement('div');
+            box.className = 'ps-box';
+            const img = doc.createElement('img');
+            img.src = 'data:image/gif;base64,{_GIF_B64}';
+            const p = doc.createElement('p');
+            p.textContent = {caption_json};
+            box.appendChild(img);
+            box.appendChild(p);
+            overlay.appendChild(box);
+            doc.body.appendChild(overlay);
+        }})();
+        </script>
+        """,
+        height=0,
+    )
 
 
-@st.dialog("Error")
+def _hide_loading_overlay() -> None:
+    """Remove the loading overlay from the parent document (safe to call when absent)."""
+    components.html(
+        """
+        <script>
+        (function() {
+            const el = window.parent.document.getElementById('ps-loading-overlay');
+            if (el) el.remove();
+        })();
+        </script>
+        """,
+        height=0,
+    )
+
+
+@st.dialog("Error", width="small")
 def error_dialog():
     img_path = Path(__file__).parent.parent / "pages" / "assets" / "warningSquirrel.PNG"
+    message = st.session_state.modal_message
 
-    col_img, col_text = st.columns([1, 1.5], gap="medium")
-    with col_img:
-        st.image(img_path, width=500)
-    with col_text:
-        st.markdown(st.session_state.modal_message)
+    # Squirrel centered on top
+    _, img_col, _ = st.columns([1, 2, 1])
+    with img_col:
+        st.image(img_path, use_container_width=True)
 
-@st.dialog("Success")
-def success_dialog():
+    lines = message.split("\n")
+    non_empty = [l for l in lines if l.strip()]
+
+    if len(non_empty) <= 1:
+        st.markdown(f"<div style='text-align:center'>{message}</div>", unsafe_allow_html=True)
+    else:
+        tip_prefixes = ("Ensure", "Please", "Fix", "Tip", "Note")
+        tip_lines = [l for l in non_empty if any(l.strip().startswith(p) for p in tip_prefixes)]
+        detail_lines = [l for l in non_empty if not any(l.strip().startswith(p) for p in tip_prefixes)]
+
+        # Header (bold summary line)
+        if detail_lines:
+            header = detail_lines[0]
+            body = detail_lines[1:]
+            st.markdown(
+                f"<p style='text-align:center;font-weight:600;margin:0.25rem 0 0.5rem'>{header}</p>",
+                unsafe_allow_html=True,
+            )
+            if body:
+                st.markdown("\n".join(body))
+
+        if tip_lines:
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.caption(f"💡 {tip_lines[0]}")
+
+
+def _show_success_toast() -> None:
+    """Inject a self-dismissing toast notification into the parent page.
+
+    Uses window.parent.document so the toast lives outside the Streamlit
+    iframe and persists across reruns until its 3-second timer expires.
+    """
+    import re, json as _json
+    message = st.session_state.get("modal_message", "")
     img_path = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
+    with open(img_path, "rb") as _f:
+        b64 = base64.b64encode(_f.read()).decode()
 
-    col_img, col_text = st.columns([1, 1.5], gap="medium")
-    with col_img:
-        st.image(img_path, width=500)
-    with col_text:
-        st.markdown(st.session_state.modal_message)
+    # Convert basic markdown (** bold **, newlines) to safe HTML
+    html_msg = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', message)
+    html_msg = html_msg.replace("\n", "<br>")
+    msg_json = _json.dumps(html_msg)
+
+    components.html(
+        f"""
+        <script>
+        (function() {{
+            const doc = window.parent.document;
+
+            // Inject keyframe styles once
+            if (!doc.getElementById('ps-toast-styles')) {{
+                const s = doc.createElement('style');
+                s.id = 'ps-toast-styles';
+                s.textContent =
+                    '@keyframes ps-in{{from{{opacity:0;transform:translateY(-14px)}}' +
+                    'to{{opacity:1;transform:translateY(0)}}}}' +
+                    '@keyframes ps-out{{from{{opacity:1;transform:translateY(0)}}' +
+                    'to{{opacity:0;transform:translateY(-14px)}}}}';
+                doc.head.appendChild(s);
+            }}
+
+            // Remove any existing toast before adding a new one
+            const prev = doc.getElementById('ps-success-toast');
+            if (prev) prev.remove();
+
+            const toast = doc.createElement('div');
+            toast.id = 'ps-success-toast';
+            toast.style.cssText = [
+                'position:fixed', 'top:1.25rem', 'right:1.25rem', 'z-index:9999',
+                'background:#1e2530', 'border:1px solid rgba(228,120,29,0.45)',
+                'border-radius:12px', 'padding:0.9rem 1.1rem',
+                'display:flex', 'align-items:center', 'gap:0.9rem',
+                'box-shadow:0 8px 32px rgba(0,0,0,0.55)', 'max-width:340px',
+                'animation:ps-in 0.3s ease, ps-out 0.45s ease 4.55s forwards'
+            ].join(';');
+
+            const img = doc.createElement('img');
+            img.src = 'data:image/png;base64,{b64}';
+            img.style.cssText = 'width:52px;height:52px;object-fit:contain;border-radius:6px;flex-shrink:0';
+
+            const txt = doc.createElement('div');
+            txt.innerHTML = {msg_json};
+            txt.style.cssText = 'color:#ffffff;font-size:0.875rem;line-height:1.45;font-family:sans-serif';
+
+            toast.appendChild(img);
+            toast.appendChild(txt);
+            doc.body.appendChild(toast);
+
+            setTimeout(() => {{ if (toast.parentNode) toast.remove(); }}, 5000);
+        }})();
+        </script>
+        """,
+        height=0,
+    )
 
 # ---------------------------------------------------------------------------
 # Header detection helpers
@@ -277,6 +416,16 @@ def _detect_has_headers(raw_bytes: bytes) -> bool:
     return True
 
 
+def _col_letter(i: int) -> str:
+    """Return a spreadsheet-style column label for index i (0-based): A, B, …, Z, AA, AB, …"""
+    label = ""
+    i += 1  # convert to 1-based
+    while i > 0:
+        i, rem = divmod(i - 1, 26)
+        label = chr(65 + rem) + label
+    return label
+
+
 def _on_header_toggle(file_key: str) -> None:
     """Callback: re-parse CSV when the user toggles the header checkbox."""
     has_headers = st.session_state.get(f"_has_headers_{file_key}", True)
@@ -310,6 +459,8 @@ def _on_header_toggle(file_key: str) -> None:
     st.session_state.last_grid_selection = None
     st.session_state.checkbox_key_onecol += 1
     st.session_state.checkbox_key_twocol += 1
+    # Bump the grid version so the component remounts with fresh columns
+    st.session_state._grid_version = st.session_state.get("_grid_version", 0) + 1
 
 
 def _render_header_settings(uploaded_file) -> None:
@@ -380,7 +531,16 @@ def render_homepage(base_dir: str) -> None:
     )
 
     # ------------------------------------------------------------------
-    # CSV loading: poll for completion
+    # Loading overlay — centralized here so it's managed on every render.
+    # When loading state changes, the HTML content differs and Streamlit
+    # re-executes the iframe, reliably showing or hiding the overlay.
+    # ------------------------------------------------------------------
+    if st.session_state.get("_csv_loading"):
+        _show_loading_overlay("Loading CSV data\u2026")
+    elif st.session_state.get("_compute_future") is not None:
+        _show_loading_overlay("Running analysis\u2026 this won't take long.")
+    else:
+        _hide_loading_overlay()
     # ------------------------------------------------------------------
     if st.session_state.get("_csv_loading"):
         csv_future = st.session_state.get("_csv_future")
@@ -434,10 +594,9 @@ def render_homepage(base_dir: str) -> None:
             st.session_state._csv_future = None
             st.rerun()
             return
-        # Still loading (or just kicked off) — open the loading dialog.
-        # _loading_dialog() calls st.rerun() internally, keeping the loop going.
-        st.session_state._loading_caption = "Loading CSV data\u2026"
-        _loading_dialog()
+        # Still loading (or just kicked off) — poll.
+        time.sleep(0.2)
+        st.rerun()
 
     # ------------------------------------------------------------------
     # Background computation: poll for completion
@@ -485,16 +644,25 @@ def render_homepage(base_dir: str) -> None:
             st.session_state.show_success_dialog = True
             st.session_state._compute_future = None
             st.session_state._compute_meta = None
+            # Bump grid version to force a clean remount so the component's
+            # cached selection payload resets to the empty default. Without
+            # this the component returns its old selection on the first post-run
+            # render, which re-populates the analysis config reference bar even
+            # though the grid visually has no highlight.
+            st.session_state._grid_version = st.session_state.get("_grid_version", 0) + 1
+            st.session_state.selected_columns = []
+            st.session_state.selected_rows = []
+            st.session_state.last_grid_selection = None
+            st.session_state["_raw_grid_selection"] = []
             st.rerun()
             return
         else:
-            # Still computing — open the loading dialog.
-            # _loading_dialog() calls st.rerun() internally, keeping the loop going.
-            st.session_state._loading_caption = "Running analysis\u2026 this won't take long."
-            _loading_dialog()
+            # Still computing — poll.
+            time.sleep(0.2)
+            st.rerun()
 
     if st.session_state.get("show_success_dialog"):
-        success_dialog()
+        _show_success_toast()
         st.session_state.show_success_dialog = False
 
     if st.session_state.get("show_error_dialog"):
@@ -713,7 +881,8 @@ def _render_grid_from_file(uploaded_file) -> pd.DataFrame:
             df = pd.read_csv(uploaded_file)
             st.session_state.edited_data_cache[file_key] = df
 
-        df = _display_aggrid(df, grid_key=f"grid_{file_key}")
+        grid_version = st.session_state.get("_grid_version", 0)
+        df = _display_aggrid(df, grid_key=f"grid_{file_key}_v{grid_version}")
         st.session_state.edited_data_cache[file_key] = df
         return df
 
@@ -778,9 +947,14 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
         edited_data = None
         renamed_headers = None
 
-    # Apply cell edits back to the DataFrame
+    # Apply cell edits back to the DataFrame.
+    # edited_data is a list of row-dicts keyed by the column names the grid
+    # knows about.  Only apply it when the keys actually match our current
+    # columns so a stale payload from a previous grid mount can't corrupt df.
     if edited_data is not None:
-        df = pd.DataFrame(edited_data, columns=df.columns)
+        edited_df = pd.DataFrame(edited_data)
+        if list(edited_df.columns) == list(df.columns):
+            df = edited_df
 
     # Apply header renames from the grid component
     if renamed_headers and isinstance(renamed_headers, dict):
@@ -794,9 +968,15 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
             new_cols = [rename_map.get(c, c) for c in df.columns]
             if len(set(new_cols)) == len(new_cols):
                 df = df.rename(columns=rename_map)
-                # Reset column selections since names changed
+                # Clear selection — column names changed so any prior selection
+                # is invalid.  We do NOT bump _grid_version here: AG Grid
+                # reconciles its columns in-place when Python passes updated
+                # columnDefs props, so no remount is needed.  Bumping the key
+                # here would force a jarring reload and then lose the user's
+                # next selection attempt.
                 st.session_state.selected_columns = []
                 st.session_state.selected_rows = []
+                st.session_state.last_grid_selection = None
                 st.session_state.checkbox_key_onecol += 1
                 st.session_state.checkbox_key_twocol += 1
 
@@ -1107,6 +1287,7 @@ def _render_column_row_selectors(
             # Remove stale entries for columns no longer selected
             ml_dict = {k: v for k, v in ml_dict.items() if k in col1}
             st.session_state["column_measurement_levels"] = ml_dict
+        st.markdown("<div style='margin-bottom: 0.75rem;'></div>", unsafe_allow_html=True)
     else:
         st.session_state["column_measurement_levels"] = {}
 
