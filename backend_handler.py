@@ -48,6 +48,16 @@ class BackendHandler:
         if self._chart_generation_methods is None:
             from charts.charts import charts_list
             self._chart_generation_methods = charts_list
+            # Pre-warm Kaleido on the main thread so that concurrent chart threads
+            # never race to initialize its subprocess under Python's import lock,
+            # which causes the "_ModuleLock('plotly.offline.offline') deadlock" error.
+            try:
+                import plotly.graph_objects as _go
+                import plotly.io as _pio
+                from io import BytesIO as _BytesIO
+                _pio.write_image(_go.Figure(), _BytesIO(), format="png", width=10, height=10)
+            except Exception:
+                pass
         return self._chart_generation_methods
 
     def _package_results(self, message, results):
