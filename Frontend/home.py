@@ -53,7 +53,7 @@ st.markdown("""
 iframe { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; border: none; overflow: hidden; }
 :root { --cta-width: 200px; }
 div[data-testid="stButton"] {
-    position: fixed !important; left: 54.5%; top: 65%;
+    position: fixed !important; left: 54.5%; top: 67%;
     transform: translateX(-50%) translateZ(0); will-change: transform;
     z-index: 9999; width: 220px !important; max-width: 220px !important;
     min-width: 220px !important; transition: left 0.35s ease, top 0.35s ease;
