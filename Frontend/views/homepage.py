@@ -223,7 +223,7 @@ def error_dialog():
 
 @st.dialog("Success")
 def success_dialog():
-    img_path = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
+    img_path = Path(__file__).parent.parent / "pages" / "assets" / "SuccessSquirrel.png"
 
     col_img, col_text = st.columns([1, 1.5], gap="medium")
     with col_img:

@@ -238,6 +238,27 @@ def _render_visualizations(run: dict, show_divider: bool = True) -> None:
             if lightMode and chart["type"] != "binomial":
                 image = ImageOps.invert(image.convert("RGB"))
             st.image(image)
+
+            # --- Req 3.7: JPEG download button ---
+            try:
+                img = Image.open(chart["path"])
+                # Light Mode Test
+                if lightMode and chart["type"] != "binomial":
+                    img = ImageOps.invert(img.convert("RGB"))
+
+                buf = BytesIO()
+                rgb = img.convert("RGB")  # JPEG requires RGB
+                rgb.save(buf, format="JPEG", quality=95)
+                chart_type = chart.get("type", f"chart_{idx}")
+                st.download_button(
+                    "Download Visualization",
+                    data=buf.getvalue(),
+                    file_name=f"{run.get('name', 'run')} {chart_type.replace('_', ' ').title()}.jpg",
+                    mime="image/jpeg",
+                    key=f"dl_jpeg_{run.get('id', '')}_{idx}",
+                )
+            except Exception:
+                pass  # If conversion fails, skip the button silently
         else:
             st.error(f"{chart.get('type', 'Chart')}: {chart.get('error', 'Failed to generate')}")
 
