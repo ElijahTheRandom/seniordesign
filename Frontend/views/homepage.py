@@ -2621,9 +2621,6 @@ def render_theme_toggle():
     '''
     Theme Toggle that inverts the HTML of an entire page
     '''
-    _MOON_ICON_B64 = _img_to_b64("moonIcon.png")
-    _SUN_ICON_B64  = _img_to_b64("sunIcon.png")
-
     _moon_b64 = _MOON_ICON_B64
     _sun_b64  = _SUN_ICON_B64
     _light_css = _light_css = """
