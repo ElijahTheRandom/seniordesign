@@ -442,7 +442,8 @@ def render_homepage(base_dir: str) -> None:
                 img.src = dark
                     ? "data:image/png;base64," + sunB64
                     : "data:image/png;base64," + moonB64;
-                img.style.cssText = "width:22px;height:22px;object-fit:contain;filter:invert(1)";
+                const iconSize = dark ? "16px" : "22px";
+                img.style.cssText = "width:" + iconSize + ";height:" + iconSize + ";object-fit:contain;filter:invert(1)";
                 btn.appendChild(img);
 
                 btn.addEventListener("mouseenter", () => {{
