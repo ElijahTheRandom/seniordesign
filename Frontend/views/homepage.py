@@ -344,6 +344,7 @@ def _show_success_toast() -> None:
                 'border-radius:12px', 'padding:0.9rem 1.1rem',
                 'display:flex', 'align-items:center', 'gap:0.9rem',
                 'box-shadow:0 8px 32px rgba(0,0,0,0.55)', 'max-width:340px',
+                'pointer-events:none',
                 'animation:ps-in 0.3s ease, ps-out 0.45s ease 4.55s forwards'
             ].join(';');
 
