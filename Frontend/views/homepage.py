@@ -516,117 +516,6 @@ def render_homepage(base_dir: str) -> None:
         base_dir: Absolute path to the frontend directory. Used to
                   resolve asset paths passed down to child functions.
     """
-    # # ------------------------------------------------------------------
-    # # Theme toggle: floating moon/sun button in the top-right toolbar area.
-    # # Injects a <style> tag into the parent document to override Streamlit's
-    # # CSS variables with a light-mode palette when active.
-    # # ------------------------------------------------------------------
-    _moon_b64 = _MOON_ICON_B64
-    _sun_b64  = _SUN_ICON_B64
-    _light_css = _light_css = """
-        html {
-            filter: invert(1) !important;
-        }
-        html img,
-        html video,
-        html [data-testid="stImage"] img {
-            filter: invert(1) !important;
-        }
-    """
-    components.html(
-        f"""
-        <script>
-        (function() {{
-            const moonB64 = "{_moon_b64}";
-            const sunB64  = "{_sun_b64}";
-            nowDark = true;
-            const STORAGE_KEY = "ps_analytics_theme";
-            const STYLE_ID    = "ps-light-mode-overrides";
-            const LIGHT_CSS   = `{_light_css}`;
-
-            function isDark() {{
-                return (localStorage.getItem(STORAGE_KEY) || "dark") === "dark";
-            }}
-
-            function applyTheme(dark) {{
-                const doc = window.parent.document;
-                let styleEl = doc.getElementById(STYLE_ID);
-                if (!dark) {{
-                    if (!styleEl) {{
-                        styleEl = doc.createElement("style");
-                        styleEl.id = STYLE_ID;
-                        doc.head.appendChild(styleEl);
-                    }}
-                    styleEl.textContent = LIGHT_CSS;
-                }} else {{
-                    if (styleEl) styleEl.remove();
-                }}
-            }}
-
-            function renderBtn() {{
-                const doc = window.parent.document;
-                const old = doc.getElementById("ps-theme-btn");
-                if (old) old.remove();
-
-                const dark = isDark();
-                const btn  = doc.createElement("button");
-                btn.id = "ps-theme-btn";
-                btn.title = dark ? "Switch to Light Mode" : "Switch to Dark Mode";
-                btn.style.cssText = [
-                    "position:absolute",
-                    "top:16px",
-                    "right:122px",
-                    "z-index:99999",
-                    "width:27.99px",
-                    "height:27.99px",
-                    "padding:4px",
-                    "border-radius:6px",
-                    "border:1px solid rgba(228,120,29,0.45)",
-                    "background:rgba(228,120,29,0.12)",
-                    "cursor:pointer",
-                    "display:flex",
-                    "align-items:center",
-                    "justify-content:center",
-                    "transition:background 0.2s"
-                ].join(";");
-
-                const img = doc.createElement("img");
-                img.src = dark
-                    ? "data:image/png;base64," + sunB64
-                    : "data:image/png;base64," + moonB64;
-                const iconSize = dark ? "16px" : "22px";
-                img.style.cssText = "width:" + iconSize + ";height:" + iconSize + ";object-fit:contain;filter:invert(1)";
-                btn.appendChild(img);
-
-                btn.addEventListener("mouseenter", () => {{
-                    btn.style.background = "rgba(228,120,29,0.28)";
-                }});
-                btn.addEventListener("mouseleave", () => {{
-                    btn.style.background = "rgba(228,120,29,0.12)";
-                }});
-                btn.addEventListener("click", () => {{
-                    localStorage.setItem(STORAGE_KEY, nowDark ? "light" : "dark");
-                    applyTheme(!nowDark);
-                    nowDark = isDark();
-                    renderBtn();
-                }});
-
-                const container = doc.querySelector('[data-testid="stAppViewContainer"]') || doc.body;
-                container.appendChild(btn);
-            }}
-
-            applyTheme(isDark());
-            if (window.parent.document.body) {{
-                renderBtn();
-            }} else {{
-                window.parent.addEventListener("DOMContentLoaded", renderBtn);
-            }}
-        }})();
-        </script>
-        """,
-        height=0,
-    )
-
     # ------------------------------------------------------------------
     # Loading overlay — centralized here so it's managed on every render.
     # When loading state changes, the HTML content differs and Streamlit
@@ -2639,23 +2528,27 @@ def render_theme_toggle():
         (function() {{
             const moonB64 = "{_moon_b64}";
             const sunB64  = "{_sun_b64}";
-            nowDark = true;
             const STORAGE_KEY = "ps_analytics_theme";
             const STYLE_ID    = "ps-light-mode-overrides";
             const LIGHT_CSS   = `{_light_css}`;
+            const parentWin   = window.parent;
+            const parentDoc   = parentWin.document;
 
             function isDark() {{
-                return (localStorage.getItem(STORAGE_KEY) || "dark") === "dark";
+                try {{
+                    return (parentWin.localStorage.getItem(STORAGE_KEY) || "dark") === "dark";
+                }} catch (e) {{
+                    return true;
+                }}
             }}
 
             function applyTheme(dark) {{
-                const doc = window.parent.document;
-                let styleEl = doc.getElementById(STYLE_ID);
+                let styleEl = parentDoc.getElementById(STYLE_ID);
                 if (!dark) {{
                     if (!styleEl) {{
-                        styleEl = doc.createElement("style");
+                        styleEl = parentDoc.createElement("style");
                         styleEl.id = STYLE_ID;
-                        doc.head.appendChild(styleEl);
+                        parentDoc.head.appendChild(styleEl);
                     }}
                     styleEl.textContent = LIGHT_CSS;
                 }} else {{
@@ -2664,12 +2557,11 @@ def render_theme_toggle():
             }}
 
             function renderBtn() {{
-                const doc = window.parent.document;
-                const old = doc.getElementById("ps-theme-btn");
+                const old = parentDoc.getElementById("ps-theme-btn");
                 if (old) old.remove();
 
                 const dark = isDark();
-                const btn  = doc.createElement("button");
+                const btn  = parentDoc.createElement("button");
                 btn.id = "ps-theme-btn";
                 btn.title = dark ? "Switch to Light Mode" : "Switch to Dark Mode";
                 btn.style.cssText = [
@@ -2690,7 +2582,7 @@ def render_theme_toggle():
                     "transition:background 0.2s"
                 ].join(";");
 
-                const img = doc.createElement("img");
+                const img = parentDoc.createElement("img");
                 img.src = dark
                     ? "data:image/png;base64," + sunB64
                     : "data:image/png;base64," + moonB64;
@@ -2704,21 +2596,23 @@ def render_theme_toggle():
                     btn.style.background = "rgba(228,120,29,0.12)";
                 }});
                 btn.addEventListener("click", () => {{
-                    localStorage.setItem(STORAGE_KEY, nowDark ? "light" : "dark");
-                    applyTheme(!nowDark);
-                    nowDark = isDark();
+                    const currentlyDark = isDark();
+                    try {{
+                        parentWin.localStorage.setItem(STORAGE_KEY, currentlyDark ? "light" : "dark");
+                    }} catch (e) {{}}
+                    applyTheme(!currentlyDark);
                     renderBtn();
                 }});
 
-                const container = doc.querySelector('[data-testid="stAppViewContainer"]') || doc.body;
+                const container = parentDoc.querySelector('[data-testid="stAppViewContainer"]') || parentDoc.body;
                 container.appendChild(btn);
             }}
 
             applyTheme(isDark());
-            if (window.parent.document.body) {{
+            if (parentDoc.body) {{
                 renderBtn();
             }} else {{
-                window.parent.addEventListener("DOMContentLoaded", renderBtn);
+                parentWin.addEventListener("DOMContentLoaded", renderBtn);
             }}
         }})();
         </script>

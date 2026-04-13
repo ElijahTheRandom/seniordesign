@@ -38,7 +38,7 @@ from views.sidebar  import render_sidebar
 from views.homepage import render_homepage
 from views.results  import render_results
 from views.comparison import render_comparison
-from views.homepage import render_theme_toggle
+from views.homepage import render_theme_toggle, _hide_loading_overlay
 from views.help_statistical_methods import render_help_statistical_methods
 from views.load_previous_runs import render_load_previous_runs
 from PIL import Image
@@ -66,6 +66,11 @@ st.set_page_config(
 
 initialize_session_state() # Makes sure it starts on the main screen and not the last screen the user had pulled up
 inject_styles() # Keeps the customized look
+
+# Safety cleanup: if no background work is running, remove any stale full-screen
+# loading overlay so it can't block clicks on top-right HTML/JS controls.
+if not st.session_state.get("_csv_loading") and st.session_state.get("_compute_future") is None:
+    _hide_loading_overlay()
 
 # ---------------------------------------------------------------------------
 # Sidebar — present on every page
