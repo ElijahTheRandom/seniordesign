@@ -2516,6 +2516,16 @@ def render_theme_toggle():
         html {
             filter: invert(1) !important;
         }
+
+        /* Keep squirrel assets visually normal in light mode (double invert). */
+        #ps-success-toast img,
+        #ps-loading-overlay img,
+        [data-testid="stImage"] img[src*="Squirrel"],
+        [data-testid="stImage"] img[src*="squirrel"],
+        [data-testid="stImage"] img[alt*="Squirrel"],
+        [data-testid="stImage"] img[alt*="squirrel"] {
+            filter: invert(1) !important;
+        }
     """
     components.html(
         f"""
