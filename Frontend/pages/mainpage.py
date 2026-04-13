@@ -35,10 +35,10 @@ if FRONTEND_DIR not in sys.path:
 from state          import initialize_session_state
 from styles.theme   import inject_styles
 from views.sidebar  import render_sidebar
-from views.homepage import render_homepage
+from views.homepage import render_homepage, render_theme_toggle
+from views.homepage import poll_background_computation, error_dialog, _show_success_toast
 from views.results  import render_results
 from views.comparison import render_comparison
-from views.homepage import render_theme_toggle
 from views.help_statistical_methods import render_help_statistical_methods
 from views.load_previous_runs import render_load_previous_runs
 from PIL import Image
@@ -77,6 +77,23 @@ render_sidebar() # Fires up the sidebar and all of its functions, buttons, etc.
 # Theme Toggle — present on every page
 # ---------------------------------------------------------------------------
 render_theme_toggle()
+
+# ---------------------------------------------------------------------------
+# Background computation polling — runs on every page so the user can
+# navigate freely while a calculation is in progress.
+# ---------------------------------------------------------------------------
+poll_background_computation()
+
+# Success / error dialogs — shown here so they appear regardless of which
+# view is active when the computation finishes.
+if st.session_state.get("show_success_dialog"):
+    _show_success_toast()
+    st.session_state.show_success_dialog = False
+
+if st.session_state.get("show_error_dialog"):
+    error_dialog()
+    st.session_state.show_error_dialog = False
+
 # ---------------------------------------------------------------------------
 # Main content — route to homepage, selected run, or comparison
 # ---------------------------------------------------------------------------
@@ -103,5 +120,22 @@ elif st.session_state.active_run_id:
         render_results(run, BASE_DIR)
 else:
     render_homepage(BASE_DIR)
+
+# ---------------------------------------------------------------------------
+# Computation watcher — a fragment that ticks every 500 ms in isolation.
+# Only its own tiny subtree rerenders on each tick (nothing visible is
+# rendered inside it), so the rest of the page stays completely stable.
+# When the future finishes, it fires one clean full-app rerun so that
+# poll_background_computation() can process the result and show dialogs.
+# ---------------------------------------------------------------------------
+@st.fragment(run_every="500ms")
+def _computation_watcher():
+    if st.session_state.get("_compute_future") is None:
+        return
+    future = st.session_state.get("_compute_future")
+    if future is not None and future.done():
+        st.rerun(scope="app")
+
+_computation_watcher()
 
 

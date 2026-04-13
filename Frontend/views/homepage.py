@@ -92,6 +92,11 @@ def _img_to_b64(filename: str) -> str:
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
+# Pre-encode theme icons once at module load so render_theme_toggle() never
+# reads from disk on every render.
+_MOON_ICON_B64 = _img_to_b64("moonIcon.png")
+_SUN_ICON_B64  = _img_to_b64("sunIcon.png")
+
 @st.cache_resource
 def _get_backend_handler():
     return BackendHandler()
@@ -135,15 +140,18 @@ _GIF_PATH = Path(__file__).parent.parent / "pages" / "assets" / "ThinkingAhSquir
 with open(_GIF_PATH, "rb") as _f:
     _GIF_B64 = base64.b64encode(_f.read()).decode()
 
+_HUZZAH_PATH = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
+# Pre-encode once at module load to avoid disk I/O on every success popup
+with open(_HUZZAH_PATH, "rb") as _f:
+    _HUZZAH_B64 = base64.b64encode(_f.read()).decode()
+
 
 def _show_loading_gif(caption: str = "Loading\u2026") -> None:
     """Display the loading GIF centered on the page using base64 embedding."""
-    with open(_GIF_PATH, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode()
     st.markdown(
         f"""
         <div style="display:flex; flex-direction:column; align-items:center; margin-top:4rem;">
-            <img src="data:image/gif;base64,{b64}" style="max-width:420px; width:100%;" />
+            <img src="data:image/gif;base64,{_GIF_B64}" style="max-width:420px; width:100%;" />
             <p style="color:#888; margin-top:1rem; font-size:1rem;">{caption}</p>
         </div>
         """,
@@ -261,6 +269,70 @@ def _hide_loading_overlay() -> None:
     )
 
 
+def _show_computing_toast(caption: str = "Running analysis\u2026") -> None:
+    """Inject a persistent corner toast while computation runs.
+
+    Lives in window.parent.document so it survives page navigation.
+    Idempotent — safe to call on every render while computing.
+    Call _hide_computing_toast() when done.
+    """
+    import json as _json
+    caption_json = _json.dumps(caption)
+    components.html(
+        f"""
+        <script>
+        (function() {{
+            const doc = window.parent.document;
+            if (doc.getElementById('ps-computing-toast')) return;
+
+            const toast = doc.createElement('div');
+            toast.id = 'ps-computing-toast';
+            toast.style.cssText = [
+                'position:fixed', 'top:1.25rem', 'right:1.25rem', 'z-index:9998',
+                'background:#1e2530', 'border:1px solid rgba(228,120,29,0.45)',
+                'border-radius:12px', 'padding:0.9rem 1.1rem',
+                'display:flex', 'align-items:center', 'gap:0.9rem',
+                'box-shadow:0 8px 32px rgba(0,0,0,0.55)', 'max-width:340px',
+            ].join(';');
+
+            const img = doc.createElement('img');
+            img.src = 'data:image/gif;base64,{_GIF_B64}';
+            img.style.cssText = [
+                'width:54px', 'height:54px',
+                'object-fit:contain', 'border-radius:8px',
+                'flex-shrink:0',
+            ].join(';');
+
+            const txt = doc.createElement('div');
+            txt.textContent = {caption_json};
+            txt.style.cssText =
+                'color:#ffffff;font-size:0.875rem;line-height:1.45;font-family:sans-serif';
+
+            toast.appendChild(img);
+            toast.appendChild(txt);
+            doc.body.appendChild(toast);
+        }})();
+        </script>
+        """,
+        height=0,
+    )
+
+
+def _hide_computing_toast() -> None:
+    """Remove the computing corner toast (safe to call when absent)."""
+    components.html(
+        """
+        <script>
+        (function() {
+            const el = window.parent.document.getElementById('ps-computing-toast');
+            if (el) el.remove();
+        })();
+        </script>
+        """,
+        height=0,
+    )
+
+
 @st.dialog("Error", width="small")
 def error_dialog():
     img_path = Path(__file__).parent.parent / "pages" / "assets" / "warningSquirrel.PNG"
@@ -305,9 +377,7 @@ def _show_success_toast() -> None:
     """
     import re, json as _json
     message = st.session_state.get("modal_message", "")
-    img_path = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
-    with open(img_path, "rb") as _f:
-        b64 = base64.b64encode(_f.read()).decode()
+    b64 = _HUZZAH_B64
 
     # Convert basic markdown (** bold **, newlines) to safe HTML
     html_msg = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', message)
@@ -505,6 +575,89 @@ def _render_header_settings(uploaded_file) -> None:
 # Public interface
 # ---------------------------------------------------------------------------
 
+def poll_background_computation() -> None:
+    """Check whether a background computation is complete and handle the result.
+
+    Call this on every render from mainpage.py so it runs regardless of which
+    view the user is on.  Manages the corner computing toast and fires the
+    success/error dialogs via session state flags.
+    """
+    future = st.session_state.get("_compute_future")
+
+    if future is None:
+        # Not computing — hide the corner toast if it was shown last render.
+        if st.session_state.get("_computing_toast_shown"):
+            _hide_computing_toast()
+            st.session_state._computing_toast_shown = False
+        return
+
+    # Computation is in progress — show corner toast on the first render.
+    if not st.session_state.get("_computing_toast_shown"):
+        _show_computing_toast("Running analysis\u2026 this won't take long.")
+        st.session_state._computing_toast_shown = True
+
+    if not future.done():
+        # Still running — return so the rest of the render (view routing,
+        # navigation, etc.) can complete normally.  The caller (mainpage.py)
+        # schedules the next poll check at the very end of the render cycle.
+        return
+
+    # ── Future completed ──────────────────────────────────────────────────
+    meta = st.session_state._compute_meta
+    try:
+        result_message = future.result()
+    except _ValidationError as ve:
+        st.session_state._compute_future = None
+        st.session_state._compute_meta = None
+        st.session_state.modal_message = str(ve)
+        st.session_state.show_error_dialog = True
+        # Leave _computing_toast_shown = True so render B's future-is-None
+        # branch hides the toast after the rerun (calling _hide_computing_toast
+        # just before st.rerun risks the iframe script being discarded before
+        # it executes).
+        st.rerun()
+        return
+    except Exception as exc:
+        st.session_state._compute_future = None
+        st.session_state._compute_meta = None
+        st.session_state.modal_message = f"Computation failed: {exc}"
+        st.session_state.show_error_dialog = True
+        st.rerun()
+        return
+
+    run = {
+        "id":             meta["run_id"],
+        "name":           meta["run_name"],
+        "methods":        meta["methods"],
+        "visualizations": meta.get("visualizations", []),
+        "result_message": result_message,
+        "table":          meta["table"],
+        "data":           meta["data"],
+        "columns":        meta.get("columns", []),
+        "rows":           meta.get("rows", []),
+        "measurement_levels": meta.get("measurement_levels", {}),
+    }
+    handle_result(run)
+
+    st.session_state.analysis_runs.append(run)
+    st.session_state.modal_message = build_success_message(run)
+    st.session_state.show_success_dialog = True
+    st.session_state._compute_future = None
+    st.session_state._compute_meta = None
+    # Bump grid version so the grid remounts with a clean selection state.
+    st.session_state._grid_version = st.session_state.get("_grid_version", 0) + 1
+    st.session_state.selected_columns = []
+    st.session_state.selected_rows = []
+    st.session_state.last_grid_selection = None
+    st.session_state["_raw_grid_selection"] = []
+    # Rerun so the sidebar renders with the new run already in analysis_runs,
+    # and the success/error dialogs fire from the clean top-of-render state.
+    # Leave _computing_toast_shown = True — render B's future-is-None branch
+    # will call _hide_computing_toast() there, where no subsequent st.rerun()
+    # races against the iframe script that removes the toast from the DOM.
+    st.rerun()
+
+
 def render_homepage(base_dir: str) -> None:
     """
     Render the full homepage: data input (left) + analysis config (right).
@@ -514,16 +667,27 @@ def render_homepage(base_dir: str) -> None:
                   resolve asset paths passed down to child functions.
     """
     # ------------------------------------------------------------------
-    # Loading overlay — centralized here so it's managed on every render.
-    # When loading state changes, the HTML content differs and Streamlit
-    # re-executes the iframe, reliably showing or hiding the overlay.
+    # CSV loading overlay — blocks interaction until table data is ready.
+    # Only injected/removed on state transitions to avoid iframe churn.
+    # (Computation uses a non-blocking corner toast instead — see
+    #  poll_background_computation() called from mainpage.py.)
     # ------------------------------------------------------------------
+    _was_overlay_active = st.session_state.get("_overlay_active", False)
     if st.session_state.get("_csv_loading"):
-        _show_loading_overlay("Loading CSV data\u2026")
-    elif st.session_state.get("_compute_future") is not None:
-        _show_loading_overlay("Running analysis\u2026 this won't take long.")
+        if not _was_overlay_active:
+            _show_loading_overlay("Loading CSV data\u2026")
+        else:
+            # Placeholder keeps the element tree stable across reruns so that
+            # the st.columns block below never shifts position — which would
+            # cause Streamlit to recreate the grid and all widgets inside it.
+            components.html("<span></span>", height=0)
+        st.session_state._overlay_active = True
     else:
-        _hide_loading_overlay()
+        if _was_overlay_active:
+            _hide_loading_overlay()
+        else:
+            components.html("<span></span>", height=0)
+        st.session_state._overlay_active = False
     # ------------------------------------------------------------------
     if st.session_state.get("_csv_loading"):
         csv_future = st.session_state.get("_csv_future")
@@ -578,79 +742,8 @@ def render_homepage(base_dir: str) -> None:
             st.rerun()
             return
         # Still loading (or just kicked off) — poll.
-        time.sleep(0.2)
+        time.sleep(0.5)
         st.rerun()
-
-    # ------------------------------------------------------------------
-    # Background computation: poll for completion
-    # ------------------------------------------------------------------
-    future = st.session_state.get("_compute_future")
-    if future is not None:
-        if future.done():
-            # Computation finished — collect the result and build the run
-            meta = st.session_state._compute_meta
-            try:
-                result_message = future.result()
-            except _ValidationError as ve:
-                # Validation failed — show error and reset
-                st.session_state._compute_future = None
-                st.session_state._compute_meta = None
-                st.session_state.modal_message = str(ve)
-                st.session_state.show_error_dialog = True
-                st.rerun()
-                return
-            except Exception as exc:
-                # Computation failed — surface the error and reset
-                st.session_state._compute_future = None
-                st.session_state._compute_meta = None
-                st.session_state.modal_message = f"Computation failed: {exc}"
-                st.session_state.show_error_dialog = True
-                st.rerun()
-                return
-
-            run = {
-                "id":             meta["run_id"],
-                "name":           meta["run_name"],
-                "methods":        meta["methods"],
-                "visualizations": meta.get("visualizations", []),
-                "result_message": result_message,
-                "table":          meta["table"],
-                "data":           meta["data"],
-                "columns":        meta.get("columns", []),
-                "rows":           meta.get("rows", []),
-                "measurement_levels": meta.get("measurement_levels", {}),
-            }
-            handle_result(run)
-
-            st.session_state.analysis_runs.append(run)
-            st.session_state.modal_message = build_success_message(run)
-            st.session_state.show_success_dialog = True
-            st.session_state._compute_future = None
-            st.session_state._compute_meta = None
-            # Bump grid version to force a clean remount so the component's
-            # cached selection payload resets to the empty default. Without
-            # this the component returns its old selection on the first post-run
-            # render, which re-populates the analysis config reference bar even
-            # though the grid visually has no highlight.
-            st.session_state._grid_version = st.session_state.get("_grid_version", 0) + 1
-            st.session_state.selected_columns = []
-            st.session_state.selected_rows = []
-            st.session_state.last_grid_selection = None
-            st.session_state["_raw_grid_selection"] = []
-            st.rerun()
-            return
-        else:
-            # Still computing — poll.
-            time.sleep(0.2)
-            st.rerun()
-
-    if st.session_state.get("show_success_dialog"):
-        _show_success_toast()
-        st.session_state.show_success_dialog = False
-
-    if st.session_state.get("show_error_dialog"):
-        error_dialog()
-        st.session_state.show_error_dialog = False
 
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown(
@@ -2507,9 +2600,6 @@ def render_theme_toggle():
     '''
     Theme Toggle that inverts the HTML of an entire page
     '''
-    _MOON_ICON_B64 = _img_to_b64("moonIcon.png")
-    _SUN_ICON_B64  = _img_to_b64("sunIcon.png")
-
     _moon_b64 = _MOON_ICON_B64
     _sun_b64  = _SUN_ICON_B64
     _light_css = _light_css = """
@@ -2559,12 +2649,15 @@ def render_theme_toggle():
 
             function renderBtn() {{
                 const doc = window.parent.document;
+                const dark = isDark();
                 const old = doc.getElementById("ps-theme-btn");
+                // Skip DOM recreation when the button already reflects the current theme
+                if (old && old.dataset.isDark === String(dark)) return;
                 if (old) old.remove();
 
-                const dark = isDark();
                 const btn  = doc.createElement("button");
                 btn.id = "ps-theme-btn";
+                btn.dataset.isDark = String(dark);
                 btn.title = dark ? "Switch to Light Mode" : "Switch to Dark Mode";
                 btn.style.cssText = [
                     "position:absolute",
