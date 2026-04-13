@@ -285,14 +285,6 @@ def _show_computing_toast(caption: str = "Running analysis\u2026") -> None:
             const doc = window.parent.document;
             if (doc.getElementById('ps-computing-toast')) return;
 
-            if (!doc.getElementById('ps-computing-styles')) {{
-                const s = doc.createElement('style');
-                s.id = 'ps-computing-styles';
-                s.textContent =
-                    '@keyframes ps-spin{{from{{transform:rotate(0deg)}}to{{transform:rotate(360deg)}}}}';
-                doc.head.appendChild(s);
-            }}
-
             const toast = doc.createElement('div');
             toast.id = 'ps-computing-toast';
             toast.style.cssText = [
@@ -303,12 +295,11 @@ def _show_computing_toast(caption: str = "Running analysis\u2026") -> None:
                 'box-shadow:0 8px 32px rgba(0,0,0,0.55)', 'max-width:340px',
             ].join(';');
 
-            const spinner = doc.createElement('div');
-            spinner.style.cssText = [
-                'width:22px', 'height:22px', 'border-radius:50%',
-                'border:3px solid rgba(228,120,29,0.25)',
-                'border-top-color:#e4781d',
-                'animation:ps-spin 0.75s linear infinite',
+            const img = doc.createElement('img');
+            img.src = 'data:image/gif;base64,{_GIF_B64}';
+            img.style.cssText = [
+                'width:54px', 'height:54px',
+                'object-fit:contain', 'border-radius:8px',
                 'flex-shrink:0',
             ].join(';');
 
@@ -317,7 +308,7 @@ def _show_computing_toast(caption: str = "Running analysis\u2026") -> None:
             txt.style.cssText =
                 'color:#ffffff;font-size:0.875rem;line-height:1.45;font-family:sans-serif';
 
-            toast.appendChild(spinner);
+            toast.appendChild(img);
             toast.appendChild(txt);
             doc.body.appendChild(toast);
         }})();
