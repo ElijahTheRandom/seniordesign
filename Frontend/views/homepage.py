@@ -344,6 +344,7 @@ def _show_success_toast() -> None:
                 'border-radius:12px', 'padding:0.9rem 1.1rem',
                 'display:flex', 'align-items:center', 'gap:0.9rem',
                 'box-shadow:0 8px 32px rgba(0,0,0,0.55)', 'max-width:340px',
+                'pointer-events:none',
                 'animation:ps-in 0.3s ease, ps-out 0.45s ease 4.55s forwards'
             ].join(';');
 
@@ -2513,6 +2514,16 @@ def render_theme_toggle():
     _sun_b64  = _SUN_ICON_B64
     _light_css = _light_css = """
         html {
+            filter: invert(1) !important;
+        }
+
+        /* Keep squirrel assets visually normal in light mode (double invert). */
+        #ps-success-toast img,
+        #ps-loading-overlay img,
+        [data-testid="stImage"] img[src*="Squirrel"],
+        [data-testid="stImage"] img[src*="squirrel"],
+        [data-testid="stImage"] img[alt*="Squirrel"],
+        [data-testid="stImage"] img[alt*="squirrel"] {
             filter: invert(1) !important;
         }
     """

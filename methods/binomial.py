@@ -101,6 +101,8 @@ class Binomial:
 
         fig_height = max(2.5, 0.42 * len(rows) + 1.4)
         fig, ax = plt.subplots(figsize=(4.0, fig_height * 0.5 - 0.3))
+        fig.patch.set_facecolor("black")
+        ax.set_facecolor("black")
         ax.axis("off")
 
         table = ax.table(
@@ -114,6 +116,15 @@ class Binomial:
         table.set_fontsize(10)
         table.scale(1.0, 1.0)
 
+        # Dark default styling for the exported binomial table image.
+        for (r, c), cell in table.get_celld().items():
+            cell.set_facecolor("black")
+            cell.set_edgecolor("white")
+            if r == 0:
+                cell.set_text_props(color="white", weight="bold")
+            else:
+                cell.set_text_props(color="white")
+
         ax.text(
             0.5,
             1.01,
@@ -122,15 +133,22 @@ class Binomial:
             ha="center",
             va="bottom",
             fontsize=11,
-            color="black",
-            bbox=dict(facecolor="white", edgecolor="none", alpha=1.0, pad=0.5)
+            color="white",
+            bbox=dict(facecolor="black", edgecolor="none", alpha=1.0, pad=0.5)
         )
 
         plt.tight_layout()
         plt.subplots_adjust(top=0.95)
 
         buffer = BytesIO()
-        fig.savefig(buffer, format="png", bbox_inches="tight", dpi=200)
+        fig.savefig(
+            buffer,
+            format="png",
+            bbox_inches="tight",
+            dpi=200,
+            facecolor=fig.get_facecolor(),
+            edgecolor="none",
+        )
         plt.close(fig)
         buffer.seek(0)
 
