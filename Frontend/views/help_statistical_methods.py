@@ -156,6 +156,7 @@ def render_help_statistical_methods() -> None:
             """
         )
         st.markdown("> (2 + 4 + 6) / 3 = **4**")
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -181,6 +182,7 @@ def render_help_statistical_methods() -> None:
         )
         st.markdown("> `1, 3, 3, 6, 7, 8, 9` → median = **6** (middle value)")
         st.markdown("> `1, 2, 3, 4, 5, 6, 8, 9` → median = (4 + 5) / 2 = **4.5**")
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -200,6 +202,7 @@ def render_help_statistical_methods() -> None:
         )
         st.markdown("> `1, 2, 2, 3, 4` → mode = **2**")
         st.markdown("> `1, 1, 2, 2, 3, 3` → modes = **1, 2, 3** (all tie for highest frequency)")
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -219,6 +222,7 @@ def render_help_statistical_methods() -> None:
         )
         st.markdown("> Squared differences: (2−4)² = 4, (4−4)² = 0, (6−4)² = 4")
         st.markdown("> Variance = (4 + 0 + 4) / 3 = **2.67**")
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -238,6 +242,7 @@ def render_help_statistical_methods() -> None:
             """
         )
         st.markdown("> Standard deviation = √2.67 ≈ **1.63**")
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -262,6 +267,7 @@ def render_help_statistical_methods() -> None:
         st.markdown("> **25th percentile** (Q1) — 25% of values fall below this point")
         st.markdown("> **50th percentile** (median) — 50% of values fall below this point")
         st.markdown("> **75th percentile** (Q3) — 75% of values fall below this point")
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -290,7 +296,7 @@ def render_help_statistical_methods() -> None:
             unsafe_allow_html=True
         )
         st.markdown("> r = **1.0** — a perfect positive linear relationship (as X increases, Y increases proportionally)")
-
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
         _section_divider()
 
         # ------------------------------------------------------------------ #
@@ -319,6 +325,7 @@ def render_help_statistical_methods() -> None:
             unsafe_allow_html=True
         )
         st.markdown("> ρ = **−1.0** — as X increases, Y decreases consistently (perfect inverse monotonic relationship)")
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -343,6 +350,7 @@ def render_help_statistical_methods() -> None:
             and reports the estimated **slope** and **intercept**.
             """
         )
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -372,6 +380,7 @@ def render_help_statistical_methods() -> None:
             categorical inputs arranged in a valid contingency layout.
             """
         )
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -404,6 +413,7 @@ def render_help_statistical_methods() -> None:
             the PMF, CDF, and survival function for each k in that range in tabular form.
             """
         )
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -428,3 +438,4 @@ def render_help_statistical_methods() -> None:
             > and skip the computation if the mean of the selected data is zero.
             """
         )
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
