@@ -685,10 +685,17 @@ def render_homepage(base_dir: str) -> None:
     if st.session_state.get("_csv_loading"):
         if not _was_overlay_active:
             _show_loading_overlay("Loading CSV data\u2026")
+        else:
+            # Placeholder keeps the element tree stable across reruns so that
+            # the st.columns block below never shifts position — which would
+            # cause Streamlit to recreate the grid and all widgets inside it.
+            components.html("<span></span>", height=0)
         st.session_state._overlay_active = True
     else:
         if _was_overlay_active:
             _hide_loading_overlay()
+        else:
+            components.html("<span></span>", height=0)
         st.session_state._overlay_active = False
     # ------------------------------------------------------------------
     if st.session_state.get("_csv_loading"):
