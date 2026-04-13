@@ -2608,4 +2608,5 @@ def render_theme_toggle():
         </script>
         """,
         height=0,
+        
     )
