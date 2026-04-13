@@ -92,6 +92,11 @@ def _img_to_b64(filename: str) -> str:
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
+# Pre-encode theme icons once at module load so render_theme_toggle() never
+# reads from disk on every render.
+_MOON_ICON_B64 = _img_to_b64("moonIcon.png")
+_SUN_ICON_B64  = _img_to_b64("sunIcon.png")
+
 @st.cache_resource
 def _get_backend_handler():
     return BackendHandler()
@@ -135,15 +140,18 @@ _GIF_PATH = Path(__file__).parent.parent / "pages" / "assets" / "ThinkingAhSquir
 with open(_GIF_PATH, "rb") as _f:
     _GIF_B64 = base64.b64encode(_f.read()).decode()
 
+_HUZZAH_PATH = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
+# Pre-encode once at module load to avoid disk I/O on every success popup
+with open(_HUZZAH_PATH, "rb") as _f:
+    _HUZZAH_B64 = base64.b64encode(_f.read()).decode()
+
 
 def _show_loading_gif(caption: str = "Loading\u2026") -> None:
     """Display the loading GIF centered on the page using base64 embedding."""
-    with open(_GIF_PATH, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode()
     st.markdown(
         f"""
         <div style="display:flex; flex-direction:column; align-items:center; margin-top:4rem;">
-            <img src="data:image/gif;base64,{b64}" style="max-width:420px; width:100%;" />
+            <img src="data:image/gif;base64,{_GIF_B64}" style="max-width:420px; width:100%;" />
             <p style="color:#888; margin-top:1rem; font-size:1rem;">{caption}</p>
         </div>
         """,
@@ -305,9 +313,7 @@ def _show_success_toast() -> None:
     """
     import re, json as _json
     message = st.session_state.get("modal_message", "")
-    img_path = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
-    with open(img_path, "rb") as _f:
-        b64 = base64.b64encode(_f.read()).decode()
+    b64 = _HUZZAH_B64
 
     # Convert basic markdown (** bold **, newlines) to safe HTML
     html_msg = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', message)
@@ -514,16 +520,23 @@ def render_homepage(base_dir: str) -> None:
                   resolve asset paths passed down to child functions.
     """
     # ------------------------------------------------------------------
-    # Loading overlay — centralized here so it's managed on every render.
-    # When loading state changes, the HTML content differs and Streamlit
-    # re-executes the iframe, reliably showing or hiding the overlay.
+    # Loading overlay — only inject/remove when the loading state changes.
+    # Calling components.html() on every render creates an iframe even when
+    # the overlay state hasn't changed, adding overhead to every interaction.
     # ------------------------------------------------------------------
+    _was_overlay_active = st.session_state.get("_overlay_active", False)
     if st.session_state.get("_csv_loading"):
-        _show_loading_overlay("Loading CSV data\u2026")
+        if not _was_overlay_active:
+            _show_loading_overlay("Loading CSV data\u2026")
+        st.session_state._overlay_active = True
     elif st.session_state.get("_compute_future") is not None:
-        _show_loading_overlay("Running analysis\u2026 this won't take long.")
+        if not _was_overlay_active:
+            _show_loading_overlay("Running analysis\u2026 this won't take long.")
+        st.session_state._overlay_active = True
     else:
-        _hide_loading_overlay()
+        if _was_overlay_active:
+            _hide_loading_overlay()
+        st.session_state._overlay_active = False
     # ------------------------------------------------------------------
     if st.session_state.get("_csv_loading"):
         csv_future = st.session_state.get("_csv_future")
@@ -578,7 +591,7 @@ def render_homepage(base_dir: str) -> None:
             st.rerun()
             return
         # Still loading (or just kicked off) — poll.
-        time.sleep(0.2)
+        time.sleep(0.5)
         st.rerun()
 
     # ------------------------------------------------------------------
@@ -641,7 +654,7 @@ def render_homepage(base_dir: str) -> None:
             return
         else:
             # Still computing — poll.
-            time.sleep(0.2)
+            time.sleep(0.5)
             st.rerun()
 
     if st.session_state.get("show_success_dialog"):
@@ -2507,9 +2520,6 @@ def render_theme_toggle():
     '''
     Theme Toggle that inverts the HTML of an entire page
     '''
-    _MOON_ICON_B64 = _img_to_b64("moonIcon.png")
-    _SUN_ICON_B64  = _img_to_b64("sunIcon.png")
-
     _moon_b64 = _MOON_ICON_B64
     _sun_b64  = _SUN_ICON_B64
     _light_css = _light_css = """
@@ -2559,12 +2569,15 @@ def render_theme_toggle():
 
             function renderBtn() {{
                 const doc = window.parent.document;
+                const dark = isDark();
                 const old = doc.getElementById("ps-theme-btn");
+                // Skip DOM recreation when the button already reflects the current theme
+                if (old && old.dataset.isDark === String(dark)) return;
                 if (old) old.remove();
 
-                const dark = isDark();
                 const btn  = doc.createElement("button");
                 btn.id = "ps-theme-btn";
+                btn.dataset.isDark = String(dark);
                 btn.title = dark ? "Switch to Light Mode" : "Switch to Dark Mode";
                 btn.style.cssText = [
                     "position:absolute",
