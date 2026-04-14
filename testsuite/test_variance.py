@@ -32,24 +32,26 @@ def make_var(data, meta=None, params=None):
 # ===========================================================================
 
 class TestApplicable:
+    # _applicable() returns None when the method can run, or a non-None
+    # string error message when it cannot.
     def test_true_for_2_or_more_elements(self, meta):
-        assert Variance([1, 2, 3], meta, [])._applicable() is True
+        assert Variance([1, 2, 3], meta, [])._applicable() is None
 
     def test_false_for_none(self, meta):
-        assert Variance(None, meta, [])._applicable() is False
+        assert Variance(None, meta, [])._applicable() is not None
 
     def test_false_for_empty_list(self, meta):
-        assert Variance([], meta, [])._applicable() is False
+        assert Variance([], meta, [])._applicable() is not None
 
     def test_false_for_single_element(self, meta):
         # Variance requires at least 2 data points
-        assert Variance([5], meta, [])._applicable() is False
+        assert Variance([5], meta, [])._applicable() is not None
 
     def test_true_for_exactly_2_elements(self, meta):
-        assert Variance([3, 7], meta, [])._applicable() is True
+        assert Variance([3, 7], meta, [])._applicable() is None
 
     def test_true_for_numpy_array(self, meta):
-        assert Variance(np.array([1, 2, 3, 4]), meta, [])._applicable() is True
+        assert Variance(np.array([1, 2, 3, 4]), meta, [])._applicable() is None
 
 
 # ===========================================================================
@@ -132,7 +134,7 @@ class TestComputeNormal:
         data = [3, 7, 2, 9, 4]
         var_result = make_var(data, meta).compute()
         std_val = float(np.std(data, ddof=1))
-        assert result_ok := var_result["ok"]
+        assert var_result["ok"]
         assert math.isclose(var_result["value"], std_val ** 2, rel_tol=1e-9)
 
 

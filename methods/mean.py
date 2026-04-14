@@ -43,15 +43,26 @@ class Mean:
         reason = self._applicable()
         if reason is not None:
             return self._generate_return_structure_error(reason)
-        
+
         # Placeholder for the main computation logic
         try:
             data_array = np.asarray(self.data, dtype = float)
             mean_value = float(np.mean(data_array))
         except Exception as e:
             return self._generate_return_structure_error(str(e))
-        
-        return self._generate_return_structure(mean_value)
+
+        precision_note = False
+        if np.isinf(mean_value):
+            precision_note = "Overflow detected: the mean is infinite. Values may exceed float64 range (~1.8e308)."
+        elif np.abs(data_array).max() > 1e15:
+            precision_note = (
+                "Large-magnitude values detected (>1e15). Floating-point summation "
+                "may lose precision beyond 15-16 significant digits."
+            )
+
+        result = self._generate_return_structure(mean_value)
+        result["loss_of_precision"] = precision_note
+        return result
 
 
     def create_graphic(self, results):

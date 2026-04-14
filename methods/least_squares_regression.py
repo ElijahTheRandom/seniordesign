@@ -1,3 +1,6 @@
+import base64
+from io import BytesIO
+
 import numpy as np
 
 
@@ -43,6 +46,10 @@ class LeastSquaresRegression:
             return self._generate_return_structure_error(reason)
         
         try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+
             # Turn the xs and ys into np arrays
             x = np.array(self.data[0], dtype=float)
             y = np.array(self.data[1], dtype=float)
@@ -56,13 +63,61 @@ class LeastSquaresRegression:
             ss_tot = float(np.sum((y - np.mean(y)) ** 2))
             r_squared = 1 - ss_res / ss_tot if ss_tot != 0 else 0.0
 
-            # Return a compact equation string that fits better in the card
-            value = f"y = {slope:.3f}x + {intercept:.3f}"
+            equation = f"y = {slope:.3f}x + {intercept:.3f}"
+
+            # Generate scatter + regression line chart
+            fig, ax = plt.subplots(figsize=(5, 4))
+            fig.patch.set_facecolor("#1e2530")
+            ax.set_facecolor("#1e2530")
+            ax.scatter(x, y, color="steelblue", alpha=0.7, s=20, label="Data")
+            x_line = np.linspace(x.min(), x.max(), 300)
+            ax.plot(x_line, slope * x_line + intercept,
+                    color="#e4781d", linewidth=2, label="Fit")
+            ax.set_xlabel("x", color="white")
+            ax.set_ylabel("y", color="white")
+            ax.tick_params(colors="white")
+            for spine in ax.spines.values():
+                spine.set_edgecolor((1, 1, 1, 0.3))
+            ax.legend(facecolor="#1e2530", labelcolor="white", framealpha=0.6)
+            plt.tight_layout()
+
+            buf = BytesIO()
+            fig.savefig(buf, format="png", bbox_inches="tight", dpi=100,
+                        facecolor=fig.get_facecolor(), edgecolor="none")
+            plt.close(fig)
+            buf.seek(0)
+            chart_b64 = base64.b64encode(buf.read()).decode("utf-8")
+
+            value = {
+                "slope":     float(slope),
+                "intercept": float(intercept),
+                "r_squared": float(r_squared),
+                "equation":  equation,
+                "chart":     chart_b64,
+            }
+
+            # Precision / conditioning check
+            precision_note = False
+            if np.abs(x).max() > 1e12 or np.abs(y).max() > 1e12:
+                precision_note = (
+                    "Large-magnitude values detected (>1e12). Least squares regression "
+                    "solves a normal-equations system whose condition number grows with "
+                    "value magnitude, risking loss of precision in the slope/intercept."
+                )
+            else:
+                x_range = float(x.max() - x.min())
+                x_mean_abs = abs(float(x.mean()))
+                if x_mean_abs > 1e6 and x_range > 0 and x_range < x_mean_abs * 1e-4:
+                    precision_note = (
+                        "Ill-conditioned x values: the x range is very small relative to "
+                        "the x magnitude. The regression coefficients may be inaccurate."
+                    )
 
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 
         results = self._generate_return_structure(value)
+        results["loss_of_precision"] = precision_note
         return results
 
     def create_graphic(self, results):

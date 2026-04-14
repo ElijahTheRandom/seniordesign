@@ -64,6 +64,10 @@ if _PROJECT_ROOT not in sys.path:
 
 SAVED_RUNS_FILE = os.path.join(_PROJECT_ROOT, "results_cache", "saved_runs.json")
 
+_HUZZAH_PATH = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
+with open(_HUZZAH_PATH, "rb") as _f:
+    _HUZZAH_B64 = base64.b64encode(_f.read()).decode()
+
 # ADDITIONAL BOOL FOR TESTING PURPOSES
 # REPLACE THIS WITH SHARED VARIABLE CONTROLLING LIGHT MODE
 lightMode = False
@@ -76,11 +80,12 @@ if "modal_message" not in st.session_state:
 
 @st.dialog("Saved Successfully")
 def success_dialog():
-    img_path = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
-
     col_img, col_text = st.columns([1, 1.5], gap="medium")
     with col_img:
-        st.image(img_path, width=500)
+        st.markdown(
+            f'<img class="ps-squirrel" src="data:image/png;base64,{_HUZZAH_B64}" style="width:100%;max-width:500px;" />',
+            unsafe_allow_html=True,
+        )
     with col_text:
         st.markdown(st.session_state.modal_message)
 
@@ -123,6 +128,7 @@ def render_results(run: dict, base_dir: str) -> None:
 
     st.header(f"Analysis Results — {run['name']}", anchor=False)
     _render_stat_cards(run)
+    _render_precision_warnings(run)
     _render_visualizations(run)
     _render_data_table(run)
     _render_action_buttons(run)
@@ -212,6 +218,27 @@ def _render_error_card(title: str, error_msg: str) -> None:
         <div class="analysis-error-msg">{error_msg}</div>
     </div>
     """, unsafe_allow_html=True)
+
+
+def _render_precision_warnings(run: dict) -> None:
+    """
+    If any method flagged a loss-of-precision risk, render an info box
+    listing each affected method and its explanation.
+    """
+    warnings = run.get("precision_warnings") or []
+    if not warnings:
+        return
+
+    lines = []
+    for w in warnings:
+        lines.append(f"**{w['name']}**: {w['note']}")
+
+    st.info(
+        "**Precision / Overflow Notices**\n\n"
+        + "\n\n".join(lines),
+        icon="ℹ️",
+    )
+    st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
 
 
 def _render_visualization_download_button(
@@ -573,6 +600,13 @@ def _build_export_text(run: dict) -> str:
         lines.append("Visualizations Applied:")
         for v in run["visualizations"]:
             lines.append(f"- {v}")
+        lines.append("")
+
+    precision_warnings = run.get("precision_warnings") or []
+    if precision_warnings:
+        lines.append("Precision / Overflow Notices:")
+        for w in precision_warnings:
+            lines.append(f"  [{w['name']}] {w['note']}")
         lines.append("")
 
     lines.append("Selected Data:")
