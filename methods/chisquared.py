@@ -62,7 +62,22 @@ class ChiSquared:
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 
+        precision_note = False
+        min_expected = float(expected.min())
+        if min_expected < 5:
+            precision_note = (
+                f"Small expected frequency detected (minimum expected = {min_expected:.4g}). "
+                "The chi-square approximation requires expected cell counts ≥ 5; "
+                "results may be unreliable."
+            )
+        elif min_expected < 1e-10:
+            precision_note = (
+                "Near-zero expected frequency detected. Division by a value close to zero "
+                "in the chi-square formula may cause numerical overflow."
+            )
+
         results = self._generate_return_structure(float(chiSquared))
+        results["loss_of_precision"] = precision_note
         return results
 
     def create_graphic(self, results):
