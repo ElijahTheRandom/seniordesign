@@ -64,6 +64,10 @@ if _PROJECT_ROOT not in sys.path:
 
 SAVED_RUNS_FILE = os.path.join(_PROJECT_ROOT, "results_cache", "saved_runs.json")
 
+_HUZZAH_PATH = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
+with open(_HUZZAH_PATH, "rb") as _f:
+    _HUZZAH_B64 = base64.b64encode(_f.read()).decode()
+
 # ADDITIONAL BOOL FOR TESTING PURPOSES
 # REPLACE THIS WITH SHARED VARIABLE CONTROLLING LIGHT MODE
 lightMode = False
@@ -76,11 +80,12 @@ if "modal_message" not in st.session_state:
 
 @st.dialog("Saved Successfully")
 def success_dialog():
-    img_path = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSquirrel.png"
-
     col_img, col_text = st.columns([1, 1.5], gap="medium")
     with col_img:
-        st.image(img_path, width=500)
+        st.markdown(
+            f'<img class="ps-squirrel" src="data:image/png;base64,{_HUZZAH_B64}" style="width:100%;max-width:500px;" />',
+            unsafe_allow_html=True,
+        )
     with col_text:
         st.markdown(st.session_state.modal_message)
 

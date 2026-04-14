@@ -145,13 +145,18 @@ _HUZZAH_PATH = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSqui
 with open(_HUZZAH_PATH, "rb") as _f:
     _HUZZAH_B64 = base64.b64encode(_f.read()).decode()
 
+_WARNING_SQUIRREL_PATH = Path(__file__).parent.parent / "pages" / "assets" / "warningSquirrel.PNG"
+# Pre-encode once at module load so error_dialog never reads from disk on render
+with open(_WARNING_SQUIRREL_PATH, "rb") as _f:
+    _WARNING_SQUIRREL_B64 = base64.b64encode(_f.read()).decode()
+
 
 def _show_loading_gif(caption: str = "Loading\u2026") -> None:
     """Display the loading GIF centered on the page using base64 embedding."""
     st.markdown(
         f"""
         <div style="display:flex; flex-direction:column; align-items:center; margin-top:4rem;">
-            <img src="data:image/gif;base64,{_GIF_B64}" style="max-width:420px; width:100%;" />
+            <img class="ps-squirrel" src="data:image/gif;base64,{_GIF_B64}" style="max-width:420px; width:100%;" />
             <p style="color:#888; margin-top:1rem; font-size:1rem;">{caption}</p>
         </div>
         """,
@@ -335,13 +340,15 @@ def _hide_computing_toast() -> None:
 
 @st.dialog("Error", width="small")
 def error_dialog():
-    img_path = Path(__file__).parent.parent / "pages" / "assets" / "warningSquirrel.PNG"
     message = st.session_state.modal_message
 
     # Squirrel centered on top
     _, img_col, _ = st.columns([1, 2, 1])
     with img_col:
-        st.image(img_path, use_container_width=True)
+        st.markdown(
+            f'<img class="ps-squirrel" src="data:image/png;base64,{_WARNING_SQUIRREL_B64}" style="width:100%;max-width:100%;" />',
+            unsafe_allow_html=True,
+        )
 
     lines = message.split("\n")
     non_empty = [l for l in lines if l.strip()]
@@ -2610,10 +2617,8 @@ def render_theme_toggle():
         /* Keep squirrel assets visually normal in light mode (double invert). */
         #ps-success-toast img,
         #ps-loading-overlay img,
-        [data-testid="stImage"] img[src*="Squirrel"],
-        [data-testid="stImage"] img[src*="squirrel"],
-        [data-testid="stImage"] img[alt*="Squirrel"],
-        [data-testid="stImage"] img[alt*="squirrel"] {
+        #ps-computing-toast img,
+        img.ps-squirrel {
             filter: invert(1) !important;
         }
     """
