@@ -32,23 +32,23 @@ def make_chi(data, meta=None, params=None):
 
 class TestApplicable:
     def test_true_for_flat_list(self, meta):
-        assert ChiSquared([10, 20, 30], meta)._applicable() is True
+        assert ChiSquared([10, 20, 30], meta)._applicable() is None
 
     def test_true_for_2d_array(self, meta):
-        assert ChiSquared([[10, 20], [10, 20]], meta)._applicable() is True
+        assert ChiSquared([[10, 20], [10, 20]], meta)._applicable() is None
 
     def test_false_for_none(self, meta):
-        assert ChiSquared(None, meta)._applicable() is False
+        assert ChiSquared(None, meta)._applicable() is not None
 
     def test_false_for_single_value(self, meta):
         # Chi-squared needs at least 2 categories
-        assert ChiSquared([5], meta)._applicable() is False
+        assert ChiSquared([5], meta)._applicable() is not None
 
     def test_false_for_empty_list(self, meta):
-        assert ChiSquared([], meta)._applicable() is False
+        assert ChiSquared([], meta)._applicable() is not None
 
     def test_true_for_numpy_array(self, meta):
-        assert ChiSquared(np.array([5, 10, 15]), meta)._applicable() is True
+        assert ChiSquared(np.array([5, 10, 15]), meta)._applicable() is None
 
 
 # ===========================================================================

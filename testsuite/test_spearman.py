@@ -32,22 +32,22 @@ def make_spearman(data, meta=None, params=None):
 
 class TestApplicable:
     def test_true_for_valid_2_col(self, meta):
-        assert SpearmanCoefficient([[1, 2, 3], [4, 5, 6]], meta)._applicable() is True
+        assert SpearmanCoefficient([[1, 2, 3], [4, 5, 6]], meta)._applicable() is None
 
     def test_false_for_none(self, meta):
-        assert SpearmanCoefficient(None, meta)._applicable() is False
+        assert SpearmanCoefficient(None, meta)._applicable() is not None
 
     def test_false_for_single_column(self, meta):
-        assert SpearmanCoefficient([[1, 2, 3]], meta)._applicable() is False
+        assert SpearmanCoefficient([[1, 2, 3]], meta)._applicable() is not None
 
     def test_false_for_unequal_lengths(self, meta):
-        assert SpearmanCoefficient([[1, 2, 3], [4, 5]], meta)._applicable() is False
+        assert SpearmanCoefficient([[1, 2, 3], [4, 5]], meta)._applicable() is not None
 
     def test_false_for_empty_list(self, meta):
-        assert SpearmanCoefficient([], meta)._applicable() is False
+        assert SpearmanCoefficient([], meta)._applicable() is not None
 
     def test_true_for_two_points(self, meta):
-        assert SpearmanCoefficient([[1, 2], [3, 4]], meta)._applicable() is True
+        assert SpearmanCoefficient([[1, 2], [3, 4]], meta)._applicable() is None
 
 
 # ===========================================================================

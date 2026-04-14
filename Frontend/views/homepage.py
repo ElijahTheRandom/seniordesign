@@ -1437,15 +1437,23 @@ def _compute_data_info(
 
     # A column is "numeric" if pd.to_numeric can coerce every non-null value
     numeric_count = 0
+    numeric_cols: set = set()
     for c in subset.columns:
         coerced = pd.to_numeric(subset[c], errors="coerce")
         if coerced.notna().all() or subset[c].isna().all():
             numeric_count += 1
+            numeric_cols.add(c)
 
-    # Measurement-level counts from user tags
+    # Measurement-level counts — only count columns that are also numeric.
+    # A column tagged "Ratio" but containing strings would still fail at
+    # float-cast in the backend, so it must not enable any method.
     ml = st.session_state.get("column_measurement_levels", {})
-    num_interval_ratio = sum(1 for c in col1 if ml.get(c) in ("Interval", "Ratio"))
-    num_ordinal_plus = sum(1 for c in col1 if ml.get(c) in ("Ordinal", "Interval", "Ratio"))
+    num_interval_ratio = sum(
+        1 for c in col1 if ml.get(c) in ("Interval", "Ratio") and c in numeric_cols
+    )
+    num_ordinal_plus = sum(
+        1 for c in col1 if ml.get(c) in ("Ordinal", "Interval", "Ratio") and c in numeric_cols
+    )
 
     return {
         "num_selected_cols": len(col1),
@@ -1480,14 +1488,19 @@ def _render_computation_options(
 
     Disable rules (real-time, based on the current selection):
         - All checkboxes: disabled if no data is loaded (data_ready=False)
-        - One-column numeric methods (Mean, Median, Mode, Std Dev, Percentiles):
-              disabled if no numeric column selected
-        - Variance: disabled if < 1 numeric column OR < 2 rows (ddof=1)
-        - Pearson / Spearman: disabled if < 2 numeric columns OR < 3 rows
-        - Least Squares Regression: disabled if < 2 numeric columns OR < 2 rows
-        - Chi-Square: disabled if < 1 numeric column OR < 2 rows
-        - Binomial: disabled if < 1 numeric column
-        - Coefficient of Variation: disabled if no numeric column
+        - Float-casting methods require ALL selected columns to be numeric
+          (a single non-numeric column causes the backend cast to fail).
+          n_ir / n_ord only count columns that are both numeric AND tagged
+          at the appropriate measurement level.
+        - Mean, Median, Std Dev, Percentiles:
+              disabled unless all columns numeric AND ≥1 Interval/Ratio column
+        - Variance: same as above plus ≥2 rows (sample variance, ddof=1)
+        - Mode: disabled if no numeric column (any measurement level)
+        - Pearson: all numeric, ≥2 Interval/Ratio columns, ≥3 rows
+        - Spearman: all numeric, ≥2 Ordinal+ columns, ≥3 rows
+        - Least Squares Regression: all numeric, ≥2 I/R columns, ≥2 rows
+        - Chi-Square: all selected columns numeric AND ≥2 rows
+        - Coefficient of Variation: all numeric AND ≥1 Interval/Ratio column
 
     Returns:
         Tuple of 11 booleans + custom_flags dict + invalid_params bool.
@@ -1503,24 +1516,31 @@ def _render_computation_options(
     n_ir   = data_info.get("num_interval_ratio", 0)  # interval/ratio columns
     n_ord  = data_info.get("num_ordinal_plus", 0)     # ordinal+ columns
 
-    # Interval/ratio methods: Mean, Median, Std Dev, Percentiles, CV
-    dis_1num = not data_ready or n_num < 1 or n_ir < 1
-    # Variance needs interval/ratio AND ≥2 rows (sample variance, ddof=1)
-    dis_var  = not data_ready or n_num < 1 or n_ir < 1 or n_rows < 2
-    # Mode works on any measurement level — just needs data
-    dis_mode = not data_ready or n_num < 1
-    # Pearson: needs ≥2 interval/ratio columns AND ≥3 rows
-    dis_corr = not data_ready or n_num < 2 or n_ir < 2 or n_rows < 3
-    # Spearman: works on ordinal+, needs ≥2 ordinal+ columns AND ≥3 rows
-    dis_spear = not data_ready or n_num < 2 or n_ord < 2 or n_rows < 3
-    # Least-squares regression: needs ≥2 interval/ratio columns AND ≥2 rows
-    dis_lsr  = not data_ready or n_num < 2 or n_ir < 2 or n_rows < 2
-    # Chi-Square: needs ≥1 numeric column AND ≥2 observed values
-    dis_chi  = not data_ready or n_num < 1 or n_rows < 2
+    # Float-casting methods require ALL selected columns to be numeric —
+    # a single non-numeric column causes the backend cast to fail.
+    # n_ir / n_ord already only count columns that are both numeric and
+    # tagged at the right measurement level (enforced in _compute_data_info).
+
+    # Interval/ratio methods: Mean, Median, Std Dev, Percentiles
+    # All selected columns must be numeric AND ≥1 must be Interval/Ratio.
+    dis_1num  = not data_ready or not all_num or n_ir < 1
+    # Variance also needs ≥2 rows (sample variance, ddof=1)
+    dis_var   = not data_ready or not all_num or n_ir < 1 or n_rows < 2
+    # Mode works on any measurement level — just needs ≥1 numeric column
+    dis_mode  = not data_ready or n_num < 1
+    # Pearson: all numeric, ≥2 Interval/Ratio columns, ≥3 rows
+    dis_corr  = not data_ready or not all_num or n_ir < 2 or n_rows < 3
+    # Spearman: all numeric, ≥2 Ordinal+ columns, ≥3 rows
+    dis_spear = not data_ready or not all_num or n_ord < 2 or n_rows < 3
+    # Least-squares: all numeric, ≥2 Interval/Ratio columns, ≥2 rows
+    dis_lsr   = not data_ready or not all_num or n_ir < 2 or n_rows < 2
+    # Chi-Square: all selected columns numeric (used as observed / expected),
+    # AND ≥2 observed values
+    dis_chi   = not data_ready or not all_num or n_rows < 2
     # Binomial: needs ≥1 numeric column (data is cast to int/float)
     dis_binom = not data_ready or n_num < 1
-    # Coefficient of Variation: needs ≥1 interval/ratio column
-    dis_cv   = not data_ready or n_num < 1 or n_ir < 1
+    # Coefficient of Variation: all numeric AND ≥1 Interval/Ratio column
+    dis_cv    = not data_ready or not all_num or n_ir < 1
 
     # If user drops from >=2 columns to 1 column,
     # reset two-column statistical method checkboxes

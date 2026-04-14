@@ -56,23 +56,7 @@ class Percentile:
             percentile_results = []
             for p in param_array.flatten():
                 computed = float(np.percentile(flat_data, p))
-
-                # Format ordinal suffix
-                p_int = int(p) if float(p).is_integer() else p
-                ordinal = f"{p_int}th"
-                if isinstance(p_int, int):
-                    if 10 <= p_int % 100 <= 20:
-                        ordinal = f"{p_int}th"
-                    elif p_int % 10 == 1:
-                        ordinal = f"{p_int}st"
-                    elif p_int % 10 == 2:
-                        ordinal = f"{p_int}nd"
-                    elif p_int % 10 == 3:
-                        ordinal = f"{p_int}rd"
-                    else:
-                        ordinal = f"{p_int}th"
-
-                percentile_results.append(f"{ordinal}: {computed:.2f}")
+                percentile_results.append(computed)
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 

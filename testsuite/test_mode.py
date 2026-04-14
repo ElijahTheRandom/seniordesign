@@ -37,24 +37,24 @@ def make_mode(data, metadata=None, params=None):
 
 class TestApplicable:
     def test_returns_true_for_valid_list(self, dummy_metadata):
-        """_applicable should be True for a non-empty list."""
+        """_applicable returns None (no error) for a non-empty list."""
         m = make_mode([1, 2, 2, 3], dummy_metadata)
-        assert m._applicable() is True
+        assert m._applicable() is None
 
     def test_returns_false_for_empty_list(self, dummy_metadata):
-        """_applicable should be False for an empty list."""
+        """_applicable returns an error string for an empty list."""
         m = make_mode([], dummy_metadata)
-        assert m._applicable() is False
+        assert m._applicable() is not None
 
     def test_returns_false_for_none(self, dummy_metadata):
-        """_applicable should be False when data is None."""
+        """_applicable returns an error string when data is None."""
         m = make_mode(None, dummy_metadata)
-        assert m._applicable() is False
+        assert m._applicable() is not None
 
     def test_returns_true_for_numpy_array(self, dummy_metadata):
-        """_applicable should be True for a non-empty numpy array."""
+        """_applicable returns None (no error) for a non-empty numpy array."""
         m = make_mode(np.array([1, 1, 2]), dummy_metadata)
-        assert m._applicable() is True
+        assert m._applicable() is None
 
 
 # ===========================================================================
@@ -110,7 +110,7 @@ class TestComputeNormal:
         """Result dict must contain the expected keys."""
         m = make_mode([1, 1, 2], dummy_metadata)
         result = m.compute()
-        expected_keys = {"id", "ok", "value", "error", "loss_precision", "params_used"}
+        expected_keys = {"id", "ok", "value", "error", "loss_of_precision", "params_used"}
         assert expected_keys == set(result.keys())
 
     def test_stat_id_in_result(self, dummy_metadata):
@@ -230,7 +230,7 @@ class TestComputeErrors:
         """Error result dict must still contain all required keys."""
         m = make_mode([], dummy_metadata)
         result = m.compute()
-        expected_keys = {"id", "ok", "value", "error", "loss_precision", "params_used"}
+        expected_keys = {"id", "ok", "value", "error", "loss_of_precision", "params_used"}
         assert expected_keys == set(result.keys())
 
     def test_error_stat_id_preserved(self, dummy_metadata):

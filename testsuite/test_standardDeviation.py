@@ -37,19 +37,19 @@ def make_std(data, meta=None, params=None):
 
 class TestApplicable:
     def test_true_for_valid_list(self, meta):
-        assert StandardDeviation([1, 2, 3], meta)._applicable() is True
+        assert StandardDeviation([1, 2, 3], meta)._applicable() is None
 
     def test_false_for_none(self, meta):
-        assert StandardDeviation(None, meta)._applicable() is False
+        assert StandardDeviation(None, meta)._applicable() is not None
 
     def test_false_for_empty_list(self, meta):
-        assert StandardDeviation([], meta)._applicable() is False
+        assert StandardDeviation([], meta)._applicable() is not None
 
     def test_true_for_single_element(self, meta):
-        assert StandardDeviation([5], meta)._applicable() is True
+        assert StandardDeviation([5], meta)._applicable() is None
 
     def test_true_for_numpy_array(self, meta):
-        assert StandardDeviation(np.array([10, 20, 30]), meta)._applicable() is True
+        assert StandardDeviation(np.array([10, 20, 30]), meta)._applicable() is None
 
 
 # ===========================================================================
@@ -75,7 +75,7 @@ class TestComputeNormal:
 
     def test_result_keys(self, meta):
         result = make_std([1, 2, 3], meta).compute()
-        assert {"id", "ok", "value", "error", "loss_precision", "params_used"} == set(result.keys())
+        assert {"id", "ok", "value", "error", "loss_of_precision", "params_used"} == set(result.keys())
 
     def test_known_std_simple(self, meta):
         """std of [2, 4, 4, 4, 5, 5, 7, 9] = 2.0 (population std, ddof=0)."""
@@ -197,7 +197,7 @@ class TestComputeErrors:
 
     def test_error_result_keys(self, meta):
         result = make_std(None, meta).compute()
-        assert {"id", "ok", "value", "error", "loss_precision", "params_used"} == set(result.keys())
+        assert {"id", "ok", "value", "error", "loss_of_precision", "params_used"} == set(result.keys())
 
 
 # ===========================================================================
