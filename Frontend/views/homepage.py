@@ -1492,9 +1492,11 @@ def _render_computation_options(
           (a single non-numeric column causes the backend cast to fail).
           n_ir / n_ord only count columns that are both numeric AND tagged
           at the appropriate measurement level.
-        - Mean, Median, Std Dev, Percentiles:
+        - Mean, Std Dev:
               disabled unless all columns numeric AND ≥1 Interval/Ratio column
-        - Variance: same as above plus ≥2 rows (sample variance, ddof=1)
+        - Median, Percentile:
+              disabled unless all columns numeric AND ≥1 Ordinal/Interval/Ratio column
+        - Variance: same as Mean/Std Dev plus ≥2 rows (sample variance, ddof=1)
         - Mode: disabled if no numeric column (any measurement level)
         - Pearson: all numeric, ≥2 Interval/Ratio columns, ≥3 rows
         - Spearman: all numeric, ≥2 Ordinal+ columns, ≥3 rows
@@ -1521,9 +1523,13 @@ def _render_computation_options(
     # n_ir / n_ord already only count columns that are both numeric and
     # tagged at the right measurement level (enforced in _compute_data_info).
 
-    # Interval/ratio methods: Mean, Median, Std Dev, Percentiles
+    # Interval/Ratio methods: Mean, Std Dev
     # All selected columns must be numeric AND ≥1 must be Interval/Ratio.
     dis_1num  = not data_ready or not all_num or n_ir < 1
+    # Ordinal+ methods: Median, Percentile
+    # Valid for Ordinal, Interval, and Ratio data — ≥1 such column is enough.
+    dis_med   = not data_ready or not all_num or n_ord < 1
+    dis_pct   = not data_ready or not all_num or n_ord < 1
     # Variance also needs ≥2 rows (sample variance, ddof=1)
     dis_var   = not data_ready or not all_num or n_ir < 1 or n_rows < 2
     # Mode works on any measurement level — just needs ≥1 numeric column
@@ -1551,11 +1557,11 @@ def _render_computation_options(
 
     with c1:
         mean        = st.checkbox("Mean",                disabled=dis_1num,  key=f"mean_c1_{k1}")        and not dis_1num
-        median      = st.checkbox("Median",              disabled=dis_1num,  key=f"median_c1_{k1}")      and not dis_1num
+        median      = st.checkbox("Median",              disabled=dis_med,   key=f"median_c1_{k1}")      and not dis_med
         mode        = st.checkbox("Mode",                disabled=dis_mode,  key=f"mode_c1_{k1}")        and not dis_mode
         variance    = st.checkbox("Variance",            disabled=dis_var,   key=f"variance_c1_{k1}")    and not dis_var
         std         = st.checkbox("Standard Deviation",  disabled=dis_1num,  key=f"std_c1_{k1}")         and not dis_1num
-        percentiles = st.checkbox("Percentiles",         disabled=dis_1num,  key=f"percentiles_c1_{k1}") and not dis_1num
+        percentiles = st.checkbox("Percentiles",         disabled=dis_pct,   key=f"percentiles_c1_{k1}") and not dis_pct
 
     with c2:
         pearson                = st.checkbox("Pearson's Correlation",     disabled=dis_corr,  key=f"pearson_c2_{k2}")                and not dis_corr
@@ -1577,7 +1583,7 @@ def _render_computation_options(
                 key="percentile_values_input",
                 placeholder="e.g. 10, 25, 50, 75, 90",
                 help="Enter any values between 0 and 100, separated by commas.",
-                disabled=dis_1num,
+                disabled=dis_pct,
             )
         try:
             parsed_pcts = [float(v.strip()) for v in percentile_input_val.split(",") if v.strip()]
