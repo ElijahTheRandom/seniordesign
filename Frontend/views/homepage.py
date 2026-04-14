@@ -2649,12 +2649,10 @@ def render_theme_toggle():
 
             function renderBtn() {{
                 const doc = window.parent.document;
-                const dark = isDark();
                 const old = doc.getElementById("ps-theme-btn");
-                // Skip DOM recreation when the button already reflects the current theme
-                if (old && old.dataset.isDark === String(dark)) return;
                 if (old) old.remove();
 
+                const dark = isDark();
                 const btn  = doc.createElement("button");
                 btn.id = "ps-theme-btn";
                 btn.dataset.isDark = String(dark);
