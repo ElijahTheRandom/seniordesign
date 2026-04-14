@@ -128,6 +128,7 @@ def render_results(run: dict, base_dir: str) -> None:
 
     st.header(f"Analysis Results — {run['name']}", anchor=False)
     _render_stat_cards(run)
+    _render_precision_warnings(run)
     _render_visualizations(run)
     _render_data_table(run)
     _render_action_buttons(run)
@@ -217,6 +218,27 @@ def _render_error_card(title: str, error_msg: str) -> None:
         <div class="analysis-error-msg">{error_msg}</div>
     </div>
     """, unsafe_allow_html=True)
+
+
+def _render_precision_warnings(run: dict) -> None:
+    """
+    If any method flagged a loss-of-precision risk, render an info box
+    listing each affected method and its explanation.
+    """
+    warnings = run.get("precision_warnings") or []
+    if not warnings:
+        return
+
+    lines = []
+    for w in warnings:
+        lines.append(f"**{w['name']}**: {w['note']}")
+
+    st.info(
+        "**Precision / Overflow Notices**\n\n"
+        + "\n\n".join(lines),
+        icon="ℹ️",
+    )
+    st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
 
 
 def _render_visualization_download_button(
@@ -578,6 +600,13 @@ def _build_export_text(run: dict) -> str:
         lines.append("Visualizations Applied:")
         for v in run["visualizations"]:
             lines.append(f"- {v}")
+        lines.append("")
+
+    precision_warnings = run.get("precision_warnings") or []
+    if precision_warnings:
+        lines.append("Precision / Overflow Notices:")
+        for w in precision_warnings:
+            lines.append(f"  [{w['name']}] {w['note']}")
         lines.append("")
 
     lines.append("Selected Data:")

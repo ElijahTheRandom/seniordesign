@@ -44,7 +44,7 @@ class Variance:
         reason = self._applicable()
         if reason is not None:
             return self._generate_return_structure_error(reason)
-        
+
         try:
             # Flatten 2D data (one column arrives as shape (1, N))
             array = np.asarray(self.data, dtype = float).flatten()
@@ -52,7 +52,26 @@ class Variance:
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 
+        precision_note = False
+        if np.isinf(variance):
+            precision_note = "Overflow detected: the variance is infinite. Values may exceed float64 range."
+        elif np.abs(array).max() > 1e15:
+            precision_note = (
+                "Large-magnitude values detected (>1e15). Sample variance uses the "
+                "sum of squared deviations, which can overflow or lose precision at this scale."
+            )
+        else:
+            mean_abs = abs(float(np.mean(array)))
+            spread = float(array.max() - array.min())
+            if mean_abs > 1e8 and spread > 0 and spread < mean_abs * 1e-6:
+                precision_note = (
+                    "Catastrophic cancellation risk: values are nearly identical relative to "
+                    "their magnitude. The computed variance may have fewer significant digits "
+                    "than expected."
+                )
+
         results = self._generate_return_structure(variance)
+        results["loss_of_precision"] = precision_note
         return results
 
     def create_graphic(self, results):

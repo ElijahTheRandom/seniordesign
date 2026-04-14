@@ -50,15 +50,32 @@ class CoefficientVariation:
         reason = self._applicable()
         if reason is not None:
             return self._generate_return_structure_error(reason)
-        
+
         # Main Computation Logic
         try:
             data_array = np.asarray(self.data, dtype = float).flatten()
             cv_value = float(variation(data_array))
+            mean_val = float(np.mean(data_array))
+            std_val = float(np.std(data_array))
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 
-        return self._generate_return_structure(cv_value)
+        precision_note = False
+        if np.isinf(cv_value):
+            precision_note = (
+                "Overflow detected: the coefficient of variation is infinite. "
+                "The mean is effectively zero, making CV undefined."
+            )
+        elif std_val > 0 and abs(mean_val) < std_val * 1e-6:
+            precision_note = (
+                f"Near-zero mean detected (mean ≈ {mean_val:.3g}). The coefficient of "
+                "variation (std/mean) is highly sensitive to small changes in the mean "
+                "at this scale; the result may not be meaningful."
+            )
+
+        result = self._generate_return_structure(cv_value)
+        result["loss_of_precision"] = precision_note
+        return result
 
 
     def create_graphic(self, results):

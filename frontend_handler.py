@@ -90,9 +90,12 @@ def handle_result(run: dict) -> dict:
              (a Message object returned by BackendHandler).
 
     Returns:
-        The same run dict with run["cards"] populated.
+        The same run dict with run["cards"] and run["precision_warnings"] populated.
+        run["precision_warnings"] is a list of {"name": str, "note": str} dicts,
+        one entry per result where loss_of_precision is a non-False truthy value.
     """
     cards = []
+    precision_warnings = []
     for result in run["result_message"].results:
         display_name = _ID_TO_DISPLAY.get(result['id'], result['id'])
         if result.get("ok"):
@@ -102,5 +105,11 @@ def handle_result(run: dict) -> dict:
         else:
             error_msg = result.get("error") or "Computation failed"
             cards.append(("error", f"<b>{display_name}</b>", str(error_msg)))
+
+        lop = result.get("loss_of_precision")
+        if lop:
+            precision_warnings.append({"name": display_name, "note": str(lop)})
+
     run["cards"] = cards
+    run["precision_warnings"] = precision_warnings
     return run

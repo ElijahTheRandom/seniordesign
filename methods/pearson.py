@@ -43,7 +43,7 @@ class PearsonCoefficient:
         reason = self._applicable()
         if reason is not None:
             return self._generate_return_structure_error(reason)
-        
+
         try:
             data1 = np.array(self.data[0], dtype=float)
             data2 = np.array(self.data[1], dtype=float)
@@ -51,7 +51,22 @@ class PearsonCoefficient:
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 
-        return self._generate_return_structure(float(pearson_corr))
+        precision_note = False
+        all_vals = np.concatenate([data1, data2])
+        if np.abs(all_vals).max() > 1e12:
+            precision_note = (
+                "Large-magnitude values detected (>1e12). Pearson correlation involves "
+                "sums of squared values; intermediate products may lose precision near float64 limits."
+            )
+        elif float(np.std(data1)) < abs(float(np.mean(data1))) * 1e-8 and abs(float(np.mean(data1))) > 1:
+            precision_note = (
+                "Near-constant x values detected. Pearson correlation is ill-conditioned "
+                "when one variable has very low variance relative to its mean."
+            )
+
+        result = self._generate_return_structure(float(pearson_corr))
+        result["loss_of_precision"] = precision_note
+        return result
 
     def create_graphic(self, results):
         # Generate a chart or visualization object for the computed results

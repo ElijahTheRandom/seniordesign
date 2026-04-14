@@ -96,10 +96,28 @@ class LeastSquaresRegression:
                 "chart":     chart_b64,
             }
 
+            # Precision / conditioning check
+            precision_note = False
+            if np.abs(x).max() > 1e12 or np.abs(y).max() > 1e12:
+                precision_note = (
+                    "Large-magnitude values detected (>1e12). Least squares regression "
+                    "solves a normal-equations system whose condition number grows with "
+                    "value magnitude, risking loss of precision in the slope/intercept."
+                )
+            else:
+                x_range = float(x.max() - x.min())
+                x_mean_abs = abs(float(x.mean()))
+                if x_mean_abs > 1e6 and x_range > 0 and x_range < x_mean_abs * 1e-4:
+                    precision_note = (
+                        "Ill-conditioned x values: the x range is very small relative to "
+                        "the x magnitude. The regression coefficients may be inaccurate."
+                    )
+
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 
         results = self._generate_return_structure(value)
+        results["loss_of_precision"] = precision_note
         return results
 
     def create_graphic(self, results):
