@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest testsuite/ -q)",
+      "Bash(python -m pytest testsuite/test_standardDeviation.py testsuite/test_spearman.py testsuite/test_percentile.py -q)",
+      "Bash(python -m pytest testsuite/ -q --ignore=testsuite/test_variance.py)",
+      "Bash(python -m pytest testsuite/ --ignore=testsuite/test_variance.py -q)",
+      "Bash(python -m pytest testsuite/test_least_squares_regression.py::TestComputeNormal::test_ok_true -q)",
+      "Bash(python -c ':*)"
+    ]
+  }
+}

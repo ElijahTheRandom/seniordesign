@@ -31,11 +31,80 @@ class Binomial:
         self.params = params or {}
 
     def _applicable(self):
-        # Check whether this statistic is valid for the given data selection
-        if "path" not in self.params or not self.params["path"]:
-            return "No output path provided"
-        
+        """Return None if data is valid, or an error string if not."""
+        if self.data is None:
+            return "Binomial requires [n, p, kMin] at minimum"
+        try:
+            arr = np.asarray(self.data).flatten()
+        except Exception:
+            return "Binomial requires numeric [n, p, kMin] data"
+        if len(arr) < 3:
+            return "Binomial requires at least 3 values: [n, p, kMin]"
         return None
+
+    def _generate_stat_structure(self, value):
+        """Standard stat result dict (used by compute())."""
+        return {
+            "id": self.type,
+            "ok": True,
+            "value": value,
+            "error": None,
+            "loss_of_precision": False,
+            "params_used": self.params,
+        }
+
+    def _generate_stat_error(self, error_message):
+        """Standard error result dict (used by compute())."""
+        return {
+            "id": self.type,
+            "ok": False,
+            "value": None,
+            "error": error_message,
+            "loss_of_precision": False,
+            "params_used": self.params,
+        }
+
+    def compute(self):
+        """Compute the binomial distribution table and return a standard result dict.
+
+        Data format: [n, p, kMin] or [n, p, kMin, kMax]
+        Returns value as a pandas DataFrame with columns:
+            k, P(X = k), P(X <= k), P(X >= k)
+        """
+        reason = self._applicable()
+        if reason is not None:
+            return self._generate_stat_error(reason)
+
+        try:
+            import pandas as pd
+            arr = np.asarray(self.data).flatten()
+            n = int(arr[0])
+            p = float(arr[1])
+            k_min = int(arr[2])
+            k_max = int(arr[3]) if len(arr) > 3 else n
+
+            if n < 1:
+                return self._generate_stat_error("n must be >= 1")
+            if not (0.0 <= p <= 1.0):
+                return self._generate_stat_error(
+                    "p must be a probability between 0 and 1"
+                )
+            if k_min < 0 or k_max < 0:
+                return self._generate_stat_error("k_min and k_max must be >= 0")
+            if k_max < k_min:
+                return self._generate_stat_error("k_max must be >= k_min")
+
+            k_values = np.arange(k_min, k_max + 1)
+            df = pd.DataFrame({
+                "k":        k_values.tolist(),
+                "P(X = k)": binom.pmf(k_values, n, p),
+                "P(X <= k)": binom.cdf(k_values, n, p),
+                "P(X >= k)": binom.sf(k_values - 1, n, p),
+            })
+        except Exception as exc:
+            return self._generate_stat_error(str(exc))
+
+        return self._generate_stat_structure(df)
 
     def _generate_return_structure(self):
         # Check whether this statistic is valid for the given data selection

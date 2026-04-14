@@ -31,17 +31,17 @@ def make_pct(data, meta=None, params=None):
 
 class TestApplicable:
     def test_true_for_valid_list(self, meta):
-        assert Percentile([1, 2, 3], meta)._applicable() is True
+        assert Percentile([1, 2, 3], meta)._applicable() is None
 
     def test_false_for_none(self, meta):
-        assert Percentile(None, meta)._applicable() is False
+        assert Percentile(None, meta)._applicable() is not None
 
     def test_true_for_empty_list(self, meta):
         # _applicable only checks for None; empty list passes through to compute()
-        assert Percentile([], meta)._applicable() is True
+        assert Percentile([], meta)._applicable() is None
 
     def test_true_for_numpy_array(self, meta):
-        assert Percentile(np.array([10, 20, 30]), meta)._applicable() is True
+        assert Percentile(np.array([10, 20, 30]), meta)._applicable() is None
 
 
 # ===========================================================================

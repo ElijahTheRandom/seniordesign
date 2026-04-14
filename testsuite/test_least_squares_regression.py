@@ -37,22 +37,22 @@ PERFECT_Y = [5.0, 7.0, 9.0, 11.0, 13.0]  # y = 2x + 3
 
 class TestApplicable:
     def test_true_for_valid_2_col(self, meta):
-        assert LeastSquaresRegression([[1, 2, 3], [4, 5, 6]], meta)._applicable() is True
+        assert LeastSquaresRegression([[1, 2, 3], [4, 5, 6]], meta)._applicable() is None
 
     def test_false_for_none(self, meta):
-        assert LeastSquaresRegression(None, meta)._applicable() is False
+        assert LeastSquaresRegression(None, meta)._applicable() is not None
 
     def test_false_for_single_column(self, meta):
-        assert LeastSquaresRegression([[1, 2, 3]], meta)._applicable() is False
+        assert LeastSquaresRegression([[1, 2, 3]], meta)._applicable() is not None
 
     def test_false_for_unequal_length_columns(self, meta):
-        assert LeastSquaresRegression([[1, 2, 3], [4, 5]], meta)._applicable() is False
+        assert LeastSquaresRegression([[1, 2, 3], [4, 5]], meta)._applicable() is not None
 
     def test_false_for_empty_data(self, meta):
-        assert LeastSquaresRegression([], meta)._applicable() is False
+        assert LeastSquaresRegression([], meta)._applicable() is not None
 
     def test_true_for_two_points(self, meta):
-        assert LeastSquaresRegression([[1, 2], [3, 4]], meta)._applicable() is True
+        assert LeastSquaresRegression([[1, 2], [3, 4]], meta)._applicable() is None
 
 
 # ===========================================================================

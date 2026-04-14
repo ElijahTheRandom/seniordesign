@@ -33,23 +33,23 @@ def make_binom(data, meta=None, params=None):
 
 class TestApplicable:
     def test_true_for_3_element_list(self, meta):
-        assert Binomial([10, 0.5, 2], meta)._applicable() is True
+        assert Binomial([10, 0.5, 2], meta)._applicable() is None
 
     def test_true_for_4_element_list(self, meta):
-        assert Binomial([10, 0.5, 2, 8], meta)._applicable() is True
+        assert Binomial([10, 0.5, 2, 8], meta)._applicable() is None
 
     def test_false_for_none(self, meta):
-        assert Binomial(None, meta)._applicable() is False
+        assert Binomial(None, meta)._applicable() is not None
 
     def test_false_for_2_element_list(self, meta):
         # Requires at least 3 values (n, p, kMin)
-        assert Binomial([10, 0.5], meta)._applicable() is False
+        assert Binomial([10, 0.5], meta)._applicable() is not None
 
     def test_false_for_empty_list(self, meta):
-        assert Binomial([], meta)._applicable() is False
+        assert Binomial([], meta)._applicable() is not None
 
     def test_true_for_numpy_array(self, meta):
-        assert Binomial(np.array([10, 0.5, 0, 10]), meta)._applicable() is True
+        assert Binomial(np.array([10, 0.5, 0, 10]), meta)._applicable() is None
 
 
 # ===========================================================================

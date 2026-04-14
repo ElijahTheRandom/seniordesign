@@ -39,23 +39,23 @@ def make_cv(data, meta=None, params=None):
 
 class TestApplicable:
     def test_true_for_positive_data(self, meta):
-        assert CoefficientVariation([1, 2, 3], meta)._applicable() is True
+        assert CoefficientVariation([1, 2, 3], meta)._applicable() is None
 
     def test_false_for_none(self, meta):
-        assert CoefficientVariation(None, meta)._applicable() is False
+        assert CoefficientVariation(None, meta)._applicable() is not None
 
     def test_false_for_empty_list(self, meta):
-        assert CoefficientVariation([], meta)._applicable() is False
+        assert CoefficientVariation([], meta)._applicable() is not None
 
     def test_false_when_mean_is_zero(self, meta):
         # CV is undefined when mean = 0
-        assert CoefficientVariation([-1, 0, 1], meta)._applicable() is False
+        assert CoefficientVariation([-1, 0, 1], meta)._applicable() is not None
 
     def test_false_for_non_numeric_strings(self, meta):
-        assert CoefficientVariation(["a", "b"], meta)._applicable() is False
+        assert CoefficientVariation(["a", "b"], meta)._applicable() is not None
 
     def test_true_for_numpy_array(self, meta):
-        assert CoefficientVariation(np.array([10, 20, 30]), meta)._applicable() is True
+        assert CoefficientVariation(np.array([10, 20, 30]), meta)._applicable() is None
 
 
 # ===========================================================================
@@ -81,7 +81,7 @@ class TestComputeNormal:
 
     def test_result_keys(self, meta):
         result = make_cv([1, 2, 3], meta).compute()
-        assert {"id", "ok", "value", "error", "loss_precision", "params_used"} == set(result.keys())
+        assert {"id", "ok", "value", "error", "loss_of_precision", "params_used"} == set(result.keys())
 
     def test_matches_scipy_variation(self, meta):
         """CV should match scipy.stats.variation (std/mean)."""
@@ -184,7 +184,7 @@ class TestComputeErrors:
 
     def test_error_result_keys(self, meta):
         result = make_cv(None, meta).compute()
-        assert {"id", "ok", "value", "error", "loss_precision", "params_used"} == set(result.keys())
+        assert {"id", "ok", "value", "error", "loss_of_precision", "params_used"} == set(result.keys())
 
 
 # ===========================================================================
