@@ -156,6 +156,7 @@ def render_help_statistical_methods() -> None:
             """
         )
         st.markdown("> (2 + 4 + 6) / 3 = **4**")
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -168,16 +169,20 @@ def render_help_statistical_methods() -> None:
             """
             The **median** is the middle value of a dataset when values are sorted in order.
 
-            - ** Odd count:** the median is the single middle value.
-            - **Even count:** the median is the average of the two middle values.
+            <ul style="padding-left: 1.5rem; margin-left: 1rem;">
+              <li><strong>Odd count:</strong> the median is the single middle value.</li>
+              <li><strong>Even count:</strong> the median is the average of the two middle values.</li>
+            </ul>
 
             All values in the selection must be **numeric**.
 
             **Examples:**
-            """
+            """,
+            unsafe_allow_html=True
         )
         st.markdown("> `1, 3, 3, 6, 7, 8, 9` → median = **6** (middle value)")
         st.markdown("> `1, 2, 3, 4, 5, 6, 8, 9` → median = (4 + 5) / 2 = **4.5**")
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -197,6 +202,7 @@ def render_help_statistical_methods() -> None:
         )
         st.markdown("> `1, 2, 2, 3, 4` → mode = **2**")
         st.markdown("> `1, 1, 2, 2, 3, 3` → modes = **1, 2, 3** (all tie for highest frequency)")
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -216,6 +222,7 @@ def render_help_statistical_methods() -> None:
         )
         st.markdown("> Squared differences: (2−4)² = 4, (4−4)² = 0, (6−4)² = 4")
         st.markdown("> Variance = (4 + 0 + 4) / 3 = **2.67**")
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -235,6 +242,7 @@ def render_help_statistical_methods() -> None:
             """
         )
         st.markdown("> Standard deviation = √2.67 ≈ **1.63**")
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -259,6 +267,7 @@ def render_help_statistical_methods() -> None:
         st.markdown("> **25th percentile** (Q1) — 25% of values fall below this point")
         st.markdown("> **50th percentile** (median) — 50% of values fall below this point")
         st.markdown("> **75th percentile** (Q3) — 75% of values fall below this point")
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -272,19 +281,22 @@ def render_help_statistical_methods() -> None:
             **Pearson's r** measures the strength and direction of the **linear relationship**
             between two continuous variables. It ranges from **−1 to 1**:
 
-            - **r = 1** → perfect positive linear relationship
-            - **r = −1** → perfect negative linear relationship
-            - **r = 0** → no linear relationship
+            <ul style="padding-left: 1.5rem; margin-left: 1rem;">
+              <li><strong>r = 1</strong> → perfect positive linear relationship</li>
+              <li><strong>r = −1</strong> → perfect negative linear relationship</li>
+              <li><strong>r = 0</strong> → no linear relationship</li>
+            </ul>
 
             It is calculated as the covariance of the two variables divided by the product
             of their standard deviations. This application computes Pearson's r for two
             selected numeric columns of **equal length**.
 
             **Example:** For `X = [1, 2, 3]` and `Y = [2, 4, 6]`:
-            """
+            """,
+            unsafe_allow_html=True
         )
         st.markdown("> r = **1.0** — a perfect positive linear relationship (as X increases, Y increases proportionally)")
-
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
         _section_divider()
 
         # ------------------------------------------------------------------ #
@@ -300,16 +312,20 @@ def render_help_statistical_methods() -> None:
 
             It ranges from **−1 to 1**:
 
-            - **ρ = 1** → perfect increasing monotonic relationship
-            - **ρ = −1** → perfect decreasing monotonic relationship
-            - **ρ = 0** → no monotonic relationship
+            <ul style="padding-left: 1.5rem; margin-left: 1rem;">
+              <li><strong>ρ = 1</strong> → perfect increasing monotonic relationship</li>
+              <li><strong>ρ = −1</strong> → perfect decreasing monotonic relationship</li>
+              <li><strong>ρ = 0</strong> → no monotonic relationship</li>
+            </ul>
 
             This application computes Spearman's ρ for two selected numeric columns of **equal length**.
 
             **Example:** For `X = [1, 2, 3]` and `Y = [3, 2, 1]`:
-            """
+            """,
+            unsafe_allow_html=True
         )
         st.markdown("> ρ = **−1.0** — as X increases, Y decreases consistently (perfect inverse monotonic relationship)")
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -334,6 +350,7 @@ def render_help_statistical_methods() -> None:
             and reports the estimated **slope** and **intercept**.
             """
         )
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -363,6 +380,7 @@ def render_help_statistical_methods() -> None:
             categorical inputs arranged in a valid contingency layout.
             """
         )
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -379,11 +397,14 @@ def render_help_statistical_methods() -> None:
 
             It is defined by two parameters:
 
-            - **n** — total number of trials
-            - **p** — probability of success on each trial
+            <ul style="padding-left: 1.5rem; margin-left: 1rem;">
+              <li><strong>n</strong> — total number of trials</li>
+              <li><strong>p</strong> — probability of success on each trial</li>
+            </ul>
 
             The probability of exactly **k** successes is given by the **probability mass function**:
-            """
+            """,
+            unsafe_allow_html=True
         )
         st.markdown("> **P(X = k) = C(n, k) · pᵏ · (1−p)ⁿ⁻ᵏ**  where C(n, k) is \"n choose k\"")
         st.markdown(
@@ -392,6 +413,7 @@ def render_help_statistical_methods() -> None:
             the PMF, CDF, and survival function for each k in that range in tabular form.
             """
         )
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
 
@@ -412,7 +434,8 @@ def render_help_statistical_methods() -> None:
         st.markdown("> **CV = (σ / μ) × 100%**  where σ is the standard deviation and μ is the mean")
         st.markdown(
             """
-            > ⚠ CV is **undefined when the mean is zero**. This application will flag that condition
-            > and skip the computation if the mean of the selected data is zero.
+            ⚠ CV is **undefined when the mean is zero**. This application will flag that condition
+            and skip the computation if the mean of the selected data is zero.
             """
         )
+        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
