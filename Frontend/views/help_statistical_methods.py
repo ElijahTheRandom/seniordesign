@@ -434,8 +434,8 @@ def render_help_statistical_methods() -> None:
         st.markdown("> **CV = (σ / μ) × 100%**  where σ is the standard deviation and μ is the mean")
         st.markdown(
             """
-            > ⚠ CV is **undefined when the mean is zero**. This application will flag that condition
-            > and skip the computation if the mean of the selected data is zero.
+            ⚠ CV is **undefined when the mean is zero**. This application will flag that condition
+            and skip the computation if the mean of the selected data is zero.
             """
         )
         st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")

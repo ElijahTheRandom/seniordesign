@@ -2364,6 +2364,15 @@ def _render_visualization_options(
             _param_warning("k min must be \u2264 k max.")
             st.session_state["_analysis_invalid_params"] = True
 
+    # --- Label count warnings for pie/bar charts ---
+    if hist or box or scatter:
+        chart_lines = []
+        if hist:
+            chart_lines.append("**Pie Chart:** Looks best with up to 35 labels. Beyond that, slices become difficult to distinguish.")
+        if box or scatter:
+            chart_lines.append("**Bar Charts:** Looks best with up to 80 labels. Value labels inside bars are hidden when there are more than 30 labels.")
+        st.info("\n\n".join(chart_lines))
+
     return hist, box, scatter, line, heatmap, binomial
 
 
