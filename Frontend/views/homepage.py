@@ -70,6 +70,7 @@ from logic.run_manager import (
 from class_templates.message_structure import Message
 from backend_handler import BackendHandler
 from frontend_handler import handle_result
+import data_server as _data_server
 from custom_methods_loader import (
     load_custom_methods_registry,
     get_custom_display_names,
@@ -206,6 +207,72 @@ if "show_error_dialog" not in st.session_state:
 
 if "_grid_version" not in st.session_state:
     st.session_state._grid_version = 0
+
+# ---------------------------------------------------------------------------
+# Large file threshold
+# ---------------------------------------------------------------------------
+# Python-side cost (CSV parse + DataFrame serialization) first becomes
+# noticeable around 10,000 rows.  Browser-side AG Grid rendering adds on top,
+# so we warn users at this point and let them opt out of the table.
+_LARGE_FILE_ROW_THRESHOLD = 10_000
+
+# How many rows to show in the sampled table for large files.
+# AG Grid virtualises these 10 K rows smoothly.  Column-header clicks map
+# to "all rows" in the full dataset via the total_rows short-circuit in
+# normalize_grid_selection, so computations always run on the full data.
+_SAMPLE_DISPLAY_ROWS = 10_000
+
+
+@st.dialog("Large File Detected", width="small")
+def _large_file_warning_dialog():
+    """
+    Shown when an uploaded CSV exceeds _LARGE_FILE_ROW_THRESHOLD rows.
+    The user chooses between hiding the table for better performance or
+    displaying it anyway at the cost of increased load time.
+    """
+    rows = st.session_state.get("_large_file_rows", 0)
+    cols = st.session_state.get("_large_file_cols", 0)
+    cells = rows * cols
+
+    _, img_col, _ = st.columns([1, 2, 1])
+    with img_col:
+        st.markdown(
+            f'<img class="ps-squirrel" src="data:image/png;base64,{_WARNING_SQUIRREL_B64}"'
+            ' style="width:100%;max-width:100%;" />',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(
+        f"<p style='text-align:center;font-weight:600;margin:0.5rem 0 0.25rem'>"
+        f"This file is large</p>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f"<p style='text-align:center;color:#aaa;font-size:0.875rem;margin:0 0 1rem'>"
+        f"{rows:,} rows &times; {cols} columns &nbsp;&middot;&nbsp; {cells:,} cells</p>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "Rendering the full table may cause **noticeable lag**. "
+        "You can hide the table and still run all computations using the column "
+        "selectors — or display the table at reduced performance.",
+    )
+
+    st.markdown("<div style='margin-bottom:0.75rem'></div>", unsafe_allow_html=True)
+
+    col_hide, col_show = st.columns(2)
+    with col_hide:
+        if st.button("Hide Table", use_container_width=True, type="primary",
+                     key="_lfw_hide"):
+            st.session_state.large_file_hide_table = True
+            st.session_state._large_file_warning_pending = False
+            st.rerun()
+    with col_show:
+        if st.button("Show Anyway", use_container_width=True,
+                     key="_lfw_show"):
+            st.session_state.large_file_hide_table = False
+            st.session_state._large_file_warning_pending = False
+            st.rerun()
 
 def _show_loading_overlay(caption: str = "Loading\u2026") -> None:
     """Inject a full-screen loading overlay into the parent document.
@@ -548,6 +615,29 @@ def _on_header_toggle(file_key: str) -> None:
     # Bump the grid version so the component remounts with fresh columns
     st.session_state._grid_version = st.session_state.get("_grid_version", 0) + 1
 
+    # --- Large-file state sync ---
+    # If this file is currently loaded as a large file, the header change
+    # affects:
+    #   1. _total_rows: toggling header=None adds the former header row as
+    #      data row 1, so the count increases by 1 (and vice versa).
+    #   2. The sample-records cache: column names / first-row content have
+    #      changed, so the cached serialised records must be invalidated so
+    #      _display_aggrid_server re-serialises from the new df on next render.
+    #   3. The data server: kept consistent (used for accurate /meta responses).
+    if st.session_state.get("_data_key") == file_key:
+        new_total = len(df)
+        st.session_state._total_rows = new_total
+        st.session_state._large_file_rows = new_total
+        st.session_state._large_file_cols = len(df.columns)
+        # Invalidate the sample records cache so _display_aggrid_server
+        # rebuilds it with the updated column names and first-row data.
+        st.session_state.pop(f"_sample_records_{file_key}", None)
+        # Keep the data server consistent in case it is queried.
+        try:
+            _data_server.store_dataframe(file_key, df)
+        except Exception:
+            pass
+
 
 def _render_header_settings(uploaded_file) -> None:
     """
@@ -741,6 +831,22 @@ def render_homepage(base_dir: str) -> None:
                     ]
 
                 st.session_state.edited_data_cache[file_key] = df
+
+                # Check size — trigger large-file warning if above threshold
+                if len(df) >= _LARGE_FILE_ROW_THRESHOLD:
+                    st.session_state._large_file_rows = len(df)
+                    st.session_state._large_file_cols = len(df.columns)
+                    st.session_state._large_file_warning_pending = True
+                    # Register with the data server for infinite scroll
+                    st.session_state._data_key = file_key
+                    st.session_state._total_rows = len(df)
+                    _data_server.store_dataframe(file_key, df)
+                else:
+                    # Reset hide flag when a small file replaces a large one
+                    st.session_state.large_file_hide_table = False
+                    st.session_state._large_file_warning_pending = False
+                    st.session_state.pop("_data_key", None)
+                    st.session_state.pop("_total_rows", None)
             except Exception as exc:
                 st.session_state.modal_message = f"Failed to parse CSV: {exc}"
                 st.session_state.show_error_dialog = True
@@ -759,6 +865,10 @@ def render_homepage(base_dir: str) -> None:
         "rgba(228, 120, 29, 0.5) 50%, transparent 100%);' />",
         unsafe_allow_html=True
     )
+
+    # Fire large-file warning dialog if a freshly loaded file is above the threshold
+    if st.session_state.get("_large_file_warning_pending"):
+        _large_file_warning_dialog()
 
     left_col, right_col = st.columns([3, 2], gap="medium")
 
@@ -888,13 +998,21 @@ def _clear_file_state() -> None:
         effectively forces a checkbox reset without needing to track each
         checkbox's individual state.
     """
+    # Clear the data server entry for the file being removed
+    old_key = st.session_state.get("_data_key")
+    if old_key:
+        _data_server.clear_dataframe(old_key)
+
     for key in ("uploaded_file", "saved_table", "edited_data_cache",
-                 "_csv_loading", "_csv_future", "_raw_grid_selection", "_csv_raw_bytes"):
+                 "_csv_loading", "_csv_future", "_raw_grid_selection", "_csv_raw_bytes",
+                 "large_file_hide_table", "_large_file_warning_pending",
+                 "_large_file_rows", "_large_file_cols",
+                 "_data_key", "_total_rows"):
         st.session_state.pop(key, None)
 
-    # Clear per-file header detection state
+    # Clear per-file header detection state and sample records cache
     for key in list(st.session_state.keys()):
-        if key.startswith(("_headers_detected_", "_has_headers_")):
+        if key.startswith(("_headers_detected_", "_has_headers_", "_sample_records_")):
             del st.session_state[key]
 
     st.session_state.has_file = False
@@ -945,6 +1063,10 @@ def _render_grid_from_file(uploaded_file) -> pd.DataFrame:
     Uses a file-keyed cache (`edited_data_cache`) so repeated reruns
     don't re-parse the CSV from disk on every interaction.
 
+    When the user has chosen to hide the table (large_file_hide_table=True),
+    the AG Grid is skipped entirely and manual column/row selectors are shown
+    instead — computations still work normally.
+
     Args:
         uploaded_file: Streamlit UploadedFile object.
 
@@ -964,7 +1086,24 @@ def _render_grid_from_file(uploaded_file) -> pd.DataFrame:
             df = pd.read_csv(uploaded_file)
             st.session_state.edited_data_cache[file_key] = df
 
+        if st.session_state.get("large_file_hide_table", False):
+            _render_large_file_selectors(df)
+            return df
+
         grid_version = st.session_state.get("_grid_version", 0)
+        data_key = st.session_state.get("_data_key")
+        total_rows = st.session_state.get("_total_rows")
+
+        if data_key and total_rows:
+            # Large file — use server mode (Infinite Row Model)
+            _display_aggrid_server(
+                df,
+                data_key=data_key,
+                total_rows=total_rows,
+                grid_key=f"grid_{file_key}_v{grid_version}",
+            )
+            return df
+
         df = _display_aggrid(df, grid_key=f"grid_{file_key}_v{grid_version}")
         st.session_state.edited_data_cache[file_key] = df
         return df
@@ -972,6 +1111,114 @@ def _render_grid_from_file(uploaded_file) -> pd.DataFrame:
     except Exception as e:
         st.error(f"Error processing file: {e}")
         return None
+
+
+def _render_large_file_selectors(df: pd.DataFrame) -> None:
+    """
+    Shown in place of the AG Grid when the user opted to hide the table.
+
+    Provides manual column and row-range selectors so computations remain
+    fully functional.  A button lets the user re-enable the table.
+    """
+    rows, cols = len(df), len(df.columns)
+
+    st.markdown(
+        f"""
+        <div style="
+            background:rgba(228,120,29,0.08);
+            border:1px solid rgba(228,120,29,0.35);
+            border-radius:10px;
+            padding:0.85rem 1.1rem;
+            margin-bottom:1rem;
+        ">
+            <div style="font-weight:600;color:rgba(228,120,29,0.9);margin-bottom:0.3rem;">
+                Table hidden for performance
+            </div>
+            <div style="font-size:0.85rem;color:#aaa;line-height:1.5;">
+                {rows:,} rows &times; {cols} columns &nbsp;&middot;&nbsp;
+                {rows * cols:,} cells &nbsp;&mdash;&nbsp;
+                Use the selectors below to choose columns and rows for analysis.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # --- Column multiselect ---
+    prev_cols = st.session_state.get("selected_columns", [])
+    valid_prev = [c for c in prev_cols if c in df.columns]
+
+    # Inject CSS to give the multiselect dropdown enough width and prevent
+    # the tag chips from overflowing the container.
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stMultiSelect"] > div:first-child {
+            min-width: 100%;
+        }
+        div[data-testid="stMultiSelect"] [data-baseweb="select"] > div {
+            flex-wrap: wrap;
+            min-height: 2.4rem;
+            max-height: 8rem;
+            overflow-y: auto;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    selected_cols = st.multiselect(
+        "Columns for analysis",
+        options=list(df.columns),
+        default=valid_prev,
+        key="_lf_col_select",
+        help="Select one or more columns. All rows of these columns will be used in the analysis.",
+    )
+    st.session_state.selected_columns = selected_cols
+
+    st.markdown("<div style='margin-top:0.5rem'></div>", unsafe_allow_html=True)
+
+    # --- Row range ---
+    row_mode = st.radio(
+        "Rows to include",
+        ["All rows", "Custom range"],
+        horizontal=True,
+        key="_lf_row_mode",
+    )
+
+    if row_mode == "All rows":
+        # Empty list means "all rows" throughout the analysis flow —
+        # avoids materializing a list of up to 1 M integers.
+        st.session_state.selected_rows = []
+    else:
+        c_start, c_end = st.columns(2)
+        with c_start:
+            start_row = st.number_input(
+                "From row", min_value=1, max_value=rows, value=1, step=1,
+                key="_lf_row_start",
+            )
+        with c_end:
+            end_row = st.number_input(
+                "To row", min_value=1, max_value=rows, value=min(rows, 10_000), step=1,
+                key="_lf_row_end",
+            )
+        if start_row > end_row:
+            st.warning("Start row must be ≤ end row.")
+            st.session_state.selected_rows = []
+        else:
+            st.session_state.selected_rows = list(range(int(start_row), int(end_row) + 1))
+
+    # Sync last_grid_selection so checkbox reset logic works correctly
+    new_sig = (tuple(st.session_state.selected_columns), tuple(st.session_state.selected_rows))
+    st.session_state.last_grid_selection = new_sig
+
+    st.markdown("<div style='margin-bottom:0.5rem'></div>", unsafe_allow_html=True)
+
+    # --- Toggle to re-enable table ---
+    if st.button("Show table preview", key="_lf_show_table_btn"):
+        st.session_state.large_file_hide_table = False
+        st.session_state._grid_version = st.session_state.get("_grid_version", 0) + 1
+        st.rerun()
 
 
 def _render_grid_from_cache() -> pd.DataFrame:
@@ -993,6 +1240,136 @@ def _render_grid_from_cache() -> pd.DataFrame:
     except Exception as e:
         st.error(f"Error displaying cached table: {e}")
         return st.session_state.saved_table
+
+
+def _display_aggrid_server(
+    df: "pd.DataFrame",
+    data_key: str,
+    total_rows: int,
+    grid_key: str,
+) -> None:
+    """
+    Render the AG Grid for large files using a client-side sample.
+
+    Passes the first _SAMPLE_DISPLAY_ROWS rows as rowData so the grid
+    displays real data immediately without any networking or separate server.
+    AG Grid virtual-scrolls those rows smoothly.
+
+    Column-header clicks create a range that spans all *sample* rows
+    (0 → sample_size-1).  normalize_grid_selection detects this via its
+    total_rows parameter and maps it to col2=[] (all rows in the full
+    dataset), so computations always run on the complete file.
+
+    Args:
+        df:         The full DataFrame.
+        data_key:   Cache key (used for rename propagation).
+        total_rows: Full row count (displayed in the banner).
+        grid_key:   Unique AG Grid instance key.
+    """
+    sample_size = min(_SAMPLE_DISPLAY_ROWS, total_rows)
+    sample_df = df.head(sample_size)
+
+    # Build records — cached in session state so repeated reruns (e.g. checkbox
+    # clicks on the right panel) don't re-serialize 10 K rows each time.
+    cache_key = f"_sample_records_{data_key}"
+    if cache_key not in st.session_state:
+        st.session_state[cache_key] = (
+            sample_df.where(pd.notna(sample_df), other=None).to_dict("records")
+        )
+    records = st.session_state[cache_key]
+
+    columns = [{"field": c} for c in df.columns]
+
+    # Banner above the grid
+    if total_rows > sample_size:
+        st.markdown(
+            f"""
+            <div style="
+                background:rgba(228,120,29,0.08);
+                border:1px solid rgba(228,120,29,0.30);
+                border-radius:8px;
+                padding:0.55rem 1rem;
+                margin-bottom:0.5rem;
+                font-size:0.83rem;
+                color:#ccc;
+                line-height:1.5;
+            ">
+                <span style="color:rgba(228,120,29,0.9);font-weight:600;">
+                    Large file preview
+                </span>
+                &nbsp;&mdash;&nbsp;
+                Showing first <strong>{sample_size:,}</strong> of
+                <strong>{total_rows:,}</strong> rows.
+                &nbsp;Click a column header to select <em>all {total_rows:,} rows</em>
+                for analysis.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    result = aggrid_range(records, columns, key=grid_key)
+
+    if isinstance(result, dict):
+        selection = result.get("selections", [])
+        edited_data = result.get("editedData")
+        renamed_headers = result.get("renamedHeaders")
+    else:
+        selection = result
+        edited_data = None
+        renamed_headers = None
+
+    # Apply cell edits back to the sample DataFrame
+    if edited_data is not None:
+        edited_df = pd.DataFrame(edited_data)
+        if list(edited_df.columns) == list(sample_df.columns):
+            # Update the sample portion of the cached DataFrame
+            df.iloc[:sample_size] = edited_df.values
+            st.session_state.edited_data_cache[data_key] = df
+            # Invalidate sample records cache so edits are reflected
+            st.session_state.pop(cache_key, None)
+
+    # Apply header renames
+    if renamed_headers and isinstance(renamed_headers, dict):
+        rename_map = {}
+        for old_name, new_name in renamed_headers.items():
+            new_name = str(new_name).strip()
+            if old_name in df.columns and new_name and new_name != old_name:
+                rename_map[old_name] = new_name
+        if rename_map:
+            new_cols = [rename_map.get(c, c) for c in df.columns]
+            if len(set(new_cols)) == len(new_cols):
+                df = df.rename(columns=rename_map)
+                st.session_state.edited_data_cache[data_key] = df
+                st.session_state.pop(cache_key, None)
+                st.session_state.selected_columns = []
+                st.session_state.selected_rows = []
+                st.session_state.last_grid_selection = None
+                st.session_state.checkbox_key_onecol += 1
+                st.session_state.checkbox_key_twocol += 1
+
+    # Pass sample_size as total_rows: a full-column selection (0→sample_size-1)
+    # is recognised as "all rows" and returns col2=[] without materialising any list.
+    apply_grid_selection_to_filters(selection, df, total_rows=sample_size)
+    st.session_state["_raw_grid_selection"] = selection
+
+    st.markdown("")
+    st.caption(
+        "**Large file mode** — "
+        "Click a header to select a column (selects all rows for analysis). "
+        "Ctrl+click for multiple columns. "
+        "Double-click a header to rename it. "
+        "Double-click a cell to edit it."
+    )
+
+    # Button to switch to manual selectors
+    if st.button("Hide table (use manual selectors)", key="_srv_hide_table_btn"):
+        st.session_state.large_file_hide_table = True
+        st.rerun()
+
+    if selection:
+        _display_selection_output(selection, df)
+    else:
+        st.info("Select a range of cells in the grid to see details here.")
 
 
 def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
@@ -1336,15 +1713,19 @@ def _render_column_row_selectors(
             unsafe_allow_html=True,
         )
     else:
+        if st.session_state.get("large_file_hide_table", False):
+            hint = "No selection &mdash; use the column selectors on the left"
+        else:
+            hint = "No selection &mdash; drag cells in the grid"
         st.markdown(
-            """
+            f"""
             <div style="
                 display:flex; align-items:center;
                 background:#1e1e1e; border:1px solid #333;
                 border-radius:6px; padding:0.4rem 0.8rem;
             ">
                 <span style="color:#555; font-size:0.82rem; font-family:monospace;">
-                    No selection &mdash; drag cells in the grid
+                    {hint}
                 </span>
             </div>
             """,

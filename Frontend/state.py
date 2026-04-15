@@ -164,3 +164,23 @@ def initialize_session_state() -> None:
 
     # Key counter for custom method checkboxes (force reset like built-ins)
     st.session_state.setdefault("checkbox_key_custom", 0)
+
+    # ------------------------------------------------------------------
+    # Large File State
+    # ------------------------------------------------------------------
+
+    # True when the loaded file exceeds the row threshold and the user
+    # chose to hide the table for better performance.
+    st.session_state.setdefault("large_file_hide_table", False)
+
+    # Set to True after CSV load completes if the file is above the
+    # threshold, so the warning dialog fires on the next render.
+    st.session_state.setdefault("_large_file_warning_pending", False)
+
+    # Data key (= file_key) identifying the current large file in the
+    # data server.  None when no large file is loaded.
+    st.session_state.setdefault("_data_key", None)
+
+    # Total row count of the current large file.  Used by the component
+    # and selection logic to avoid materializing full-dataset row lists.
+    st.session_state.setdefault("_total_rows", None)

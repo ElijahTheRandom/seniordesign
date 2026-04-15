@@ -7,7 +7,9 @@
       "Bash(python -m pytest testsuite/ --ignore=testsuite/test_variance.py -q)",
       "Bash(python -m pytest testsuite/test_least_squares_regression.py::TestComputeNormal::test_ok_true -q)",
       "Bash(python -c ':*)",
-      "Bash(grep -n \"loss_of_precision\" testsuite/*.py)"
+      "Bash(grep -n \"loss_of_precision\" testsuite/*.py)",
+      "Bash(python stress_test_table.py)",
+      "Bash(python -c ' *)"
     ]
   }
 }
