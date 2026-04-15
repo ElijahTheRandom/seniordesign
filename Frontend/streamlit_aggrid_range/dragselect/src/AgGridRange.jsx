@@ -10,7 +10,10 @@ import "ag-grid-community/styles/ag-theme-alpine.css"
 import "./styles.css"
 
 const AgGridRange = (props) => {
-    const { rowData, columnDefs, serverUrl, dataKey, totalRows: totalRowsProp } = props.args
+    const {
+        rowData, columnDefs, serverUrl, dataKey, totalRows: totalRowsProp,
+        programmaticRanges, programmaticRangesVersion,
+    } = props.args
 
     // Server mode: use Infinite Row Model + HTTP datasource
     const isServerMode = Boolean(serverUrl && dataKey)
@@ -36,6 +39,14 @@ const AgGridRange = (props) => {
     // AG Grid clears its range selection on rowData prop updates.
     const lastKnownRanges = useRef([])
 
+    // Tracks the last programmaticRangesVersion that was applied, so we
+    // only re-apply when the Python side sends a genuinely new version.
+    const lastAppliedProgrammaticVersion = useRef(-1)
+
+    // Set to true during onRowDataUpdated range restore to suppress the
+    // spurious onRangeSelectionChanged that clearRangeSelection() triggers.
+    const isRestoringRef = useRef(false)
+
     // Track Ctrl/Meta key state reliably via global listeners
     useEffect(() => {
         const onKeyDown = (e) => {
@@ -49,6 +60,15 @@ const AgGridRange = (props) => {
         return () => {
             window.removeEventListener("keydown", onKeyDown)
             window.removeEventListener("keyup", onKeyUp)
+        }
+    }, [])
+
+    // Clean up any pending header-click double-click timers on unmount
+    useEffect(() => {
+        return () => {
+            Object.values(headerClickTimers.current).forEach(t => {
+                if (t) clearTimeout(t)
+            })
         }
     }, [])
 
@@ -105,8 +125,11 @@ const AgGridRange = (props) => {
     }
 
     // Handle selection changes
-    const onRangeSelectionChanged = (event) => {
+    const onRangeSelectionChanged = useCallback((event) => {
         if (!event.api) return
+        // Suppress spurious empty-selection events fired during programmatic
+        // range restore (onRowDataUpdated calls clearRangeSelection first).
+        if (isRestoringRef.current) return
 
         const cellRanges = event.api.getCellRanges()
         // In server mode use the known total; in client mode use displayed count
@@ -161,7 +184,7 @@ const AgGridRange = (props) => {
             editedData: currentEditedData,
             renamedHeaders: Object.keys(renamedHeaders).length > 0 ? renamedHeaders : null
         })
-    }
+    }, [isServerMode, serverTotalRows, selectedColIds, hasEdits, renamedHeaders])
 
     // Handle cell value editing (client mode only)
     const onCellValueChanged = (event) => {
@@ -197,6 +220,40 @@ const AgGridRange = (props) => {
         document.addEventListener("keydown", handleKeyDown)
         return () => document.removeEventListener("keydown", handleKeyDown)
     }, [gridApi])
+
+    // Apply programmatic ranges when the Python side sends a new version.
+    // Uses a version counter rather than watching the array directly so the
+    // effect doesn't fire on every Streamlit rerun (new array reference each time).
+    useEffect(() => {
+        if (!gridApi) return
+        const version = programmaticRangesVersion || 0
+        // version === 0 means "no programmatic range active" (e.g. after file
+        // clear).  We skip application so we don't accidentally wipe a drag
+        // selection the user just made on a freshly-loaded file.
+        if (version === 0 || version === lastAppliedProgrammaticVersion.current) return
+        lastAppliedProgrammaticVersion.current = version
+
+        gridApi.clearRangeSelection()
+
+        const ranges = programmaticRanges || []
+        if (ranges.length > 0) {
+            ranges.forEach(r => {
+                gridApi.addCellRange({
+                    rowStartIndex: r.startRow,
+                    rowEndIndex:   r.endRow,
+                    columns:       r.columns,
+                })
+            })
+            // Keep lastKnownRanges in sync so onRowDataUpdated restores correctly.
+            lastKnownRanges.current = ranges.map(r => ({
+                startRow: r.startRow,
+                endRow:   r.endRow,
+                columns:  r.columns,
+            }))
+        } else {
+            lastKnownRanges.current = []
+        }
+    }, [gridApi, programmaticRanges, programmaticRangesVersion])
 
     // Disable sort/filter/menu; disable editing in server mode
     const defaultColDef = useMemo(() => ({
@@ -235,7 +292,15 @@ const AgGridRange = (props) => {
     // selection. Restore the last known selection. Not needed in server mode.
     const onRowDataUpdated = useCallback((event) => {
         if (isServerMode || !event.api || lastKnownRanges.current.length === 0) return
-        event.api.clearRangeSelection()
+
+        // If AG Grid still has ranges (e.g. the update didn't clear them after all),
+        // skip the restore to avoid duplicating selections.
+        const existing = event.api.getCellRanges()
+        if (existing && existing.length > 0) return
+
+        // Suppress the empty-selection event that clearRangeSelection fires before
+        // we re-add the ranges, preventing a spurious Streamlit rerun with [].
+        isRestoringRef.current = true
         lastKnownRanges.current.forEach(r => {
             event.api.addCellRange({
                 columns: r.columns,
@@ -243,6 +308,7 @@ const AgGridRange = (props) => {
                 rowEndIndex: r.endRow,
             })
         })
+        isRestoringRef.current = false
     }, [isServerMode])
 
     // Header click: single = select column, double = rename

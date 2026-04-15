@@ -1024,6 +1024,281 @@ def _clear_file_state() -> None:
     st.session_state.last_grid_selection = None
     st.session_state.checkbox_key_onecol += 1
     st.session_state.checkbox_key_twocol += 1
+    # Reset range-input state so the new file starts fresh.
+    for _k in ("_range_input_text", "_range_input_error", "_programmatic_ranges",
+               "_range_text_sig", "_range_typed"):
+        st.session_state.pop(_k, None)
+    st.session_state["_programmatic_ranges_version"] = 0
+    st.session_state["_programmatic_pending"] = 0
+
+
+# ---------------------------------------------------------------------------
+# Range-input helpers
+# ---------------------------------------------------------------------------
+
+def _compute_ref_string(
+    col1: list,
+    col2: list,
+    raw_grid_selection: list | None,
+    df: "pd.DataFrame | None",
+) -> str:
+    """
+    Build an Excel-style reference string from the current selection.
+
+    Mirrors the format shown in the reference bar so the text input displays
+    the same notation the user would type: ``A[1]:A[100]``, ``ColName``, etc.
+
+    When col2 is empty (meaning "all rows"), just the column names are shown
+    without row numbers so the canonical form is clean and round-trips
+    correctly through _parse_range_string.
+    """
+    if not col1:
+        return ""
+
+    if not col2:
+        # All-rows selection — show bare column names.
+        return ", ".join(col1)
+
+    # Specific rows: derive from the raw selection when available so
+    # Ctrl-click multi-ranges each get their own correct row span.
+    if raw_grid_selection:
+        parts = []
+        for rng in raw_grid_selection:
+            start = rng.get("startRow")
+            end   = rng.get("endRow")
+            cols  = rng.get("columns", [])
+            if start is None or end is None or not cols:
+                continue
+            r0, r1 = int(start) + 1, int(end) + 1
+            valid = [c for c in cols if df is not None and c in df.columns]
+            if not valid:
+                continue
+            if len(valid) == 1:
+                c = valid[0]
+                parts.append(f"{c}[{r0}]:{c}[{r1}]" if r0 != r1 else f"{c}[{r0}]")
+            else:
+                # Rectangular multi-column range: A[1]:B[100] form
+                parts.append(
+                    f"{valid[0]}[{r0}]:{valid[-1]}[{r1}]" if r0 != r1
+                    else f"{valid[0]}[{r0}]:{valid[-1]}[{r0}]"
+                )
+        if parts:
+            return ", ".join(parts)
+
+    # Fall back: build from col1/col2
+    r0, r1 = col2[0], col2[-1]
+    return ", ".join(
+        f"{c}[{r0}]:{c}[{r1}]" if r0 != r1 else f"{c}[{r0}]" for c in col1
+    )
+
+
+def _parse_range_string(
+    text: str,
+    df: "pd.DataFrame",
+    n_displayed: int,
+) -> tuple[list, list, list, str]:
+    """
+    Parse an Excel-style range string typed by the user.
+
+    Supported formats
+    -----------------
+    ``ColName``                → whole column, all rows
+    ``ColName[5]``             → single row 5
+    ``ColName[5]:ColName[20]`` → rows 5–20 (same column on both sides)
+    ``ColA[5]:ColB[20]``       → rectangular range across ColA–ColB, rows 5–20
+    Multiple ranges separated by commas: ``A[1]:A[50], B[1]:B[50]``
+
+    Column names are matched greedily (longest known name first) so names
+    that share a prefix (e.g. ``Col`` and ``Color``) are handled correctly.
+    Row numbers must be enclosed in square brackets to disambiguate column
+    names that end with digits (e.g. ``column1[2]`` not ``column12``).
+
+    Parameters
+    ----------
+    text        : user-supplied input string
+    df          : the active DataFrame (column names and length are used for
+                  validation)
+    n_displayed : number of rows currently shown in the grid (used to clamp
+                  the programmatic range so AG Grid doesn't try to scroll past
+                  the visible rows)
+
+    Returns
+    -------
+    (grid_ranges, selected_cols, selected_rows, error_message)
+    - grid_ranges     : list of {startRow, endRow, columns} dicts (0-based)
+                        clamped to n_displayed
+    - selected_cols   : list of column names for session state
+    - selected_rows   : list of 1-based row ints (empty = all rows)
+    - error_message   : non-empty string on failure; all other values are []
+    """
+    text = text.strip()
+    if not text:
+        return [], [], [], ""
+
+    col_names = list(df.columns)
+    n_rows    = len(df)
+    # Sort longest-first so greedy prefix matching prefers longer names.
+    cols_by_len = sorted(col_names, key=len, reverse=True)
+
+    def _split_ref(ref: str):
+        """Return (col_name, row_int_or_None) or (None, error_string).
+
+        Accepted forms:
+          ColName        → whole column (all rows)
+          ColName[n]     → single row n  (1-based)
+        """
+        ref = ref.strip()
+        for col in cols_by_len:
+            if ref.startswith(col):
+                suffix = ref[len(col):]
+                if suffix == "":
+                    return col, None          # bare column → all rows
+                # Must be [n] bracket notation
+                if suffix.startswith("[") and suffix.endswith("]"):
+                    inner = suffix[1:-1]
+                    try:
+                        row = int(inner)
+                        if row < 1 or row > n_rows:
+                            return None, (
+                                f"Row {row} is out of range — "
+                                f"file has {n_rows:,} rows"
+                            )
+                        return col, row
+                    except ValueError:
+                        pass   # malformed bracket content
+                # suffix is not empty and not a valid [n] — column name matched
+                # as a prefix but the rest isn't valid syntax; keep trying other
+                # column names (a longer name might match the whole string).
+        return None, f"'{ref}' does not match any column in this file"
+
+    specs = [s.strip() for s in text.replace(";", ",").split(",") if s.strip()]
+    if not specs:
+        return [], [], [], ""
+
+    grid_ranges  = []
+    sel_cols_ord: list = []          # ordered, dedup
+    all_rows_set: set  = set()
+    has_all_rows = False             # True when at least one "whole column" ref is present
+
+    for spec in specs:
+        if ":" in spec:
+            left_str, right_str = spec.split(":", 1)
+            lc, lr = _split_ref(left_str)
+            if lc is None:
+                return [], [], [], f"Invalid range start: {lr}"
+            rc, rr = _split_ref(right_str)
+            if rc is None:
+                return [], [], [], f"Invalid range end: {rr}"
+
+            if (lr is None) != (rr is None):
+                return [], [], [], (
+                    f"Inconsistent row spec in '{spec}': "
+                    "both sides must have a row number, or neither"
+                )
+
+            # Determine row bounds
+            if lr is None:
+                r0, r1 = 1, n_rows
+                has_all_rows = True
+            else:
+                r0, r1 = min(lr, rr), max(lr, rr)
+
+            # Determine column range
+            if lc == rc:
+                range_cols = [lc]
+            else:
+                # Rectangular: all columns between lc and rc in df order
+                try:
+                    ci0 = col_names.index(lc)
+                    ci1 = col_names.index(rc)
+                except ValueError:
+                    return [], [], [], f"Column not found"
+                c_lo, c_hi = min(ci0, ci1), max(ci0, ci1)
+                range_cols = col_names[c_lo : c_hi + 1]
+        else:
+            col, row = _split_ref(spec)
+            if col is None:
+                return [], [], [], f"Invalid ref: {row}"
+            range_cols = [col]
+            if row is None:
+                r0, r1 = 1, n_rows
+                has_all_rows = True
+            else:
+                r0 = r1 = row
+
+        # Clamp to the number of rows the grid is actually showing.
+        grid_r0 = r0 - 1                          # 0-based
+        grid_r1 = min(r1 - 1, n_displayed - 1)    # 0-based, clamped
+        grid_ranges.append({
+            "startRow": grid_r0,
+            "endRow":   grid_r1,
+            "columns":  range_cols,
+        })
+
+        for c in range_cols:
+            if c not in sel_cols_ord:
+                sel_cols_ord.append(c)
+
+        if not has_all_rows:
+            for r in range(r0, r1 + 1):
+                all_rows_set.add(r)
+
+    selected_rows = [] if has_all_rows else sorted(all_rows_set)
+    return grid_ranges, sel_cols_ord, selected_rows, ""
+
+
+def _get_n_displayed(df: "pd.DataFrame | None") -> int:
+    """Return the number of rows currently rendered in the AG Grid."""
+    if df is None:
+        return 0
+    total = st.session_state.get("_total_rows")
+    if total:
+        return min(_SAMPLE_DISPLAY_ROWS, total)
+    return len(df)
+
+
+def _on_range_input_change(df: "pd.DataFrame", n_displayed: int) -> None:
+    """
+    Streamlit on_change callback for the range text input.
+
+    Parses the typed range string, updates session state on success, or
+    stores an error message that blocks the Run Analysis button.
+    """
+    text = st.session_state.get("_range_input_text", "").strip()
+
+    if not text:
+        # Empty input → clear selection and grid highlight
+        st.session_state.selected_columns           = []
+        st.session_state.selected_rows              = []
+        st.session_state["_raw_grid_selection"]     = []
+        st.session_state["_range_input_error"]      = ""
+        st.session_state["_programmatic_ranges"]    = []
+        st.session_state["_programmatic_ranges_version"] = (
+            st.session_state.get("_programmatic_ranges_version", 0) + 1
+        )
+        st.session_state["_programmatic_pending"]   = 1
+        st.session_state["_range_typed"]            = True
+        st.session_state["_range_text_sig"]         = ((), ())
+        return
+
+    grid_ranges, cols, rows, error = _parse_range_string(text, df, n_displayed)
+
+    if error:
+        st.session_state["_range_input_error"] = error
+        return
+
+    st.session_state["_range_input_error"]           = ""
+    st.session_state.selected_columns               = cols
+    st.session_state.selected_rows                  = rows
+    st.session_state["_programmatic_ranges"]         = grid_ranges
+    st.session_state["_programmatic_ranges_version"] = (
+        st.session_state.get("_programmatic_ranges_version", 0) + 1
+    )
+    st.session_state["_programmatic_pending"]        = 1
+    st.session_state["_range_typed"]                 = True
+    # Record the new selection signature so _render_column_row_selectors
+    # doesn't overwrite the input text on the very next render.
+    st.session_state["_range_text_sig"] = (tuple(cols), tuple(rows))
 
 
 def _render_grid(uploaded_file) -> pd.DataFrame | None:
@@ -1307,7 +1582,11 @@ def _display_aggrid_server(
             unsafe_allow_html=True,
         )
 
-    result = aggrid_range(records, columns, key=grid_key)
+    result = aggrid_range(
+        records, columns, key=grid_key,
+        programmatic_ranges=st.session_state.get("_programmatic_ranges", []),
+        programmatic_ranges_version=st.session_state.get("_programmatic_ranges_version", 0),
+    )
 
     if isinstance(result, dict):
         selection = result.get("selections", [])
@@ -1347,10 +1626,16 @@ def _display_aggrid_server(
                 st.session_state.checkbox_key_onecol += 1
                 st.session_state.checkbox_key_twocol += 1
 
-    # Pass sample_size as total_rows: a full-column selection (0→sample_size-1)
-    # is recognised as "all rows" and returns col2=[] without materialising any list.
-    apply_grid_selection_to_filters(selection, df, total_rows=sample_size)
-    st.session_state["_raw_grid_selection"] = selection
+    # When a programmatic selection is in-flight, the component still returns
+    # the previous (stale) selection.  Skip apply until the React effect has
+    # applied the new ranges and sent them back via setComponentValue.
+    if st.session_state.get("_programmatic_pending", 0) > 0:
+        st.session_state._programmatic_pending -= 1
+    else:
+        # Pass sample_size as total_rows: a full-column selection (0→sample_size-1)
+        # is recognised as "all rows" and returns col2=[] without materialising any list.
+        apply_grid_selection_to_filters(selection, df, total_rows=sample_size)
+        st.session_state["_raw_grid_selection"] = selection
 
     st.markdown("")
     st.caption(
@@ -1394,7 +1679,11 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
     records = df.where(pd.notna(df), other=None).to_dict("records")
     columns = [{"field": c} for c in df.columns]
 
-    result = aggrid_range(records, columns, key=grid_key)
+    result = aggrid_range(
+        records, columns, key=grid_key,
+        programmatic_ranges=st.session_state.get("_programmatic_ranges", []),
+        programmatic_ranges_version=st.session_state.get("_programmatic_ranges_version", 0),
+    )
 
     # The component returns {"selections": [...], "editedData": [...] | null, "renamedHeaders": {...} | null}
     if isinstance(result, dict):
@@ -1440,8 +1729,14 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
                 st.session_state.checkbox_key_onecol += 1
                 st.session_state.checkbox_key_twocol += 1
 
-    apply_grid_selection_to_filters(selection, df)
-    st.session_state["_raw_grid_selection"] = selection
+    # When a programmatic selection is in-flight, the component still returns
+    # the previous (stale) selection.  Skip apply until the React effect has
+    # applied the new ranges and sent them back via setComponentValue.
+    if st.session_state.get("_programmatic_pending", 0) > 0:
+        st.session_state._programmatic_pending -= 1
+    else:
+        apply_grid_selection_to_filters(selection, df)
+        st.session_state["_raw_grid_selection"] = selection
 
     st.markdown("")
     st.caption("**Tip:** Click a header to select a column. "
@@ -1482,10 +1777,10 @@ def _display_selection_output(selection: list, df: pd.DataFrame) -> None:
         subset = df.iloc[rows_0][valid_cols].copy()
         subset.index = rows_1
 
-        # Build per-column refs: ColName1:ColName7
+        # Build per-column refs: ColName[1]:ColName[7]
         r0, r1 = rows_1[0], rows_1[-1]
         refs = [
-            f"{col}{r0}:{col}{r1}" if r0 != r1 else f"{col}{r0}"
+            f"{col}[{r0}]:{col}[{r1}]" if r0 != r1 else f"{col}[{r0}]"
             for col in valid_cols
         ]
 
@@ -1582,7 +1877,7 @@ def _render_analysis_config(
         and len(edited_table) > 0
     )
 
-    col1, col2 = _render_column_row_selectors(edited_table, data_ready)
+    col1, col2, range_error = _render_column_row_selectors(edited_table, data_ready)
 
     # --- Compute data characteristics for smart checkbox disabling ---
     data_info = _compute_data_info(edited_table, col1, col2, data_ready)
@@ -1613,7 +1908,9 @@ def _render_analysis_config(
         computation_selected=computation_selected,
         col1=col1,
         col2=col2,
-        invalid_params=invalid_params,
+        # A parse error in the range input blocks computation just like any
+        # other invalid parameter (the button is shown disabled with a warning).
+        invalid_params=invalid_params or bool(range_error),
         mean=mean, median=median, mode=mode,
         variance=variance, std=std, percentiles=percentiles,
         pearson=pearson, spearman=spearman, least_squares_regression=least_squares_regression,
@@ -1629,91 +1926,120 @@ def _render_analysis_config(
 
 def _build_refs(cols: list, rows: list) -> list[str]:
     """
-    Build per-column cell reference strings in ColR0:ColR1 format.
+    Build per-column cell reference strings in Col[R0]:Col[R1] format.
 
     Examples:
-        cols=["ID"],         rows=[1..7]  →  ["ID1:ID7"]
-        cols=["ID","Age"],   rows=[1..7]  →  ["ID1:ID7", "Age1:Age7"]
-        cols=["Name"],       rows=[3]     →  ["Name3"]
+        cols=["ID"],         rows=[1..7]  →  ["ID[1]:ID[7]"]
+        cols=["ID","Age"],   rows=[1..7]  →  ["ID[1]:ID[7]", "Age[1]:Age[7]"]
+        cols=["Name"],       rows=[3]     →  ["Name[3]"]
     """
     if not cols or not rows:
         return [col for col in cols] if cols else []
     r0, r1 = rows[0], rows[-1]
-    return [f"{col}{r0}:{col}{r1}" if r0 != r1 else f"{col}{r0}" for col in cols]
+    return [f"{col}[{r0}]:{col}[{r1}]" if r0 != r1 else f"{col}[{r0}]" for col in cols]
 
 
 def _render_column_row_selectors(
     edited_table: pd.DataFrame | None,
-    data_ready: bool
-) -> tuple[list, list]:
+    data_ready: bool,
+) -> tuple[list, list, str]:
     """
-    Show a read-only Excel-style reference bar reflecting the current AG Grid
-    drag-selection, then return the selected columns and rows for downstream use.
+    Render an editable Excel-style selection input and return the current
+    column/row selection plus any parse error.
 
-    The user makes their selection by dragging over cells in the grid on the
-    left.  apply_grid_selection_to_filters() (called inside _display_aggrid)
-    writes the normalised result to session state.  This function reads that
-    state and renders the same orange-tag reference bar shown below the grid.
+    The input is pre-populated from the grid drag-selection and can be edited
+    directly: typing a range and pressing Enter highlights the matching cells
+    in the table and updates the selection for analysis.
 
-    Returns:
-        (col1, col2): Selected column names and 1-based row ints.
+    Supported input format
+    ----------------------
+    ``ColName``                    → whole column, all rows
+    ``ColName[5]``                 → single cell (row 5)
+    ``ColName[5]:ColName[20]``     → rows 5–20 of ColName
+    ``ColA[5]:ColB[20]``           → rectangular range across ColA–ColB, rows 5–20
+    Comma-separated for multiple ranges: ``A[1]:A[50], B[1]:B[50]``
+
+    Returns
+    -------
+    (col1, col2, range_error)
+    col1        : list of selected column names
+    col2        : list of 1-based row ints (empty = all rows)
+    range_error : non-empty string when the input is invalid (disables Run Analysis)
     """
     col1 = st.session_state.get("selected_columns", []) if data_ready else []
     col2 = st.session_state.get("selected_rows",    []) if data_ready else []
 
-    # --- Reference bar display ---
-    _TAG = (
-        "background:#2d2d2d; border:1px solid #555; border-radius:4px;"
-        " padding:0.15rem 0.5rem; font-family:monospace; font-size:0.82rem;"
-        " color:#e4781d; white-space:nowrap;"
-    )
-    if data_ready and edited_table is not None and col1:
+    # ------------------------------------------------------------------
+    # Sync text input from grid selection when the grid changed
+    # (but not when the change came from the user typing a range).
+    # ------------------------------------------------------------------
+    current_sig  = (tuple(col1), tuple(col2))
+    last_sig     = st.session_state.get("_range_text_sig")
+    range_typed  = st.session_state.pop("_range_typed", False)
+
+    if not range_typed and last_sig != current_sig:
+        # Grid drag (or header click) changed the selection → update input.
         raw = st.session_state.get("_raw_grid_selection") or []
+        new_text = _compute_ref_string(col1, col2, raw, edited_table)
+        st.session_state["_range_input_text"] = new_text
+        st.session_state["_range_text_sig"]   = current_sig
+        # A new grid selection supersedes any previous parse error.
+        st.session_state["_range_input_error"] = ""
 
-        # Build one ref-tag per column per raw range so Ctrl-selections
-        # each show their own correct row span.
-        all_refs = []
-        total_cells = 0
-        for rng in raw:
-            start = rng.get("startRow")
-            end   = rng.get("endRow")
-            cols  = rng.get("columns", [])
-            if start is None or end is None or not cols:
-                continue
-            start, end = int(start), int(end)
-            if start > end:
-                start, end = end, start
-            valid_cols = [c for c in cols if c in edited_table.columns]
-            if not valid_cols:
-                continue
-            r0, r1 = start + 1, end + 1
-            for col in valid_cols:
-                all_refs.append(f"{col}{r0}:{col}{r1}" if r0 != r1 else f"{col}{r0}")
-            total_cells += len(valid_cols) * (end - start + 1)
+    # ------------------------------------------------------------------
+    # Editable range input (hidden-table mode shows a plain hint instead)
+    # ------------------------------------------------------------------
+    hide_table = st.session_state.get("large_file_hide_table", False)
 
-        # Fall back to normalised union if raw had nothing usable
-        if not all_refs:
-            all_refs    = _build_refs(col1, col2)
-            total_cells = len(col1) * (len(col2) if col2 else len(edited_table))
+    if not hide_table and data_ready and edited_table is not None:
+        n_displayed = _get_n_displayed(edited_table)
 
-        tags_html = "".join(f'<span style="{_TAG}">{r}</span>' for r in all_refs)
         st.markdown(
-            f"""
-            <div style="
-                display:flex; align-items:center; flex-wrap:wrap; gap:0.4rem;
-                background:#1e1e1e; border:1px solid #444;
-                border-radius:6px; padding:0.4rem 0.8rem;
-            ">
-                {tags_html}
-                <span style="color:#888; font-size:0.8rem; margin-left:0.35rem;">
-                    {total_cells} cell{'s' if total_cells != 1 else ''}
-                </span>
-            </div>
+            """
+            <style>
+            /* Give the range input the same dark pill look as the old ref-bar */
+            div[data-testid="stTextInput"] input[data-testid="stTextInputField"] {
+                background: #1e1e1e;
+                border: 1px solid #444;
+                border-radius: 6px;
+                padding: 0.35rem 0.8rem;
+                font-family: monospace;
+                font-size: 0.82rem;
+                color: #e4781d;
+            }
+            div[data-testid="stTextInput"] input[data-testid="stTextInputField"]:focus {
+                border-color: rgba(228,120,29,0.7);
+                box-shadow: 0 0 0 2px rgba(228,120,29,0.2);
+            }
+            </style>
             """,
             unsafe_allow_html=True,
         )
+
+        st.text_input(
+            "Selection",
+            key="_range_input_text",
+            placeholder='e.g. "ColumnA[1]:ColumnA[100]"  or  "ColumnA"',
+            label_visibility="collapsed",
+            on_change=_on_range_input_change,
+            args=(edited_table, n_displayed),
+            help=(
+                "Type a cell range and press Enter to highlight it in the table.\n\n"
+                "**Examples**\n"
+                "- `Age` — whole column\n"
+                "- `Age[1]:Age[100]` — rows 1–100\n"
+                "- `Age[5]:Score[5]` — rectangular range Age→Score at row 5\n"
+                "- `Age[1]:Age[50], Score[1]:Score[50]` — two separate ranges\n\n"
+                "Or simply drag-select cells directly in the table."
+            ),
+        )
+
+        range_error = st.session_state.get("_range_input_error", "")
+        if range_error:
+            _param_warning(f"Invalid selection — {range_error}")
     else:
-        if st.session_state.get("large_file_hide_table", False):
+        range_error = ""
+        if hide_table:
             hint = "No selection &mdash; use the column selectors on the left"
         else:
             hint = "No selection &mdash; drag cells in the grid"
@@ -1766,7 +2092,7 @@ def _render_column_row_selectors(
         st.session_state.checkbox_key_twocol += 1
     st.session_state.last_num_cols = len(col1)
 
-    return col1, col2
+    return col1, col2, range_error
 
 
 # ============================================================================

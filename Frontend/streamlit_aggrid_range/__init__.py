@@ -14,7 +14,16 @@ else:
     _component_func = components.declare_component("aggrid_range", path=build_dir)
 
 
-def aggrid_range(data, columns, key=None, server_url=None, data_key=None, total_rows=None):
+def aggrid_range(
+    data,
+    columns,
+    key=None,
+    server_url=None,
+    data_key=None,
+    total_rows=None,
+    programmatic_ranges=None,
+    programmatic_ranges_version=0,
+):
     """Create a new instance of "aggrid_range".
 
     Parameters
@@ -33,6 +42,14 @@ def aggrid_range(data, columns, key=None, server_url=None, data_key=None, total_
         Key that identifies the DataFrame in the data server.
     total_rows : int or None
         Total row count, used to make the scroll bar accurate in server mode.
+    programmatic_ranges : list of dict or None
+        List of {startRow, endRow, columns} dicts (0-based row indices) to
+        apply as a programmatic range selection in the grid.  Used when the
+        user types a range in the selection input rather than dragging.
+    programmatic_ranges_version : int
+        Monotonically-increasing counter.  The React component only re-applies
+        programmatic ranges when this value changes, avoiding spurious re-
+        applications on every Streamlit rerun.
 
     Returns
     -------
@@ -45,6 +62,8 @@ def aggrid_range(data, columns, key=None, server_url=None, data_key=None, total_
         serverUrl=server_url,
         dataKey=data_key,
         totalRows=total_rows,
+        programmaticRanges=programmatic_ranges or [],
+        programmaticRangesVersion=programmatic_ranges_version or 0,
         key=key,
         default={"selections": [], "editedData": None},
     )
