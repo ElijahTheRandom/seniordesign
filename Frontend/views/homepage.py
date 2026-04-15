@@ -1779,10 +1779,10 @@ def _render_custom_method_transfer_controls():
         value=True,
         key="cm_export_include_dependencies",
         disabled=not selected_export_ids,
-        help=(
-            "If a selected custom method depends on other custom methods, "
-            "include those helper methods automatically."
-        ),
+    )
+    st.caption(
+        "⚠ If a selected custom method depends on other custom methods, "
+        "include those helper methods automatically."
     )
 
     bundle_json = export_custom_methods_bundle(
