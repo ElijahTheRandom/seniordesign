@@ -1533,7 +1533,7 @@ def _render_computation_options(
     # Variance also needs ≥2 rows (sample variance, ddof=1)
     dis_var   = not data_ready or not all_num or n_ir < 1 or n_rows < 2
     # Mode works on any measurement level — just needs ≥1 numeric column
-    dis_mode  = not data_ready or n_num < 1
+    dis_mode  = not data_ready or not all_num
     # Pearson: all numeric, ≥2 Interval/Ratio columns, ≥3 rows
     dis_corr  = not data_ready or not all_num or n_ir < 2 or n_rows < 3
     # Spearman: all numeric, ≥2 Ordinal+ columns, ≥3 rows
@@ -1779,10 +1779,10 @@ def _render_custom_method_transfer_controls():
         value=True,
         key="cm_export_include_dependencies",
         disabled=not selected_export_ids,
-        help=(
-            "If a selected custom method depends on other custom methods, "
-            "include those helper methods automatically."
-        ),
+    )
+    st.caption(
+        "⚠ If a selected custom method depends on other custom methods, "
+        "include those helper methods automatically."
     )
 
     bundle_json = export_custom_methods_bundle(
@@ -2338,9 +2338,10 @@ def _render_visualization_options(
     """
     st.markdown("## Visualization Options")
 
-    disable_one_col  = not data_ready or len(col1) < 1
-    disable_two_cols = not data_ready or len(col1) < 2
-    disable_binomial = False
+    disable_one_col      = not data_ready or len(col1) < 1
+    disable_two_cols     = not data_ready or len(col1) < 2
+    disable_one_col_num  = not data_ready or not data_info["all_numeric"]
+    disable_two_cols_num = not data_ready or len(col1) < 2 or not data_info["all_numeric"]
 
     v1, v2 = st.columns(2)
 
@@ -2350,13 +2351,13 @@ def _render_visualization_options(
         scatter = st.checkbox("Horizontal Bar Chart",          key="viz_scatter", disabled=disable_one_col)  and not disable_one_col
 
     with v2:
-        line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_two_cols) and not disable_two_cols
-        heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_two_cols) and not disable_two_cols
-        binomial = st.checkbox("Binomial Distribution",        key="viz_binomial", disabled=disable_binomial) and not disable_binomial
+        line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_two_cols_num) and not disable_two_cols_num
+        heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_two_cols_num) and not disable_two_cols_num
+        binomial = st.checkbox("Binomial Distribution",        key="viz_binomial", disabled=disable_one_col_num) and not disable_one_col_num
 
     # --- Binomial parameter inputs (below the checkbox) ---
-    dis_binom = disable_binomial
-    if binomial and not dis_binom:
+    # --- Binomial parameter inputs (below the checkbox) ---
+    if binomial and not disable_one_col_num:
         st.markdown("**Binomial Parameters**")
         bn1, bn2, bn3, bn4 = st.columns(4)
         with bn1:
@@ -2365,15 +2366,15 @@ def _render_visualization_options(
                 value=10, step=1,
                 key="binomial_n",
                 help="Total number of trials.",
-                disabled=dis_binom,
+                disabled=disable_one_col_num,
             )
         with bn2:
             st.number_input(
                 "p (probability)", min_value=0.0, max_value=1.0,
                 value=0.5, step=0.01, format="%.4f",
                 key="binomial_p",
-                help="Probability of success on each trial (0 \u2013 1).",
-                disabled=dis_binom,
+                help="Probability of success on each trial (0 – 1).",
+                disabled=disable_one_col_num,
             )
         with bn3:
             st.number_input(
@@ -2381,7 +2382,7 @@ def _render_visualization_options(
                 value=0, step=1,
                 key="binomial_k_min",
                 help="Minimum number of successes (start of k-range).",
-                disabled=dis_binom,
+                disabled=disable_one_col_num,
             )
         with bn4:
             st.number_input(
@@ -2389,8 +2390,13 @@ def _render_visualization_options(
                 value=10, step=1,
                 key="binomial_k_max",
                 help="Maximum number of successes (end of k-range).",
-                disabled=dis_binom,
+                disabled=disable_one_col_num,
             )
+    k_min_val = st.session_state.get("binomial_k_min", 0)
+    k_max_val = st.session_state.get("binomial_k_max", 10)
+    if k_min_val > k_max_val:
+        _param_warning("k min must be ≤ k max.")
+        st.session_state["_analysis_invalid_params"] = True
         k_min_val = st.session_state.get("binomial_k_min", 0)
         k_max_val = st.session_state.get("binomial_k_max", 10)
         if k_min_val > k_max_val:
@@ -2479,7 +2485,6 @@ def _handle_run_analysis(
     line                   = method_flags.get("line", False)
     heatmap                = method_flags.get("heatmap", False)
     custom_flags           = method_flags.get("custom_flags", {})
-    binomial_only_run      = binomial and not data_ready
 
     already_computing = st.session_state.get("_compute_future") is not None
     _invalid = st.session_state.get("_analysis_invalid_params", False) or invalid_params
@@ -2488,7 +2493,7 @@ def _handle_run_analysis(
         "Run Analysis",
         key="run_analysis",
         use_container_width=True,
-        disabled=not ((data_ready and computation_selected) or binomial_only_run) or already_computing or _invalid
+        disabled=not (data_ready and computation_selected) or already_computing or _invalid
     )
 
     if not run_clicked:
