@@ -8,3 +8,4 @@ test_run.py
 .github
 CLAUDE.md
 .claude
+stress_test_table.py

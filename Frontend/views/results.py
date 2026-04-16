@@ -41,9 +41,9 @@ import sys
 import os
 import json
 import base64
-import streamlit.components.v1 as components
 from pathlib import Path
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 from PIL import Image
 
@@ -238,77 +238,6 @@ def _render_precision_warnings(run: dict) -> None:
     st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
 
 
-def _render_visualization_download_button(
-    image: Image.Image,
-    file_name: str,
-    button_key: str,
-) -> None:
-    """Render a browser-side download button that mirrors the visible theme.
-
-    Python cannot read the browser's active CSS-inverted result image directly.
-    Instead, this sends the original image bytes to a tiny JS button that checks
-    the current theme in localStorage and inverts the downloaded pixels when the
-    UI is in light mode so the saved file matches what the user sees.
-    """
-    image_buffer = BytesIO()
-    image.convert("RGB").save(image_buffer, format="PNG")
-    image_b64 = base64.b64encode(image_buffer.getvalue()).decode()
-    button_id = f"viz-download-{button_key}"
-    safe_file_name = json.dumps(file_name)
-
-    components.html(
-        f"""
-        <div style="margin:0.35rem 0 0.75rem 0;">
-            <button id="{button_id}" style="
-                background:#262730;
-                color:white;
-                border:1px solid rgba(250,250,250,0.2);
-                border-radius:0.5rem;
-                padding:0.45rem 0.8rem;
-                cursor:pointer;
-                font-size:0.9rem;
-            ">Download Visualization</button>
-        </div>
-        <script>
-        (function() {{
-            const btn = document.getElementById({json.dumps(button_id)});
-            if (!btn || btn.dataset.bound === "1") return;
-            btn.dataset.bound = "1";
-
-            btn.addEventListener("click", async () => {{
-                const isLightMode = (window.parent.localStorage.getItem("ps_analytics_theme") || "dark") === "light";
-                const img = new Image();
-                img.src = "data:image/png;base64,{image_b64}";
-
-                await new Promise((resolve, reject) => {{
-                    img.onload = resolve;
-                    img.onerror = reject;
-                }});
-
-                const canvas = document.createElement("canvas");
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext("2d");
-
-                if (isLightMode) {{
-                    ctx.filter = "invert(1)";
-                }}
-
-                ctx.drawImage(img, 0, 0);
-
-                const link = document.createElement("a");
-                link.href = canvas.toDataURL("image/jpeg", 0.95);
-                link.download = {safe_file_name};
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-            }});
-        }})();
-        </script>
-        """,
-        height=52,
-    )
-
 
 def _render_visualizations(run: dict, show_divider: bool = True) -> None:
     """
@@ -350,7 +279,7 @@ def _render_visualizations(run: dict, show_divider: bool = True) -> None:
             with col:
                 # Display smaller thumbnail-style image
                 st.image(image)
-                
+
                 # --- Req 3.7: JPEG download button ---
                 try:
                     img = Image.open(chart["path"])
@@ -416,24 +345,92 @@ def _export_run_dialog(run: dict):
         use_container_width=True,
     )
 
-def _build_charts_zip(run: dict) -> bytes:
+def _render_charts_zip_download_button(run: dict) -> None:
     """
-    Bundle all successfully generated chart PNGs for a run into a ZIP archive.
+    Render a native Streamlit Export Charts button that builds the ZIP
+    client-side when clicked.
 
-    Returns the ZIP as raw bytes ready to pass to st.download_button.
+    Python cannot read the user's current theme (it lives in browser
+    localStorage), so on click we inject a zero-height JS block that
+    loads each chart PNG onto a canvas, inverts it when the UI is in
+    light mode (except binomial tables, which are exempt), and packs
+    them into a ZIP with JSZip for download.
+
+    Using a real st.button keeps the visual styling in sync with the
+    other action buttons via theme.css — the iframe only carries the JS.
     """
-    import zipfile
-
     graphics = getattr(run.get("result_message"), "graphics", None) or []
-    buf = BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for idx, chart in enumerate(graphics):
-            if chart.get("ok") and chart.get("path"):
-                chart_type = chart.get("type", f"chart_{idx}")
-                arcname = f"{chart_type}_{idx}.png"
-                zf.write(chart["path"], arcname=arcname)
-    buf.seek(0)
-    return buf.getvalue()
+
+    charts_payload = []
+    for idx, chart in enumerate(graphics):
+        if not (chart.get("ok") and chart.get("path")):
+            continue
+        try:
+            with open(chart["path"], "rb") as f:
+                chart_b64 = base64.b64encode(f.read()).decode()
+        except OSError:
+            continue
+        chart_type = chart.get("type", f"chart_{idx}")
+        charts_payload.append({
+            "name": f"{chart_type}_{idx}.png",
+            "type": chart_type,
+            "data": chart_b64,
+        })
+
+    if not charts_payload:
+        st.button("Export Charts", disabled=True, use_container_width=True)
+        return
+
+    run_id = run.get("id", "")
+    if st.button("Export Charts", use_container_width=True, key=f"export_charts_{run_id}"):
+        zip_name = f"{run.get('name', 'run')}_charts.zip"
+        payload_json = json.dumps(charts_payload)
+        components.html(
+            f"""
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+            <script>
+            (async function() {{
+                const charts = {payload_json};
+                const zipName = {json.dumps(zip_name)};
+                const isLightMode = (window.parent.localStorage.getItem("ps_analytics_theme") || "dark") === "light";
+
+                async function loadImage(src) {{
+                    return new Promise((resolve, reject) => {{
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.onerror = reject;
+                        img.src = src;
+                    }});
+                }}
+
+                const zip = new JSZip();
+                for (const chart of charts) {{
+                    const img = await loadImage("data:image/png;base64," + chart.data);
+                    const canvas = document.createElement("canvas");
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext("2d");
+                    if (isLightMode && chart.type !== "binomial") {{
+                        ctx.filter = "invert(1)";
+                    }}
+                    ctx.drawImage(img, 0, 0);
+                    const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
+                    zip.file(chart.name, blob);
+                }}
+                const zipBlob = await zip.generateAsync({{ type: "blob" }});
+                const url = URL.createObjectURL(zipBlob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = zipName;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(url);
+            }})();
+            </script>
+            """,
+            height=0,
+        )
 
 
 def _render_action_buttons(run: dict) -> None:
@@ -460,20 +457,7 @@ def _render_action_buttons(run: dict) -> None:
             st.rerun()
 
     with btn3:
-        graphics = getattr(run.get("result_message"), "graphics", None) or []
-        has_charts = any(c.get("ok") and c.get("path") for c in graphics)
-        if has_charts:
-            charts_zip = _build_charts_zip(run)
-            st.download_button(
-                "Export Charts",
-                data=charts_zip,
-                file_name=f"{run.get('name', 'run')}_charts.zip",
-                mime="application/zip",
-                use_container_width=True,
-                key=f"dl_charts_{run.get('id', '')}",
-            )
-        else:
-            st.button("Export Charts", disabled=True, use_container_width=True)
+        _render_charts_zip_download_button(run)
 
     with btn4:
         if st.button("Delete Run", use_container_width=True):

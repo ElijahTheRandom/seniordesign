@@ -106,7 +106,8 @@ def df_to_ascii_table(df: pd.DataFrame) -> str:
 
 def normalize_grid_selection(
     selection: list | None,
-    df: pd.DataFrame
+    df: "pd.DataFrame",
+    total_rows: int | None = None,
 ) -> dict | None:
     """
     Normalize the raw selection payload from AG Grid Range into a clean
@@ -121,9 +122,14 @@ def normalize_grid_selection(
         3. Preserves the original column order from the DataFrame
         4. Returns 1-based row indices to match the UI's row selector
 
+    When total_rows is supplied (large-file / server mode), any range that
+    spans the entire dataset is NOT materialized into a row-index list.
+    An empty "rows" list means "use all rows" throughout the rest of the app.
+
     Args:
-        selection: Raw list of range dicts from aggrid_range(), or None.
-        df:        The DataFrame currently displayed in the grid.
+        selection:   Raw list of range dicts from aggrid_range(), or None.
+        df:          The DataFrame currently displayed in the grid.
+        total_rows:  Total row count of the dataset, if known.
 
     Returns:
         { "columns": [str, ...], "rows": [int, ...] }  on success
@@ -132,8 +138,8 @@ def normalize_grid_selection(
     if not selection:
         return None
 
-    selected_cols: set[str] = set()
-    selected_rows: set[int] = set()
+    selected_cols: set = set()
+    selected_rows: set = set()
     col_order = list(df.columns)
 
     for rng in selection:
@@ -154,6 +160,13 @@ def normalize_grid_selection(
             if col in df.columns:
                 selected_cols.add(col)
 
+        span = end - start + 1
+
+        # Fast path: full-dataset selection — don't materialize the row list.
+        # An empty selected_rows set means "all rows" in the analysis flow.
+        if total_rows and span >= total_rows:
+            continue  # skip row materialization for this range
+
         # Convert 0-based AG Grid indices to 1-based UI row numbers
         for row_idx in range(start, end + 1):
             selected_rows.add(row_idx + 1)
@@ -169,7 +182,8 @@ def normalize_grid_selection(
 
 def apply_grid_selection_to_filters(
     selection: list | None,
-    df: pd.DataFrame
+    df: "pd.DataFrame",
+    total_rows: int | None = None,
 ) -> None:
     """
     Sync the AG Grid range selection into Streamlit session state.
@@ -188,21 +202,18 @@ def apply_grid_selection_to_filters(
     last call (prevents unnecessary reruns).
 
     Args:
-        selection: Raw list of range dicts from aggrid_range(), or None.
-        df:        The DataFrame currently displayed in the grid.
+        selection:   Raw list of range dicts from aggrid_range(), or None.
+        df:          The DataFrame currently displayed in the grid.
+        total_rows:  Total row count for large-file short-circuit (optional).
     """
-    # Import here to avoid a circular dependency if this module is ever
-    # tested standalone. `st` is the only Streamlit symbol we need and
-    # only for session state — no rendering happens here.
     import streamlit as st
 
-    normalized = normalize_grid_selection(selection, df)
+    normalized = normalize_grid_selection(selection, df, total_rows=total_rows)
     if not normalized:
         return
 
     signature = (tuple(normalized["columns"]), tuple(normalized["rows"]))
     if st.session_state.get("last_grid_selection") == signature:
-        # Nothing changed — skip the write to avoid triggering a rerun
         return
 
     st.session_state["selected_columns"] = normalized["columns"]

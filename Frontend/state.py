@@ -164,3 +164,57 @@ def initialize_session_state() -> None:
 
     # Key counter for custom method checkboxes (force reset like built-ins)
     st.session_state.setdefault("checkbox_key_custom", 0)
+
+    # ------------------------------------------------------------------
+    # Large File State
+    # ------------------------------------------------------------------
+
+    # True when the loaded file exceeds the row threshold and the user
+    # chose to hide the table for better performance.
+    st.session_state.setdefault("large_file_hide_table", False)
+
+    # Set to True after CSV load completes if the file is above the
+    # threshold, so the warning dialog fires on the next render.
+    st.session_state.setdefault("_large_file_warning_pending", False)
+
+    # Data key (= file_key) identifying the current large file in the
+    # data server.  None when no large file is loaded.
+    st.session_state.setdefault("_data_key", None)
+
+    # Total row count of the current large file.  Used by the component
+    # and selection logic to avoid materializing full-dataset row lists.
+    st.session_state.setdefault("_total_rows", None)
+
+    # ------------------------------------------------------------------
+    # Range Input State
+    # ------------------------------------------------------------------
+
+    # Current text shown in the Excel-style range input box.
+    st.session_state.setdefault("_range_input_text", "")
+
+    # Non-empty when the last range input couldn't be parsed or references
+    # columns/rows that don't exist.  Disables the Run Analysis button.
+    st.session_state.setdefault("_range_input_error", "")
+
+    # List of {startRow, endRow, columns} dicts (0-based) sent to the AG Grid
+    # component to apply a programmatic range highlight.
+    st.session_state.setdefault("_programmatic_ranges", [])
+
+    # Monotonically-increasing integer.  The React component watches this;
+    # when it changes the component applies the new programmatic ranges.
+    st.session_state.setdefault("_programmatic_ranges_version", 0)
+
+    # How many more renders to skip apply_grid_selection_to_filters so that
+    # a freshly-typed programmatic selection isn't overwritten by the stale
+    # component return value from the previous render cycle.
+    st.session_state.setdefault("_programmatic_pending", 0)
+
+    # True for exactly one render after the user commits a typed range.
+    # Prevents _render_column_row_selectors from overwriting the input text
+    # with the grid-derived string on that same render.
+    st.session_state.setdefault("_range_typed", False)
+
+    # Signature (tuple(col1), tuple(col2)) of the last time the range input
+    # text was written from the grid.  Compared on each render to decide
+    # whether a grid-initiated change warrants updating the text.
+    st.session_state.setdefault("_range_text_sig", None)

@@ -1,63 +1,70 @@
 import os
 import streamlit.components.v1 as components
 
-# Create a _RELEASE constant. We'll set this to False while developing.
 _RELEASE = True
-
-# Declare a Streamlit component. `declare_component` returns a function
-# that is used to create instances of the component. We're naming this
-# function "_component_func", with an underscore prefix, because we don't
-# want to expose it directly to users. Instead, we will create a custom wrapper
-# function, below, that will serve as our component's public API.
-
-# It's worth noting that this call to `declare_component` is the
-# *only* thing you need to do to create the binding between Streamlit and
-# your component frontend. Everything else we do in this file is just a
-# convenience wrapper.
 
 if not _RELEASE:
     _component_func = components.declare_component(
         "aggrid_range",
-        # Pass `url` here to tell Streamlit that the component will be served
-        # by the local dev server that you run via `npm run start`.
-        # (This is useful while your component is in development.)
         url="http://localhost:3000",
     )
 else:
-    # When we're distributing a production version of the component, we'll
-    # replace the `url` param with `path`, and point it to the component's
-    # build directory:
     parent_dir = os.path.dirname(os.path.abspath(__file__))
     build_dir = os.path.join(parent_dir, "dragselect/build")
     _component_func = components.declare_component("aggrid_range", path=build_dir)
 
 
-def aggrid_range(data, columns, key=None):
+def aggrid_range(
+    data,
+    columns,
+    key=None,
+    server_url=None,
+    data_key=None,
+    total_rows=None,
+    programmatic_ranges=None,
+    programmatic_ranges_version=0,
+):
     """Create a new instance of "aggrid_range".
 
     Parameters
     ----------
-    data: list of dict
-        The data to display in the grid (row data).
-    columns: list of dict
-        The column definitions.
-    key: str or None
-        An optional key that uniquely identifies this component. If this is
-        None, and the component's arguments are changed, the component will
-        be re-mounted in the Streamlit frontend and lose its current state.
+    data : list of dict
+        Row data for client-side mode.  Pass [] when using server_url.
+    columns : list of dict
+        Column definitions (field names).
+    key : str or None
+        Unique component key.
+    server_url : str or None
+        Base URL of the Python data server (e.g. "http://127.0.0.1:54321").
+        When provided the component uses AG Grid's Infinite Row Model and
+        fetches rows from the server instead of reading rowData.
+    data_key : str or None
+        Key that identifies the DataFrame in the data server.
+    total_rows : int or None
+        Total row count, used to make the scroll bar accurate in server mode.
+    programmatic_ranges : list of dict or None
+        List of {startRow, endRow, columns} dicts (0-based row indices) to
+        apply as a programmatic range selection in the grid.  Used when the
+        user types a range in the selection input rather than dragging.
+    programmatic_ranges_version : int
+        Monotonically-increasing counter.  The React component only re-applies
+        programmatic ranges when this value changes, avoiding spurious re-
+        applications on every Streamlit rerun.
 
     Returns
     -------
-    list of dict
-        The selected ranges.
+    dict
+        {"selections": [...], "editedData": [...] | null, "renamedHeaders": {...} | null}
     """
-    # Call through to our private component function. Arguments we pass here
-    # will be sent to the frontend, where they'll be available in an "args"
-    # dictionary.
-    #
-    # "default" is a special argument that specifies the initial return
-    # value of the component before the user has interacted with it.
-    component_value = _component_func(rowData=data, columnDefs=columns, key=key, default={"selections": [], "editedData": None})
-
-    # We could modify the value here, but we just return it
+    component_value = _component_func(
+        rowData=data,
+        columnDefs=columns,
+        serverUrl=server_url,
+        dataKey=data_key,
+        totalRows=total_rows,
+        programmaticRanges=programmatic_ranges or [],
+        programmaticRangesVersion=programmatic_ranges_version or 0,
+        key=key,
+        default={"selections": [], "editedData": None},
+    )
     return component_value
