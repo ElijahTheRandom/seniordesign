@@ -213,6 +213,19 @@ const AgGridRange = (props) => {
             return { startRow, endRow, columns }
         })
 
+        // Persist so onRowDataUpdated can restore after a rowData prop change
+        lastKnownRanges.current = formattedRanges
+
+        // Only round-trip to Streamlit when the drag has finished.  AG Grid
+        // fires this event dozens of times per drag (once per cell added),
+        // and on a remote deployment every intermediate setComponentValue
+        // call waits for a full Python rerun — which made drag selections
+        // nearly unusable on AWS.  Programmatic addCellRange calls don't
+        // set `finished`, so treat an undefined value as "send" for
+        // backward compatibility with the header-click / rename paths.
+        const finished = event.finished
+        if (finished === false) return
+
         // In client mode, if edits exist, include current row data so a
         // selection event doesn't overwrite prior cell edits in Streamlit state.
         let currentEditedData = null
@@ -221,9 +234,6 @@ const AgGridRange = (props) => {
             event.api.forEachNode(node => updatedRows.push({ ...node.data }))
             currentEditedData = updatedRows
         }
-
-        // Persist so onRowDataUpdated can restore after a rowData prop change
-        lastKnownRanges.current = formattedRanges
 
         const currentRenamed = renamedHeadersRef.current
         Streamlit.setComponentValue({

@@ -9,3 +9,27 @@ test_run.py
 CLAUDE.md
 .claude
 stress_test_table.py
+
+# local-only deployment stuff
+certbot/
+nginx/
+results_cache/
+*.pem
+*.key
+
+safe-pull.sh
+init-letsencrypt.sh
+
+# python
+__pycache__/
+*.pyc
+
+# env
+.env
+
+# misc
+.DS_Store
+
+# project-specific
+CLAUDE.md
+.claude
