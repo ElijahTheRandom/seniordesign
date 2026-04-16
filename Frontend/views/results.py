@@ -68,9 +68,6 @@ _HUZZAH_PATH = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSqui
 with open(_HUZZAH_PATH, "rb") as _f:
     _HUZZAH_B64 = base64.b64encode(_f.read()).decode()
 
-# ADDITIONAL BOOL FOR TESTING PURPOSES
-# REPLACE THIS WITH SHARED VARIABLE CONTROLLING LIGHT MODE
-lightMode = False
 
 if "show_success_save_dialog" not in st.session_state:
     st.session_state.show_success_save_dialog = False
@@ -330,30 +327,43 @@ def _render_visualizations(run: dict, show_divider: bool = True) -> None:
     st.subheader("Visualizations", anchor=False)
     st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
 
+    # --- Step 1: Rounded corners ---
+    st.markdown(
+        """
+        <style>
+        img {
+            border-radius: 15px !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # --- Step 2: Grid layout ---
+    cols = st.columns(3)  # adjust number of columns as needed
+
     for idx, chart in enumerate(graphics):
+
         if chart.get("ok") and chart.get("path"):
             image = Image.open(chart["path"])
-            # Test for Light Mode
-            if lightMode and chart["type"] != "binomial":
-                image = ImageOps.invert(image.convert("RGB"))
-            st.image(image)
-
-            # --- Req 3.7: JPEG download button ---
-            try:
-                img = Image.open(chart["path"])
-                chart_type = chart.get("type", f"chart_{idx}")
-                _render_visualization_download_button(
-                    img,
-                    f"{run.get('name', 'run')} {chart_type.replace('_', ' ').title()}.jpg",
-                    f"{run.get('id', '')}_{idx}",
-                )
-            except Exception:
-                pass  # If conversion fails, skip the button silently
+            col = cols[idx % len(cols)]
+            with col:
+                # Display smaller thumbnail-style image
+                st.image(image)
+                
+                # --- Req 3.7: JPEG download button ---
+                try:
+                    img = Image.open(chart["path"])
+                    chart_type = chart.get("type", f"chart_{idx}")
+                    _render_visualization_download_button(
+                        img,
+                        f"{run.get('name', 'run')} {chart_type.replace('_', ' ').title()}.jpg",
+                        f"{run.get('id', '')}_{idx}",
+                    )
+                except Exception:
+                    pass  # If conversion fails, skip the button silently
         else:
             st.error(f"{chart.get('type', 'Chart')}: {chart.get('error', 'Failed to generate')}")
-
-    if show_divider:
-        st.markdown("---")
 
 
 def _render_data_table(run: dict, show_divider: bool = True) -> None:
