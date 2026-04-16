@@ -23,6 +23,7 @@ def aggrid_range(
     total_rows=None,
     programmatic_ranges=None,
     programmatic_ranges_version=0,
+    row_data_version=0,
 ):
     """Create a new instance of "aggrid_range".
 
@@ -50,6 +51,14 @@ def aggrid_range(
         Monotonically-increasing counter.  The React component only re-applies
         programmatic ranges when this value changes, avoiding spurious re-
         applications on every Streamlit rerun.
+    row_data_version : int
+        Monotonically-increasing counter.  The React component only re-seeds
+        its internal rowData from the ``data`` prop when this value changes.
+        Bumped by Python only when the underlying DataFrame changes from an
+        external source (new file, header rename) — NOT on cell edits, since
+        the grid already has the updated value locally.  This prevents the
+        AG Grid reconcile-on-every-rerun that was wiping mid-drag selections
+        and flickering freshly-edited cells back to their old values.
 
     Returns
     -------
@@ -64,6 +73,7 @@ def aggrid_range(
         totalRows=total_rows,
         programmaticRanges=programmatic_ranges or [],
         programmaticRangesVersion=programmatic_ranges_version or 0,
+        rowDataVersion=row_data_version or 0,
         key=key,
         default={"selections": [], "editedData": None},
     )

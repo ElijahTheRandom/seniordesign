@@ -208,6 +208,16 @@ if "show_error_dialog" not in st.session_state:
 if "_grid_version" not in st.session_state:
     st.session_state._grid_version = 0
 
+# Row-data version for the AG Grid component.  The React side keeps its own
+# internal rowData state and only re-seeds from the rowData prop when this
+# counter increases — so reruns triggered by the user's own drag/edit events
+# don't force AG Grid to reconcile rows (which was wiping mid-drag selections
+# and flickering freshly-edited cells back to their pre-edit values).  Bump
+# only when the underlying DataFrame changes from a non-grid source (new file,
+# header rename).
+if "_row_data_version" not in st.session_state:
+    st.session_state._row_data_version = 0
+
 # ---------------------------------------------------------------------------
 # Large file threshold
 # ---------------------------------------------------------------------------
@@ -598,6 +608,7 @@ def _on_header_toggle(file_key: str) -> None:
     st.session_state.checkbox_key_twocol += 1
     # Bump the grid version so the component remounts with fresh columns
     st.session_state._grid_version = st.session_state.get("_grid_version", 0) + 1
+    st.session_state._row_data_version = st.session_state.get("_row_data_version", 0) + 1
 
     # --- Large-file state sync ---
     # If this file is currently loaded as a large file, the header change
@@ -727,6 +738,7 @@ def poll_background_computation() -> None:
     st.session_state._compute_meta = None
     # Bump grid version so the grid remounts with a clean selection state.
     st.session_state._grid_version = st.session_state.get("_grid_version", 0) + 1
+    st.session_state._row_data_version = st.session_state.get("_row_data_version", 0) + 1
     st.session_state.selected_columns = []
     st.session_state.selected_rows = []
     st.session_state.last_grid_selection = None
@@ -1477,6 +1489,7 @@ def _render_large_file_selectors(df: pd.DataFrame) -> None:
     if st.button("Show table preview", key="_lf_show_table_btn"):
         st.session_state.large_file_hide_table = False
         st.session_state._grid_version = st.session_state.get("_grid_version", 0) + 1
+        st.session_state._row_data_version = st.session_state.get("_row_data_version", 0) + 1
         st.rerun()
 
 
@@ -1570,6 +1583,7 @@ def _display_aggrid_server(
         records, columns, key=grid_key,
         programmatic_ranges=st.session_state.get("_programmatic_ranges", []),
         programmatic_ranges_version=st.session_state.get("_programmatic_ranges_version", 0),
+        row_data_version=st.session_state.get("_row_data_version", 0),
     )
 
     if isinstance(result, dict):
@@ -1609,6 +1623,9 @@ def _display_aggrid_server(
                 st.session_state.last_grid_selection = None
                 st.session_state.checkbox_key_onecol += 1
                 st.session_state.checkbox_key_twocol += 1
+                # Column field names changed — bump so the React component
+                # re-seeds its internal rowData with the new keys.
+                st.session_state._row_data_version = st.session_state.get("_row_data_version", 0) + 1
 
     # When a programmatic selection is in-flight, the component still returns
     # the previous (stale) selection.  Skip apply until the React effect has
@@ -1667,6 +1684,7 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
         records, columns, key=grid_key,
         programmatic_ranges=st.session_state.get("_programmatic_ranges", []),
         programmatic_ranges_version=st.session_state.get("_programmatic_ranges_version", 0),
+        row_data_version=st.session_state.get("_row_data_version", 0),
     )
 
     # The component returns {"selections": [...], "editedData": [...] | null, "renamedHeaders": {...} | null}
@@ -1712,6 +1730,9 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
                 st.session_state.last_grid_selection = None
                 st.session_state.checkbox_key_onecol += 1
                 st.session_state.checkbox_key_twocol += 1
+                # Column field names changed — bump so the React component
+                # re-seeds its internal rowData with the new keys.
+                st.session_state._row_data_version = st.session_state.get("_row_data_version", 0) + 1
 
     # When a programmatic selection is in-flight, the component still returns
     # the previous (stale) selection.  Skip apply until the React effect has

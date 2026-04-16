@@ -13,6 +13,7 @@ const AgGridRange = (props) => {
     const {
         rowData, columnDefs, serverUrl, dataKey, totalRows: totalRowsProp,
         programmaticRanges, programmaticRangesVersion,
+        rowDataVersion,
     } = props.args
 
     // Server mode: use Infinite Row Model + HTTP datasource
@@ -26,6 +27,27 @@ const AgGridRange = (props) => {
         if (typeof window === "undefined") return 600
         return Math.max(550, Math.min(800, Math.round(window.innerHeight * 0.6)))
     })
+
+    // Version-gated internal rowData (client mode).  We only re-seed from the
+    // rowData prop when Python bumps rowDataVersion, so reruns triggered by
+    // the user's own drag/edit events don't force AG Grid to reconcile row
+    // state — which was causing first-drag glitches and edit-flicker.
+    const [internalRowData, setInternalRowData] = useState(rowData)
+    const lastAppliedRowDataVersion = useRef(0)
+
+    // Mount primer: on the very first render we paint an empty wrapper (no
+    // AG Grid yet) so Streamlit can size the iframe to the final dimensions
+    // first.  AG Grid caches its container's client rect on mount and uses
+    // that rect to convert drag pointer coordinates into cell indices — if
+    // the iframe resizes right after mount (which happens with the default
+    // Streamlit.setFrameHeight flow), the first drag's coordinates are
+    // computed against a stale rect and the selection doesn't register
+    // correctly.  Waiting one paint before mounting AG Grid fixes this.
+    const [gridMounted, setGridMounted] = useState(false)
+    useEffect(() => {
+        const raf = requestAnimationFrame(() => setGridMounted(true))
+        return () => cancelAnimationFrame(raf)
+    }, [])
 
     // Header rename state
     const [renamedHeaders, setRenamedHeaders] = useState({})
@@ -46,6 +68,25 @@ const AgGridRange = (props) => {
     // Set to true during onRowDataUpdated range restore to suppress the
     // spurious onRangeSelectionChanged that clearRangeSelection() triggers.
     const isRestoringRef = useRef(false)
+
+    // Refs mirror state that the selection/edit callbacks read.  Using refs
+    // instead of closing over the values keeps the callback identity stable
+    // (no dep-array churn) and removes stale-closure races during rapid drag
+    // events.
+    const hasEditsRef = useRef(hasEdits)
+    const renamedHeadersRef = useRef(renamedHeaders)
+    useEffect(() => { hasEditsRef.current = hasEdits }, [hasEdits])
+    useEffect(() => { renamedHeadersRef.current = renamedHeaders }, [renamedHeaders])
+
+    // Re-seed internal rowData when Python signals a genuine data change.
+    // Version 0 is the "initial / no bump" state and is handled by the
+    // useState(rowData) mount above, so we only react to non-zero bumps.
+    useEffect(() => {
+        const v = rowDataVersion || 0
+        if (v === 0 || v === lastAppliedRowDataVersion.current) return
+        lastAppliedRowDataVersion.current = v
+        setInternalRowData(rowData)
+    }, [rowDataVersion, rowData])
 
     // Track Ctrl/Meta key state reliably via global listeners
     useEffect(() => {
@@ -121,7 +162,10 @@ const AgGridRange = (props) => {
 
     const onGridReady = (params) => {
         setGridApi(params.api)
-        Streamlit.setFrameHeight()
+        // Don't call Streamlit.setFrameHeight() here — the containerHeight
+        // effect already sets it, and re-resizing the iframe right after
+        // AG Grid mounts throws off the first drag's mouse coordinates
+        // because AG Grid caches the container's client rect on mount.
     }
 
     // Handle selection changes
@@ -147,14 +191,16 @@ const AgGridRange = (props) => {
             }
         }
 
-        // Update visual state if changed
-        const prev = selectedColIds
-        const changed = newSelectedColIds.size !== prev.size ||
-            [...newSelectedColIds].some(id => !prev.has(id))
-        if (changed) {
-            setSelectedColIds(newSelectedColIds)
+        // Update visual state if changed.  Use a functional setState so rapid
+        // drag events all see the latest value instead of a closed-over stale
+        // Set from the first event of the drag.
+        setSelectedColIds(prev => {
+            const changed = newSelectedColIds.size !== prev.size ||
+                [...newSelectedColIds].some(id => !prev.has(id))
+            if (!changed) return prev
             event.api.refreshHeader()
-        }
+            return newSelectedColIds
+        })
 
         // Map ranges to a serializable format
         const formattedRanges = cellRanges.map((range) => {
@@ -170,7 +216,7 @@ const AgGridRange = (props) => {
         // In client mode, if edits exist, include current row data so a
         // selection event doesn't overwrite prior cell edits in Streamlit state.
         let currentEditedData = null
-        if (!isServerMode && hasEdits && event.api) {
+        if (!isServerMode && hasEditsRef.current && event.api) {
             const updatedRows = []
             event.api.forEachNode(node => updatedRows.push({ ...node.data }))
             currentEditedData = updatedRows
@@ -179,15 +225,18 @@ const AgGridRange = (props) => {
         // Persist so onRowDataUpdated can restore after a rowData prop change
         lastKnownRanges.current = formattedRanges
 
+        const currentRenamed = renamedHeadersRef.current
         Streamlit.setComponentValue({
             selections: formattedRanges,
             editedData: currentEditedData,
-            renamedHeaders: Object.keys(renamedHeaders).length > 0 ? renamedHeaders : null
+            renamedHeaders: Object.keys(currentRenamed).length > 0 ? currentRenamed : null
         })
-    }, [isServerMode, serverTotalRows, selectedColIds, hasEdits, renamedHeaders])
+    }, [isServerMode, serverTotalRows])
 
-    // Handle cell value editing (client mode only)
-    const onCellValueChanged = (event) => {
+    // Handle cell value editing (client mode only).  Memoized with a stable
+    // identity so AG Grid doesn't re-register the handler on every render;
+    // reads renamedHeaders via a ref to avoid stale-closure payloads.
+    const onCellValueChanged = useCallback((event) => {
         if (isServerMode || !event.api) return
 
         const updatedRows = []
@@ -202,13 +251,19 @@ const AgGridRange = (props) => {
             return { startRow, endRow, columns }
         })
 
+        // Keep our internal rowData in sync with AG Grid's post-edit state so
+        // future version-gated prop updates don't overwrite the user's edit
+        // with the pre-edit snapshot Python sent in on this same render.
+        setInternalRowData(updatedRows)
         setHasEdits(true)
+
+        const currentRenamed = renamedHeadersRef.current
         Streamlit.setComponentValue({
             selections: formattedRanges,
             editedData: updatedRows,
-            renamedHeaders: Object.keys(renamedHeaders).length > 0 ? renamedHeaders : null
+            renamedHeaders: Object.keys(currentRenamed).length > 0 ? currentRenamed : null
         })
-    }
+    }, [isServerMode])
 
     // Handle ESC key to clear selection
     useEffect(() => {
@@ -420,6 +475,10 @@ const AgGridRange = (props) => {
                     const columns = range.columns.map((col) => col.colId)
                     return { startRow, endRow, columns }
                 })
+                // Keep lastKnownRanges current so the restore path after a
+                // rowDataVersion bump from the rename re-applies the real
+                // selection, not a stale one from before the rename.
+                lastKnownRanges.current = formattedRanges
                 Streamlit.setComponentValue({
                     selections: formattedRanges,
                     editedData: null,
@@ -473,7 +532,11 @@ const AgGridRange = (props) => {
                 </div>
             )}
 
-            {isServerMode ? (
+            {!gridMounted ? (
+                // Mount primer — empty fragment for one paint so the iframe
+                // reaches its final size before AG Grid measures its container.
+                <></>
+            ) : isServerMode ? (
                 // ── Server / Infinite Row Model ──────────────────────────────
                 // Data is fetched in blocks from the Python data server.
                 // Cell editing is disabled; all other interactions are preserved.
@@ -496,7 +559,7 @@ const AgGridRange = (props) => {
             ) : (
                 // ── Client-Side Row Model (small files) ──────────────────────
                 <AgGridReact
-                    rowData={rowData}
+                    rowData={internalRowData}
                     columnDefs={effectiveColumnDefs}
                     defaultColDef={defaultColDef}
                     onGridReady={onGridReady}
