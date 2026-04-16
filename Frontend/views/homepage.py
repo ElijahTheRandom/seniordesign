@@ -3111,13 +3111,15 @@ def _render_visualization_options(
             st.session_state["_analysis_invalid_params"] = True
 
     # --- Label count warnings for pie/bar charts ---
+    n_rows = data_info.get("num_rows", 0)
     if hist or box or scatter:
         chart_lines = []
-        if hist:
+        if hist and n_rows >= 35:
             chart_lines.append("**Pie Chart:** Looks best with up to 35 labels. Beyond that, slices become difficult to distinguish.")
-        if box or scatter:
+        if (box or scatter) and n_rows >= 30:
             chart_lines.append("**Bar Charts:** Looks best with up to 80 labels. Value labels inside bars are hidden when there are more than 30 labels.")
-        st.info("\n\n".join(chart_lines))
+        if chart_lines:
+            st.info("\n\n".join(chart_lines))
 
     return hist, box, scatter, line, heatmap, binomial
 
