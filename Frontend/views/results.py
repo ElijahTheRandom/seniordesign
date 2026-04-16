@@ -279,23 +279,6 @@ def _render_visualizations(run: dict, show_divider: bool = True) -> None:
                 # Display smaller thumbnail-style image
                 st.image(image)
 
-                # --- Req 3.7: JPEG download button ---
-                try:
-                    img = Image.open(chart["path"]).convert("RGB")
-                    buf = BytesIO()
-                    img.save(buf, format="JPEG")
-                    chart_type = chart.get("type", f"chart_{idx}")
-                    file_name = f"{run.get('name', 'run')} {chart_type.replace('_', ' ').title()}.jpg"
-                    st.download_button(
-                        "Download",
-                        data=buf.getvalue(),
-                        file_name=file_name,
-                        mime="image/jpeg",
-                        key=f"dl_chart_{run.get('id', '')}_{idx}",
-                        use_container_width=True,
-                    )
-                except Exception:
-                    pass
         else:
             st.error(f"{chart.get('type', 'Chart')}: {chart.get('error', 'Failed to generate')}")
 
