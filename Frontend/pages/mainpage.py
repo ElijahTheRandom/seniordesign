@@ -21,8 +21,8 @@ import streamlit as st
 # Path setup — makes sibling packages importable from any launch directory
 # ---------------------------------------------------------------------------
 
-BASE_DIR     = os.path.dirname(__file__) # Absolute path to file directory
-FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..")) # Root frontend directory (parent)
+_PAGES_DIR   = os.path.dirname(__file__)
+FRONTEND_DIR = os.path.abspath(os.path.join(_PAGES_DIR, ".."))
 
 # Lets Python import sibling modules regardless of where it launches from
 if FRONTEND_DIR not in sys.path:

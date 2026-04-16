@@ -515,20 +515,14 @@ def _show_success_toast() -> None:
 # Header detection helpers
 # ---------------------------------------------------------------------------
 
-def _col_letter(index: int) -> str:
-    """Convert a zero-based column index to Excel-style letters (A, B, ..., AA)."""
-    if index < 0:
-        return "A"
-
-    letters = ""
-    n = index
-    while True:
-        n, remainder = divmod(n, 26)
-        letters = chr(ord("A") + remainder) + letters
-        if n == 0:
-            break
-        n -= 1
-    return letters
+def _col_letter(i: int) -> str:
+    """Return a spreadsheet-style column label for index i (0-based): A, B, …, Z, AA, AB, …"""
+    label = ""
+    i += 1  # convert to 1-based
+    while i > 0:
+        i, rem = divmod(i - 1, 26)
+        label = chr(65 + rem) + label
+    return label
 
 def _detect_has_headers(raw_bytes: bytes) -> bool:
     """
@@ -567,16 +561,6 @@ def _detect_has_headers(raw_bytes: bytes) -> bool:
 
     # All-string data throughout — assume headers (common convention)
     return True
-
-
-def _col_letter(i: int) -> str:
-    """Return a spreadsheet-style column label for index i (0-based): A, B, …, Z, AA, AB, …"""
-    label = ""
-    i += 1  # convert to 1-based
-    while i > 0:
-        i, rem = divmod(i - 1, 26)
-        label = chr(65 + rem) + label
-    return label
 
 
 def _on_header_toggle(file_key: str) -> None:

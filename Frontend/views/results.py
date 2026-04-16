@@ -51,7 +51,6 @@ from utils.helpers import df_to_ascii_table
 from frontend_handler import handle_result
 from logic.run_manager import build_success_save_message
 
-from PIL import ImageOps
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -282,15 +281,21 @@ def _render_visualizations(run: dict, show_divider: bool = True) -> None:
 
                 # --- Req 3.7: JPEG download button ---
                 try:
-                    img = Image.open(chart["path"])
+                    img = Image.open(chart["path"]).convert("RGB")
+                    buf = BytesIO()
+                    img.save(buf, format="JPEG")
                     chart_type = chart.get("type", f"chart_{idx}")
-                    _render_visualization_download_button(
-                        img,
-                        f"{run.get('name', 'run')} {chart_type.replace('_', ' ').title()}.jpg",
-                        f"{run.get('id', '')}_{idx}",
+                    file_name = f"{run.get('name', 'run')} {chart_type.replace('_', ' ').title()}.jpg"
+                    st.download_button(
+                        "Download",
+                        data=buf.getvalue(),
+                        file_name=file_name,
+                        mime="image/jpeg",
+                        key=f"dl_chart_{run.get('id', '')}_{idx}",
+                        use_container_width=True,
                     )
                 except Exception:
-                    pass  # If conversion fails, skip the button silently
+                    pass
         else:
             st.error(f"{chart.get('type', 'Chart')}: {chart.get('error', 'Failed to generate')}")
 
