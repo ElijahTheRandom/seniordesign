@@ -27,7 +27,65 @@ NOTE ON setdefault():
     overwrites a value that was already set in a previous rerun.
 """
 
+import json
+import os
+import shutil
+
 import streamlit as st
+
+
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_RESULTS_CACHE = os.path.join(_PROJECT_ROOT, "results_cache")
+_SAVED_RUNS_FILE = os.path.join(_RESULTS_CACHE, "saved_runs.json")
+_PROTECTED_FOLDERS = frozenset({"custom_methods"})
+
+
+@st.cache_resource(show_spinner=False)
+def _prune_orphan_runs() -> int:
+    """
+    Delete every subfolder of results_cache/ that isn't referenced in
+    saved_runs.json. Runs exactly once per Streamlit server process via
+    @st.cache_resource memoization.
+
+    Protects custom_methods/ and the saved_runs.json manifest itself.
+    Returns the number of folders deleted (for telemetry only).
+    """
+    if not os.path.isdir(_RESULTS_CACHE):
+        return 0
+
+    saved_folders: set[str] = set()
+    if os.path.isfile(_SAVED_RUNS_FILE):
+        try:
+            with open(_SAVED_RUNS_FILE, "r") as fh:
+                for entry in json.load(fh):
+                    folder = entry.get("cache_folder")
+                    if folder:
+                        saved_folders.add(os.path.abspath(folder))
+        except (json.JSONDecodeError, OSError):
+            # If the manifest is unreadable, don't prune — safer to keep orphans
+            # than to accidentally delete the user's only copy of something.
+            return 0
+
+    removed = 0
+    for name in os.listdir(_RESULTS_CACHE):
+        if name in _PROTECTED_FOLDERS:
+            continue
+        path = os.path.join(_RESULTS_CACHE, name)
+        if not os.path.isdir(path):
+            continue
+        if os.path.abspath(path) in saved_folders:
+            continue
+        shutil.rmtree(path, ignore_errors=True)
+        removed += 1
+
+    return removed
+
+
+# Module-level invocation: fires once per process at first import of state.py.
+# Placed here (rather than inside initialize_session_state) so the prune
+# happens even for users who land on home.py and never reach mainpage.py.
+# @st.cache_resource memoizes the result, so repeat imports are free.
+_prune_orphan_runs()
 
 
 def initialize_session_state() -> None:
@@ -121,6 +179,11 @@ def initialize_session_state() -> None:
 
     # Key suffix for two-column checkboxes (Pearson, Spearman, Regression)
     st.session_state.setdefault("checkbox_key_twocol", 0)
+
+    # Session-scoped mirror of every method/viz checkbox value. Survives
+    # checkbox_key bumps and view switches so user selections persist across
+    # runs within a single session.
+    st.session_state.setdefault("method_selections", {})
 
     # ------------------------------------------------------------------
     # Modal / Notification State

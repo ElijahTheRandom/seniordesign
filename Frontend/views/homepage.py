@@ -2263,22 +2263,32 @@ def _render_computation_options(
     k1 = st.session_state.checkbox_key_onecol
     k2 = st.session_state.checkbox_key_twocol
 
+    # Mirror checkbox values into a session-scoped dict so selections survive
+    # Streamlit widget teardown (triggered by key-suffix bumps or view switches).
+    sel = st.session_state["method_selections"]
+
+    def _mcb(label, name, disabled, key):
+        val = st.checkbox(label, value=sel.get(name, False), disabled=disabled, key=key)
+        effective = val and not disabled
+        sel[name] = effective
+        return effective
+
     c1, c2 = st.columns(2)
 
     with c1:
-        mean        = st.checkbox("Mean",                disabled=dis_mean,     key=f"mean_c1_{k1}")        and not dis_mean
-        median      = st.checkbox("Median",              disabled=dis_median,   key=f"median_c1_{k1}")      and not dis_median
-        mode        = st.checkbox("Mode",                disabled=dis_mode,     key=f"mode_c1_{k2}")        and not dis_mode
-        variance    = st.checkbox("Variance",            disabled=dis_variance, key=f"variance_c1_{k2}")    and not dis_variance
-        std         = st.checkbox("Standard Deviation",  disabled=dis_std,      key=f"std_c1_{k1}")         and not dis_std
-        percentiles = st.checkbox("Percentiles",         disabled=dis_pct,      key=f"percentiles_c1_{k1}") and not dis_pct
+        mean        = _mcb("Mean",                "mean",        dis_mean,     f"mean_c1_{k1}")
+        median      = _mcb("Median",              "median",      dis_median,   f"median_c1_{k1}")
+        mode        = _mcb("Mode",                "mode",        dis_mode,     f"mode_c1_{k2}")
+        variance    = _mcb("Variance",            "variance",    dis_variance, f"variance_c1_{k2}")
+        std         = _mcb("Standard Deviation",  "std",         dis_std,      f"std_c1_{k1}")
+        percentiles = _mcb("Percentiles",         "percentiles", dis_pct,      f"percentiles_c1_{k1}")
 
     with c2:
-        pearson                  = st.checkbox("Pearson's Correlation",    disabled=dis_pearson,  key=f"pearson_c2_{k2}")    and not dis_pearson
-        spearman                 = st.checkbox("Spearman's Rank",          disabled=dis_spearman, key=f"spearman_c2_{k2}")   and not dis_spearman
-        least_squares_regression = st.checkbox("Least Squares Regression", disabled=dis_lsr,      key=f"lsr_c2_{k2}")        and not dis_lsr
-        chi_squared              = st.checkbox("Chi-Square Test",          disabled=dis_chi,      key=f"chi_squared_c2_{k2}") and not dis_chi
-        variation                = st.checkbox("Coefficient of Variation", disabled=dis_cv,       key=f"variation_c2_{k2}")  and not dis_cv
+        pearson                  = _mcb("Pearson's Correlation",    "pearson",                  dis_pearson,  f"pearson_c2_{k2}")
+        spearman                 = _mcb("Spearman's Rank",          "spearman",                 dis_spearman, f"spearman_c2_{k2}")
+        least_squares_regression = _mcb("Least Squares Regression", "least_squares_regression", dis_lsr,      f"lsr_c2_{k2}")
+        chi_squared              = _mcb("Chi-Square Test",          "chi_squared",              dis_chi,      f"chi_squared_c2_{k2}")
+        variation                = _mcb("Coefficient of Variation", "variation",                dis_cv,       f"variation_c2_{k2}")
 
     # --- Conditional parameter inputs (appear inline when the method is checked) ---
     invalid_params = False
@@ -2289,12 +2299,13 @@ def _render_computation_options(
         with pcol:
             percentile_input_val = st.text_input(
                 "Values (comma-separated)",
-                value="25, 50, 75",
+                value=sel.get("percentile_values", "25, 50, 75"),
                 key="percentile_values_input",
                 placeholder="e.g. 10, 25, 50, 75, 90",
                 help="Enter any values between 0 and 100, separated by commas.",
                 disabled=dis_pct,
             )
+        sel["percentile_values"] = percentile_input_val
         try:
             parsed_pcts = [float(v.strip()) for v in percentile_input_val.split(",") if v.strip()]
             if not parsed_pcts or any(v < 0 or v > 100 for v in parsed_pcts):
@@ -2341,6 +2352,7 @@ def _render_custom_method_checkboxes(
         k1 = st.session_state.checkbox_key_onecol
         k2 = st.session_state.checkbox_key_twocol
         n_num = data_info["num_numeric_cols"]
+        sel = st.session_state["method_selections"]
 
         flags = {}
         cm1, cm2 = st.columns(2)
@@ -2358,10 +2370,16 @@ def _render_custom_method_checkboxes(
 
             col_target = cm1 if idx % 2 == 0 else cm2
             with col_target:
+                mirror_name = f"custom_{mid}"
                 checked = st.checkbox(
-                    label, disabled=disabled, key=f"{mid}_{key_suffix}"
+                    label,
+                    value=sel.get(mirror_name, False),
+                    disabled=disabled,
+                    key=f"{mid}_{key_suffix}",
                 )
-                flags[mid] = checked and not disabled
+                effective = checked and not disabled
+                sel[mirror_name] = effective
+                flags[mid] = effective
     else:
         flags = {}
 
@@ -3632,17 +3650,25 @@ def _render_visualization_options(
     disable_one_col_num  = not data_ready or not data_info["all_numeric"]
     disable_two_cols_num = not data_ready or len(col1) < 2 or not data_info["all_numeric"]
 
+    sel = st.session_state["method_selections"]
+
+    def _vcb(label, name, disabled, key):
+        val = st.checkbox(label, value=sel.get(name, False), disabled=disabled, key=key)
+        effective = val and not disabled
+        sel[name] = effective
+        return effective
+
     v1, v2 = st.columns(2)
 
     with v1:
-        hist    = st.checkbox("Pie Chart",                     key="viz_hist",    disabled=disable_one_col)  and not disable_one_col
-        box     = st.checkbox("Vertical Bar Chart",            key="viz_box",     disabled=disable_one_col)  and not disable_one_col
-        scatter = st.checkbox("Horizontal Bar Chart",          key="viz_scatter", disabled=disable_one_col)  and not disable_one_col
+        hist    = _vcb("Pie Chart",            "viz_hist",    disable_one_col, "viz_hist")
+        box     = _vcb("Vertical Bar Chart",   "viz_box",     disable_one_col, "viz_box")
+        scatter = _vcb("Horizontal Bar Chart", "viz_scatter", disable_one_col, "viz_scatter")
 
     with v2:
-        line    = st.checkbox("Scatter Plot",                  key="viz_line",    disabled=disable_two_cols_num) and not disable_two_cols_num
-        heatmap = st.checkbox("Line of Best Fit Scatter Plot", key="viz_heatmap", disabled=disable_two_cols_num) and not disable_two_cols_num
-        binomial = st.checkbox("Binomial Distribution",        key="viz_binomial", disabled=disable_one_col_num) and not disable_one_col_num
+        line     = _vcb("Scatter Plot",                  "viz_line",     disable_two_cols_num, "viz_line")
+        heatmap  = _vcb("Line of Best Fit Scatter Plot", "viz_heatmap",  disable_two_cols_num, "viz_heatmap")
+        binomial = _vcb("Binomial Distribution",         "viz_binomial", disable_one_col_num,  "viz_binomial")
 
     # --- Binomial parameter inputs (below the checkbox) ---
     # --- Binomial parameter inputs (below the checkbox) ---
@@ -3650,37 +3676,41 @@ def _render_visualization_options(
         st.markdown("**Binomial Parameters**")
         bn1, bn2, bn3, bn4 = st.columns(4)
         with bn1:
-            st.number_input(
+            n_val = st.number_input(
                 "n (trials)", min_value=1, max_value=100000,
-                value=10, step=1,
+                value=int(sel.get("binomial_n", 10)), step=1,
                 key="binomial_n",
                 help="Total number of trials.",
                 disabled=disable_one_col_num,
             )
+            sel["binomial_n"] = n_val
         with bn2:
-            st.number_input(
+            p_val = st.number_input(
                 "p (probability)", min_value=0.0, max_value=1.0,
-                value=0.5, step=0.01, format="%.4f",
+                value=float(sel.get("binomial_p", 0.5)), step=0.01, format="%.4f",
                 key="binomial_p",
                 help="Probability of success on each trial (0 – 1).",
                 disabled=disable_one_col_num,
             )
+            sel["binomial_p"] = p_val
         with bn3:
-            st.number_input(
+            kmin_val = st.number_input(
                 "k min", min_value=0,
-                value=0, step=1,
+                value=int(sel.get("binomial_k_min", 0)), step=1,
                 key="binomial_k_min",
                 help="Minimum number of successes (start of k-range).",
                 disabled=disable_one_col_num,
             )
+            sel["binomial_k_min"] = kmin_val
         with bn4:
-            st.number_input(
+            kmax_val = st.number_input(
                 "k max", min_value=0,
-                value=10, step=1,
+                value=int(sel.get("binomial_k_max", 10)), step=1,
                 key="binomial_k_max",
                 help="Maximum number of successes (end of k-range).",
                 disabled=disable_one_col_num,
             )
+            sel["binomial_k_max"] = kmax_val
     k_min_val = st.session_state.get("binomial_k_min", 0)
     k_max_val = st.session_state.get("binomial_k_max", 10)
     if k_min_val > k_max_val:
@@ -3845,7 +3875,10 @@ def _handle_run_analysis(
     _BACKEND_CHART_IDS = {"binomial", "best_fit", "hor_bar", "pie_chart", "scat_plot", "vert_bar"}
 
     # Parse percentile parameter text input to list of floats
-    _percentile_input_value = st.session_state.get("percentile_values_input", "25, 50, 75")
+    _mirrored = st.session_state.get("method_selections", {}).get("percentile_values")
+    _percentile_input_value = st.session_state.get(
+        "percentile_values_input", _mirrored or "25, 50, 75"
+    )
     percentile_values = []
     if isinstance(_percentile_input_value, str):
         for item in _percentile_input_value.split(","):

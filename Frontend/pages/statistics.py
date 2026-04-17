@@ -266,3 +266,18 @@ else:
                 f"finished_at: {_fmt_ts(t.get('finished_at'))}  ·  "
                 f"folder: {r['folder_path']}"
             )
+
+# --- Legacy runs (no timings) ---------------------------------------------
+
+if legacy:
+    st.markdown("<div class='ps-stats-section'></div>", unsafe_allow_html=True)
+    st.subheader("Pre-instrumentation runs")
+    st.caption(
+        "These runs were saved before timing instrumentation landed and have "
+        "no compute/chart breakdown."
+    )
+    for r in legacy:
+        st.markdown(
+            f"**{r['folder_name']}** — {r['dataset_id']} v{r['dataset_version']}"
+            f"  ·  {len(r['method_ids'])} method(s), {len(r['chart_types'])} chart(s)"
+        )
