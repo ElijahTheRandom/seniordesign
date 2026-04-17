@@ -122,7 +122,7 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
 
         export_text = ("\n\n" + "=" * 60 + "\n\n").join(export_sections)
 
-        filename = f"{', '.join(run_names)} Full Combined Report.txt"
+        filename = f"{', '.join(run_names)} Combined Report.txt"
 
         st.download_button(
             "Export TXT Report",
@@ -143,7 +143,7 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
         st.download_button(
             "Export CSV Data",
             data=combined_df.to_csv(index=False),
-            file_name=f"{combined_filename} Combined.csv",
+            file_name=f"{combined_filename} Combined Report.csv",
             mime="text/csv",
             use_container_width=True,
         )
@@ -152,7 +152,7 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
         st.download_button(
             "Export TSV Data",
             data=combined_df.to_csv(index=False, sep="\t"),
-            file_name=f"{combined_filename} Combined.tsv",
+            file_name=f"{combined_filename} Combined Report.tsv",
             mime="text/tab-separated-values",
             use_container_width=True,
         )

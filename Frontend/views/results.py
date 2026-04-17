@@ -369,7 +369,7 @@ def _export_run_dialog(run: dict):
     st.download_button(
         "Export CSV Data",
         data=run["data"].to_csv(index=False),
-        file_name=f"{run['name']}.csv",
+        file_name=f"{run['name']} Full Report.csv",
         mime="text/csv",
         use_container_width=True,
     )
@@ -378,7 +378,7 @@ def _export_run_dialog(run: dict):
     st.download_button(
         "Export TSV Data",
         data=run["data"].to_csv(index=False, sep="\t"),
-        file_name=f"{run['name']}.tsv",
+        file_name=f"{run['name']} Full Report.tsv",
         mime="text/tab-separated-values",
         use_container_width=True,
     )
