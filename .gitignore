@@ -4,6 +4,7 @@ dist
 build
 __pycache__
 results_cache
+results_cache/llm_config.json
 test_run.py
 .github
 CLAUDE.md
