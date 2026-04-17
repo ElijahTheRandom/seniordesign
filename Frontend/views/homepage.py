@@ -2159,22 +2159,12 @@ def _compute_data_info(
     # Measurement-level counts — only count columns that are also numeric.
     # A column tagged "Ratio" but containing strings would still fail at
     # float-cast in the backend, so it must not enable any method.
-    ml = st.session_state.get("column_measurement_levels", {})
-    num_interval_ratio = sum(
-        1 for c in col1 if ml.get(c) in ("Interval", "Ratio") and c in numeric_cols
-    )
-    num_ordinal_plus = sum(
-        1 for c in col1 if ml.get(c) in ("Ordinal", "Interval", "Ratio") and c in numeric_cols
-    )
-
     return {
         "num_selected_cols": len(col1),
         "num_numeric_cols": numeric_count,
         "num_rows": num_rows,
         "all_numeric": numeric_count == len(col1) and len(col1) > 0,
         "has_numeric": numeric_count > 0,
-        "num_interval_ratio": num_interval_ratio,
-        "num_ordinal_plus": num_ordinal_plus,
     }
 
 
@@ -2235,30 +2225,8 @@ def _render_computation_options(
     # n_ir / n_ord already only count columns that are both numeric and
     # tagged at the right measurement level (enforced in _compute_data_info).
 
-    # Interval/Ratio methods: Mean, Std Dev
-    # All selected columns must be numeric AND ≥1 must be Interval/Ratio.
-    dis_1num  = not data_ready or not all_num or n_ir < 1
-    # Ordinal+ methods: Median, Percentile
-    # Valid for Ordinal, Interval, and Ratio data — ≥1 such column is enough.
-    dis_med   = not data_ready or not all_num or n_ord < 1
-    dis_pct   = not data_ready or not all_num or n_ord < 1
-    # Variance also needs ≥2 rows (sample variance, ddof=1)
-    dis_var   = not data_ready or not all_num or n_ir < 1 or n_rows < 2
-    # Mode works on any measurement level — just needs ≥1 numeric column
-    dis_mode  = not data_ready or not all_num
-    # Pearson: all numeric, ≥2 Interval/Ratio columns, ≥3 rows
-    dis_corr  = not data_ready or not all_num or n_ir < 2 or n_rows < 3
-    # Spearman: all numeric, ≥2 Ordinal+ columns, ≥3 rows
-    dis_spear = not data_ready or not all_num or n_ord < 2 or n_rows < 3
-    # Least-squares: all numeric, ≥2 Interval/Ratio columns, ≥2 rows
-    dis_lsr   = not data_ready or not all_num or n_ir < 2 or n_rows < 2
-    # Chi-Square: all selected columns numeric (used as observed / expected),
-    # AND ≥2 observed values
-    dis_chi   = not data_ready or not all_num or n_rows < 2
-    # Binomial: needs ≥1 numeric column (data is cast to int/float)
-    dis_binom = not data_ready or n_num < 1
-    # Coefficient of Variation: all numeric AND ≥1 Interval/Ratio column
-    dis_cv    = not data_ready or not all_num or n_ir < 1
+    dis_one_col = not data_ready or not all_num or n_cols < 1
+    dis_two_col = not data_ready or not all_num or n_cols < 2
 
     # If user drops from >=2 columns to 1 column,
     # reset two-column statistical method checkboxes
@@ -2268,19 +2236,19 @@ def _render_computation_options(
     c1, c2 = st.columns(2)
 
     with c1:
-        mean        = st.checkbox("Mean",                disabled=dis_1num,  key=f"mean_c1_{k1}")        and not dis_1num
-        median      = st.checkbox("Median",              disabled=dis_med,   key=f"median_c1_{k1}")      and not dis_med
-        mode        = st.checkbox("Mode",                disabled=dis_mode,  key=f"mode_c1_{k1}")        and not dis_mode
-        variance    = st.checkbox("Variance",            disabled=dis_var,   key=f"variance_c1_{k1}")    and not dis_var
-        std         = st.checkbox("Standard Deviation",  disabled=dis_1num,  key=f"std_c1_{k1}")         and not dis_1num
-        percentiles = st.checkbox("Percentiles",         disabled=dis_pct,   key=f"percentiles_c1_{k1}") and not dis_pct
+        mean        = st.checkbox("Mean",                disabled=dis_one_col, key=f"mean_c1_{k1}")        and not dis_one_col
+        median      = st.checkbox("Median",              disabled=dis_one_col, key=f"median_c1_{k1}")      and not dis_one_col
+        mode        = st.checkbox("Mode",                disabled=dis_one_col, key=f"mode_c1_{k2}")        and not dis_one_col
+        variance    = st.checkbox("Variance",            disabled=dis_one_col, key=f"variance_c1_{k2}")    and not dis_one_col
+        std         = st.checkbox("Standard Deviation",  disabled=dis_one_col, key=f"std_c1_{k1}")         and not dis_one_col
+        percentiles = st.checkbox("Percentiles",         disabled=dis_one_col, key=f"percentiles_c1_{k1}") and not dis_one_col
 
     with c2:
-        pearson                = st.checkbox("Pearson's Correlation",     disabled=dis_corr,  key=f"pearson_c2_{k2}")                and not dis_corr
-        spearman               = st.checkbox("Spearman's Rank",           disabled=dis_spear, key=f"spearman_c2_{k2}")               and not dis_spear
-        least_squares_regression = st.checkbox("Least Squares Regression",  disabled=dis_lsr,  key=f"least_squares_regression_c2_{k2}") and not dis_lsr
-        chi_squared            = st.checkbox("Chi-Square Test",           disabled=dis_chi,  key=f"chi_squared_c2_{k1}")            and not dis_chi
-        variation              = st.checkbox("Coefficient of Variation",  disabled=dis_cv,   key=f"variation_c2_{k1}")              and not dis_cv
+        pearson                  = st.checkbox("Pearson's Correlation",    disabled=dis_two_col, key=f"pearson_c2_{k2}")    and not dis_two_col
+        spearman                 = st.checkbox("Spearman's Rank",          disabled=dis_two_col, key=f"spearman_c2_{k2}")   and not dis_two_col
+        least_squares_regression = st.checkbox("Least Squares Regression", disabled=dis_two_col, key=f"lsr_c2_{k2}")        and not dis_two_col
+        chi_squared              = st.checkbox("Chi-Square Test",          disabled=dis_one_col, key=f"chi_squared_c2_{k2}") and not dis_one_col
+        variation                = st.checkbox("Coefficient of Variation", disabled=dis_one_col, key=f"variation_c2_{k2}")  and not dis_one_col              and not dis_cv
 
     # --- Conditional parameter inputs (appear inline when the method is checked) ---
     invalid_params = False
