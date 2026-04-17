@@ -2970,6 +2970,576 @@ def _delete_method_dialog():
             st.rerun()
 
 
+# ========================= AI GENERATE DIALOG ====================================
+
+_LLM_CONFIG_PATH = os.path.join(
+    os.path.dirname(BASE_DIR), "results_cache", "llm_config.json"
+)
+
+
+def _load_llm_config() -> dict:
+    """Load saved LLM provider keys from the config file."""
+    if not os.path.isfile(_LLM_CONFIG_PATH):
+        return {}
+    try:
+        with open(_LLM_CONFIG_PATH, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _save_llm_config(provider_key: str, api_key: str) -> None:
+    """Persist an API key for a provider to the on-disk config file."""
+    config = _load_llm_config()
+    config[provider_key] = api_key
+    os.makedirs(os.path.dirname(_LLM_CONFIG_PATH), exist_ok=True)
+    with open(_LLM_CONFIG_PATH, "w", encoding="utf-8") as fh:
+        json.dump(config, fh, indent=2)
+
+
+def _clear_llm_config(provider_key: str) -> None:
+    """Remove a stored key for a provider from the config file."""
+    config = _load_llm_config()
+    config.pop(provider_key, None)
+    try:
+        with open(_LLM_CONFIG_PATH, "w", encoding="utf-8") as fh:
+            json.dump(config, fh, indent=2)
+    except OSError:
+        pass
+
+
+_LLM_PROVIDERS = {
+    "OpenAI (ChatGPT)": "openai",
+    "Anthropic (Claude)": "anthropic",
+    "Google (Gemini)": "gemini",
+}
+
+_LLM_SYSTEM_PROMPT = """\
+You are a Python statistical method code generator for PS Analytics.
+Generate ONLY the compute-logic body for a custom statistical method.
+
+STRICT RULES — violating any will cause the method to fail validation:
+1. Assign your final answer to exactly one variable named `result`.
+2. Available variables (pre-defined by the host template):
+   - `data`   : list of Python lists, one list per selected column.
+   - `params` : dict of optional runtime parameters.
+   - `toolbox`: dict of callable built-in/custom methods.
+   - `np`     : numpy (already imported).
+3. For one_column input: flatten `data` with `np.asarray(data, dtype=float).flatten()`.
+   For two_column input: use `data[0]` and `data[1]`.
+4. You MAY import: numpy (already available as `np`), scipy.stats, math, statistics.
+5. Do NOT import or use: os, sys, subprocess, shutil, pathlib, socket, http,
+   urllib, requests, ctypes, multiprocessing, threading, pickle, shelve, marshal.
+6. Do NOT call: exec, eval, compile, __import__, open, input, breakpoint,
+   globals, locals.
+7. Do NOT write `return` statements.
+8. Do NOT define functions or classes inside the code.
+9. Output RAW Python code only — no markdown fences, no prose, no comments
+   other than brief inline ones if helpful.
+"""
+
+
+def _call_openai(api_key: str, prompt: str) -> str:
+    """Call OpenAI Chat Completions API and return the generated code string."""
+    import openai
+    client = openai.OpenAI(api_key=api_key)
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": _LLM_SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.2,
+        max_tokens=800,
+    )
+    return response.choices[0].message.content.strip()
+
+
+def _call_anthropic(api_key: str, prompt: str) -> str:
+    """Call Anthropic Messages API and return the generated code string."""
+    import anthropic
+    client = anthropic.Anthropic(api_key=api_key)
+    response = client.messages.create(
+        model="claude-opus-4-5",
+        max_tokens=800,
+        system=_LLM_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text.strip()
+
+
+def _call_gemini(api_key: str, prompt: str) -> str:
+    """Call Google Gemini API and return the generated code string."""
+    import google.generativeai as genai
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(
+        model_name="gemini-2.0-flash",
+        system_instruction=_LLM_SYSTEM_PROMPT,
+    )
+    response = model.generate_content(prompt)
+    return response.text.strip()
+
+
+def _strip_markdown_fences(code: str) -> str:
+    """Remove ```python ... ``` or ``` ... ``` fences if the LLM added them."""
+    import re
+    code = re.sub(r"^```[a-zA-Z]*\n?", "", code.strip())
+    code = re.sub(r"\n?```$", "", code.strip())
+    return code.strip()
+
+
+# ---------------------------------------------------------------------------
+# Keywords that hint a description is a computation request
+# ---------------------------------------------------------------------------
+_STAT_KEYWORDS = frozenset({
+    "calculat", "comput", "find", "determin", "measur", "estimat",
+    "sum", "mean", "average", "median", "mode", "variance", "std",
+    "deviation", "range", "iqr", "quartile", "percentile", "regression",
+    "correlation", "covariance", "coefficient", "ratio", "product",
+    "normalize", "normaliz", "scale", "rank", "entropy", "frequency",
+    "distribution", "probability", "statistic", "metric", "score",
+    "distance", "error", "residual", "fit", "slope", "intercept",
+    "maximum", "minimum", "count", "total", "proportion", "percent",
+    "log", "exponential", "geometric", "harmonic", "weighted",
+    "skew", "kurtosis", "moment", "z-score", "outlier",
+})
+
+
+def _is_computation_description(description: str) -> bool:
+    """
+    Return True if the description looks like a statistical/numerical
+    computation request.  Uses a keyword heuristic — rejects conversational,
+    code-injection, or completely off-topic text.
+    """
+    import re
+    lower = description.lower()
+    # Reject if it contains no digits AND no stat keywords
+    has_keyword = any(kw in lower for kw in _STAT_KEYWORDS)
+    has_digit   = bool(re.search(r"\d", lower))
+    # Reject obvious non-code injection / jailbreak patterns
+    suspicious_patterns = [
+        r"ignore (previous|all|above|prior)",
+        r"forget (your|the) (rules|instructions|prompt|system)",
+        r"(you are|act as|pretend|roleplay|become)",
+        r"(print|tell me|say|write|explain|list|describe|what is|who are)",
+        r"(delete|remove|modify|change) (the|a|all) (file|method|record|data)",
+    ]
+    for pat in suspicious_patterns:
+        if re.search(pat, lower):
+            return False
+    return has_keyword or has_digit
+
+
+_OUTPUT_TYPE_HINTS = {
+    "scalar": (
+        "The result MUST be a single number (int or float). "
+        "Example: `result = float(np.mean(arr))`"
+    ),
+    "list": (
+        "The result MUST be a Python list of numbers. "
+        "Example: `result = sorted_arr.tolist()`"
+    ),
+    "dictionary": (
+        "The result MUST be a Python dict with descriptive string keys and numeric values. "
+        "Example: `result = {'min': float(arr.min()), 'max': float(arr.max())}`"
+    ),
+}
+
+
+def _validate_llm_output(
+    code: str,
+    input_type: str,
+    output_type: str,
+) -> list[str]:
+    """
+    Validate that LLM-generated code:
+    1. Is parseable Python.
+    2. Assigns to `result`.
+    3. The result assignment is consistent with the chosen output_type.
+    4. Uses the correct data access pattern for input_type.
+
+    Returns a list of human-readable warning strings (empty = OK).
+    """
+    import ast
+    warnings: list[str] = []
+
+    if not code or not code.strip():
+        warnings.append("The AI returned an empty response. Please try again.")
+        return warnings
+
+    # --- Parse check ---
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as exc:
+        warnings.append(
+            f"The AI response is not valid Python (syntax error on line {exc.lineno}: {exc.msg}). "
+            "It may have returned a conversational answer instead of code."
+        )
+        return warnings
+
+    # --- Prose detection: if >60% of lines have no '=' and no function calls
+    #     and start with a capital letter it looks like prose ---
+    lines = [ln.strip() for ln in code.splitlines() if ln.strip()]
+    if lines:
+        prose_lines = sum(
+            1 for ln in lines
+            if not any(c in ln for c in ("=", "(", "[", "import", "#"))
+            and ln[0].isupper()
+        )
+        if prose_lines / len(lines) > 0.5:
+            warnings.append(
+                "The AI appears to have returned a text explanation rather than code. "
+                "Please rephrase your request as a specific computation (e.g. 'Compute the IQR')."
+            )
+            return warnings
+
+    # --- result assignment check ---
+    assigns_result = any(
+        (isinstance(node, ast.Assign)
+         and any(isinstance(t, ast.Name) and t.id == "result" for t in node.targets))
+        or (isinstance(node, ast.AugAssign)
+            and isinstance(node.target, ast.Name) and node.target.id == "result")
+        for node in ast.walk(tree)
+    )
+    if not assigns_result:
+        warnings.append(
+            "The generated code does not assign to `result`. "
+            "The AI may have misunderstood the request — please rephrase it as a calculation."
+        )
+
+    # --- output type consistency ---
+    if output_type == "scalar":
+        # Look for assignments like result = float(...) / int(...) / np. scalar ops
+        # Warn if the right-hand side is an obvious list/dict literal
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == "result" for t in node.targets)
+            ):
+                if isinstance(node.value, (ast.List, ast.ListComp)):
+                    warnings.append(
+                        "You selected 'Scalar' output but the generated code assigns a list to `result`. "
+                        "Please re-generate or edit the code to return a single number."
+                    )
+                elif isinstance(node.value, (ast.Dict, ast.DictComp)):
+                    warnings.append(
+                        "You selected 'Scalar' output but the generated code assigns a dict to `result`. "
+                        "Please re-generate or edit the code to return a single number."
+                    )
+    elif output_type == "list":
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == "result" for t in node.targets)
+            ):
+                if isinstance(node.value, (ast.Dict, ast.DictComp)):
+                    warnings.append(
+                        "You selected 'List' output but the generated code assigns a dict to `result`. "
+                        "Please re-generate or edit the code."
+                    )
+    elif output_type == "dictionary":
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id == "result" for t in node.targets)
+            ):
+                if isinstance(node.value, (ast.List, ast.ListComp)):
+                    warnings.append(
+                        "You selected 'Dictionary' output but the generated code assigns a list to `result`. "
+                        "Please re-generate or edit the code."
+                    )
+
+    # --- input type consistency ---
+    code_lower = code.lower()
+    if input_type == "two_column":
+        uses_two = "data[0]" in code or "data[1]" in code
+        if not uses_two:
+            warnings.append(
+                "You selected 'Two Columns' input but the generated code does not access "
+                "`data[0]` or `data[1]`. The AI may have generated a one-column method instead."
+            )
+    else:
+        uses_two_only = ("data[1]" in code) and ("data[0]" not in code)
+        if uses_two_only:
+            warnings.append(
+                "You selected 'One Column' input but the generated code accesses `data[1]`. "
+                "Please re-generate or edit the code."
+            )
+
+    return warnings
+
+
+def _build_llm_user_prompt(description: str, input_type: str, output_type: str) -> str:
+    col_note = (
+        "The input is ONE column of numbers. Access it with: "
+        "`arr = np.asarray(data, dtype=float).flatten()` or `arr = np.asarray(data[0], dtype=float)`."
+        if input_type == "one_column"
+        else "The input is TWO columns of numbers. Use `data[0]` for the first column and `data[1]` for the second."
+    )
+    output_note = _OUTPUT_TYPE_HINTS.get(output_type, _OUTPUT_TYPE_HINTS["scalar"])
+    return (
+        f"Generate the compute-logic body for a custom statistical method.\n\n"
+        f"Description: {description}\n"
+        f"Input layout: {col_note}\n"
+        f"Output requirement: {output_note}\n\n"
+        f"Remember: assign the final answer to `result`. No markdown, no functions, no return."
+    )
+
+
+@st.dialog("Generate Method with AI", width="large")
+def _ai_generate_method_dialog():
+    """Multi-step dialog: choose LLM → enter key → describe → generate → save."""
+
+    # --- Step tracking ---
+    step = st.session_state.get("_ai_gen_step", 1)
+
+    # ── STEP 1: provider + API key ──────────────────────────────────────────
+    if step == 1:
+        st.markdown(
+            "Use an AI language model to generate a custom statistical method. "
+            "Choose your provider and enter your API key. "
+            "Keys can be saved locally to the app's data folder so you don't need to re-enter them."
+        )
+
+        provider_label = st.selectbox(
+            "LLM Provider",
+            list(_LLM_PROVIDERS.keys()),
+            key="_ai_gen_provider",
+        )
+
+        # Pre-fill key from saved config when provider changes
+        provider_key_id = _LLM_PROVIDERS[provider_label]
+        saved_config = _load_llm_config()
+        saved_key = saved_config.get(provider_key_id, "")
+
+        # Seed the session key when:
+        #  - provider changed (switch providers → load that provider's saved key)
+        #  - key widget state was cleared (dialog dismissed via X closes widget state
+        #    but leaves _ai_gen_prev_provider, so check for missing key explicitly)
+        prev_provider = st.session_state.get("_ai_gen_prev_provider")
+        key_missing = "_ai_gen_api_key" not in st.session_state
+        if prev_provider != provider_label or key_missing:
+            st.session_state["_ai_gen_api_key"] = saved_key
+            st.session_state["_ai_gen_prev_provider"] = provider_label
+
+        api_key = st.text_input(
+            "API Key",
+            type="password",
+            placeholder="Paste your API key here",
+            key="_ai_gen_api_key",
+            help="Your key is sent directly to the chosen provider.",
+        )
+
+        remember_key = st.checkbox(
+            "Remember this key for future sessions",
+            value=bool(saved_key),
+            key="_ai_gen_remember",
+            help="Saves the key to results_cache/llm_config.json on your local machine. Never committed to git.",
+        )
+
+        if saved_key and st.button(
+            f"Clear saved key for {provider_label}",
+            key="_ai_gen_clear_key",
+        ):
+            _clear_llm_config(provider_key_id)
+            st.session_state["_ai_gen_api_key"] = ""
+            st.rerun()
+
+        method_description = st.text_area(
+            "Describe the statistical method you want",
+            placeholder=(
+                "e.g. 'Compute the interquartile range (IQR) of the selected column.'\n"
+                "Be specific about what the method should calculate and what result should be returned."
+            ),
+            height=110,
+            key="_ai_gen_description",
+        )
+
+        col_it, col_ot = st.columns(2)
+        with col_it:
+            input_type_label = st.selectbox(
+                "Input Type",
+                ["One Column", "Two Columns"],
+                key="_ai_gen_input_type",
+            )
+        with col_ot:
+            output_type_label = st.selectbox(
+                "Output Type",
+                ["Scalar (single number)", "List", "Dictionary"],
+                key="_ai_gen_output_type",
+            )
+
+        st.markdown("---")
+        gen_col, cancel_col = st.columns(2)
+        with gen_col:
+            if st.button("Generate", use_container_width=True, type="primary"):
+                if not api_key.strip():
+                    st.error("Please enter your API key.")
+                elif not method_description.strip():
+                    st.error("Please describe the method you want.")
+                elif not _is_computation_description(method_description.strip()):
+                    st.warning(
+                        "Your description doesn't look like a statistical computation request. "
+                        "Please describe a specific calculation — for example: "
+                        "'Compute the interquartile range of the selected column.'",
+                        icon="⚠️",
+                    )
+                else:
+                    if remember_key:
+                        _save_llm_config(provider_key_id, api_key.strip())
+                    elif not remember_key and saved_key:
+                        _clear_llm_config(provider_key_id)
+
+                    with st.spinner("Calling the AI — this may take a few seconds…"):
+                        input_key = "one_column" if input_type_label == "One Column" else "two_column"
+                        output_key_now = {
+                            "Scalar (single number)": "scalar",
+                            "List": "list",
+                            "Dictionary": "dictionary",
+                        }[output_type_label]
+                        user_prompt = _build_llm_user_prompt(
+                            method_description.strip(), input_key, output_key_now
+                        )
+                        try:
+                            if provider_key_id == "openai":
+                                raw_code = _call_openai(api_key.strip(), user_prompt)
+                            elif provider_key_id == "anthropic":
+                                raw_code = _call_anthropic(api_key.strip(), user_prompt)
+                            else:
+                                raw_code = _call_gemini(api_key.strip(), user_prompt)
+
+                            generated_code = _strip_markdown_fences(raw_code)
+
+                            # --- Post-generation validation ---
+                            gen_warnings = _validate_llm_output(
+                                generated_code, input_key, output_key_now
+                            )
+                            if gen_warnings:
+                                for w in gen_warnings:
+                                    st.warning(w, icon="⚠️")
+                                # Still advance to step 2 so the user can inspect/edit
+                            st.session_state["_ai_gen_generated_code"] = generated_code
+                            st.session_state["_ai_gen_output_warnings"] = gen_warnings
+                            st.session_state["_ai_gen_step"] = 2
+                            # Re-set routing flag so the dialog re-opens after rerun
+                            st.session_state["cm_pending_dialog"] = "ai_generate"
+                            st.rerun()
+                        except Exception as exc:
+                            st.error(f"API call failed: {exc}")
+        with cancel_col:
+            if st.button("Cancel", use_container_width=True):
+                for k in ("_ai_gen_step", "_ai_gen_generated_code",
+                          "_ai_gen_provider", "_ai_gen_api_key",
+                          "_ai_gen_description", "_ai_gen_input_type",
+                          "_ai_gen_output_type", "_ai_gen_prev_provider",
+                          "_ai_gen_remember", "_ai_gen_output_warnings"):
+                    st.session_state.pop(k, None)
+                st.rerun()
+
+    # ── STEP 2: review generated code + name/description + save ────────────
+    elif step == 2:
+        st.markdown(
+            "Review the generated code below. Edit anything before saving."
+        )
+
+        # Show any type-mismatch or structural warnings from generation
+        output_warnings = st.session_state.get("_ai_gen_output_warnings", [])
+        if output_warnings:
+            with st.expander("⚠️ Generation warnings — review before saving", expanded=True):
+                for w in output_warnings:
+                    st.warning(w, icon="⚠️")
+
+        input_type_label = st.session_state.get("_ai_gen_input_type", "One Column")
+        output_type_label = st.session_state.get("_ai_gen_output_type", "Scalar (single number)")
+        ai_description = st.session_state.get("_ai_gen_description", "")
+        input_key = "one_column" if input_type_label == "One Column" else "two_column"
+        output_key = {
+            "Scalar (single number)": "scalar",
+            "List": "list",
+            "Dictionary": "dictionary",
+        }[output_type_label]
+
+        method_name = st.text_input(
+            "Method Name",
+            placeholder="e.g. Interquartile Range",
+            key="_ai_gen_method_name",
+        )
+        description = st.text_area(
+            "Description",
+            value=ai_description,
+            height=68,
+            key="_ai_gen_save_description",
+        )
+
+        st.markdown(
+            f"**Input:** {input_type_label} &nbsp;|&nbsp; "
+            f"**Output:** {output_type_label}"
+        )
+
+        st.markdown("---")
+        st.markdown("**Generated Compute Logic** — edit as needed:")
+
+        user_code = st.text_area(
+            "Code",
+            value=st.session_state.get("_ai_gen_generated_code", ""),
+            height=280,
+            key="_ai_gen_code_editor",
+        )
+
+        check_col, _ = st.columns([1, 2])
+        with check_col:
+            if st.button("Check Code", use_container_width=True, key="_ai_gen_check"):
+                issues = validate_user_code(user_code, input_key)
+                if not issues:
+                    st.success("No issues found — code looks good!")
+                else:
+                    for issue in issues:
+                        if issue.startswith("Hint:"):
+                            st.info(issue)
+                        else:
+                            st.error(issue)
+
+        st.markdown("---")
+        save_col, back_col, cancel_col = st.columns(3)
+        with save_col:
+            if st.button("Save Method", use_container_width=True, type="primary", key="_ai_gen_save"):
+                ok, msg = save_custom_method(
+                    name=method_name,
+                    description=description,
+                    input_type=input_key,
+                    output_type=output_key,
+                    user_code=user_code,
+                    dependencies=[],
+                )
+                if ok:
+                    for k in ("_ai_gen_step", "_ai_gen_generated_code",
+                              "_ai_gen_provider", "_ai_gen_api_key",
+                              "_ai_gen_description", "_ai_gen_input_type",
+                              "_ai_gen_output_type", "_ai_gen_prev_provider",
+                              "_ai_gen_remember", "_ai_gen_output_warnings"):
+                        st.session_state.pop(k, None)
+                    _after_method_change()
+                    st.success(msg)
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(msg)
+        with back_col:
+            if st.button("Back", use_container_width=True, key="_ai_gen_back"):
+                st.session_state["_ai_gen_step"] = 1
+                st.session_state["cm_pending_dialog"] = "ai_generate"
+                st.rerun()
+        with cancel_col:
+            if st.button("Cancel", use_container_width=True, key="_ai_gen_cancel2"):
+                for k in ("_ai_gen_step", "_ai_gen_generated_code",
+                          "_ai_gen_provider", "_ai_gen_api_key",
+                          "_ai_gen_description", "_ai_gen_input_type",
+                          "_ai_gen_output_type", "_ai_gen_prev_provider",
+                          "_ai_gen_remember", "_ai_gen_output_warnings"):
+                    st.session_state.pop(k, None)
+                st.rerun()
+
+
 # ========================= MANAGE DIALOG ====================================
 
 @st.dialog("**Manage Custom Methods**", width="large")
@@ -2983,7 +3553,7 @@ def _manage_methods_dialog():
     )
     st.caption(f"Currently saved: {len(registry)} custom method(s)")
 
-    b1, b2, b3 = st.columns(3)
+    b1, b2, b3, b4 = st.columns(4)
     with b1:
         if st.button("Create", key="cm_manage_create_btn", use_container_width=True):
             st.session_state["cm_pending_dialog"] = "create"
@@ -2995,6 +3565,10 @@ def _manage_methods_dialog():
     with b3:
         if st.button("Delete", key="cm_manage_delete_btn", use_container_width=True):
             st.session_state["cm_pending_dialog"] = "delete"
+            st.rerun()
+    with b4:
+        if st.button("Generate with AI", key="cm_manage_ai_btn", use_container_width=True):
+            st.session_state["cm_pending_dialog"] = "ai_generate"
             st.rerun()
 
     st.markdown("---")
@@ -3014,12 +3588,17 @@ def _user_defined_computation_options():
     # Calling @st.dialog functions directly inside another @st.dialog raises
     # StreamlitAPIException, so we set a flag and rerun instead.
     pending = st.session_state.pop("cm_pending_dialog", None)
+    # Keep the AI generate dialog open across internal step reruns
+    if pending is None and st.session_state.get("_ai_gen_step") is not None:
+        pending = "ai_generate"
     if pending == "create":
         _create_method_dialog()
     elif pending == "edit":
         _edit_method_dialog()
     elif pending == "delete":
         _delete_method_dialog()
+    elif pending == "ai_generate":
+        _ai_generate_method_dialog()
 
 # ============================================================================
 # ⭐ VISUALIZATION OPTIONS SELECTED BY USER
