@@ -1446,7 +1446,6 @@ def _render_large_file_selectors(df: pd.DataFrame) -> None:
         options=list(df.columns),
         default=valid_prev,
         key="_lf_col_select",
-        help="Select one or more columns. All rows of these columns will be used in the analysis.",
     )
     st.session_state.selected_columns = selected_cols
 
@@ -2031,15 +2030,6 @@ def _render_column_row_selectors(
             label_visibility="collapsed",
             on_change=_on_range_input_change,
             args=(edited_table, n_displayed),
-            help=(
-                "Type a cell range and press Enter to highlight it in the table.\n\n"
-                "**Examples**\n"
-                "- `Age` — whole column\n"
-                "- `Age[1]:Age[100]` — rows 1–100\n"
-                "- `Age[5]:Score[5]` — rectangular range Age→Score at row 5\n"
-                "- `Age[1]:Age[50], Score[1]:Score[50]` — two separate ranges\n\n"
-                "Or simply drag-select cells directly in the table."
-            ),
         )
 
         range_error = st.session_state.get("_range_input_error", "")
@@ -2302,7 +2292,6 @@ def _render_computation_options(
                 value=sel.get("percentile_values", "25, 50, 75"),
                 key="percentile_values_input",
                 placeholder="e.g. 10, 25, 50, 75, 90",
-                help="Enter any values between 0 and 100, separated by commas.",
                 disabled=dis_pct,
             )
         sel["percentile_values"] = percentile_input_val
@@ -2495,10 +2484,6 @@ def _render_custom_method_transfer_controls():
             options=list(exportable_names.keys()),
             default=list(exportable_names.keys()),
             key="cm_export_selection",
-            help=(
-                "Pick the custom methods to include in the bundle. "
-                "Built-in standard methods stay available automatically and are not exported."
-            ),
         )
 
     selected_export_ids = [exportable_names[name] for name in selected_export_names]
@@ -2680,10 +2665,6 @@ def _create_method_dialog():
         selected_tool_names = st.multiselect(
             "Use toolbox methods",
             options=list(tool_options.keys()),
-            help=(
-                "Select built-in or custom methods this method depends on. "
-                "They will be available via the `toolbox` dict in your code."
-            ),
             key="custom_method_deps",
         )
         selected_deps = [tool_options[n] for n in selected_tool_names]
@@ -2869,10 +2850,6 @@ def _edit_method_dialog():
             "Use toolbox methods",
             options=list(tool_options.keys()),
             default=default_names,
-            help=(
-                "Select built-in or custom methods this method depends on. "
-                "They will be available via the `toolbox` dict in your code."
-            ),
             key="_cm_edit_deps",
         )
         selected_deps = [tool_options[n] for n in selected_tool_names]
@@ -3345,14 +3322,12 @@ def _ai_generate_method_dialog():
             type="password",
             placeholder="Paste your API key here",
             key="_ai_gen_api_key",
-            help="Your key is sent directly to the chosen provider.",
         )
 
         remember_key = st.checkbox(
             "Remember this key for future sessions",
             value=bool(saved_key),
             key="_ai_gen_remember",
-            help="Saves the key to results_cache/llm_config.json on your local machine. Never committed to git.",
         )
 
         if saved_key and st.button(
@@ -3680,7 +3655,6 @@ def _render_visualization_options(
                 "n (trials)", min_value=1, max_value=100000,
                 value=int(sel.get("binomial_n", 10)), step=1,
                 key="binomial_n",
-                help="Total number of trials.",
                 disabled=disable_one_col_num,
             )
             sel["binomial_n"] = n_val
@@ -3689,7 +3663,6 @@ def _render_visualization_options(
                 "p (probability)", min_value=0.0, max_value=1.0,
                 value=float(sel.get("binomial_p", 0.5)), step=0.01, format="%.4f",
                 key="binomial_p",
-                help="Probability of success on each trial (0 – 1).",
                 disabled=disable_one_col_num,
             )
             sel["binomial_p"] = p_val
@@ -3698,7 +3671,6 @@ def _render_visualization_options(
                 "k min", min_value=0,
                 value=int(sel.get("binomial_k_min", 0)), step=1,
                 key="binomial_k_min",
-                help="Minimum number of successes (start of k-range).",
                 disabled=disable_one_col_num,
             )
             sel["binomial_k_min"] = kmin_val
@@ -3707,7 +3679,6 @@ def _render_visualization_options(
                 "k max", min_value=0,
                 value=int(sel.get("binomial_k_max", 10)), step=1,
                 key="binomial_k_max",
-                help="Maximum number of successes (end of k-range).",
                 disabled=disable_one_col_num,
             )
             sel["binomial_k_max"] = kmax_val
