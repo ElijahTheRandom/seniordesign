@@ -183,41 +183,39 @@ def _render_saved_run_card(entry: dict, saved_runs: list) -> None:
 
         # Show the rename form inline under the card
         if st.session_state.get("renaming_saved_run_id") == run_id:
-            new_name = st.text_input(
-                "Rename run",
-                value=name,
-                key=f"rename_input_{run_id}",
-                label_visibility="collapsed"
-            )
+            with st.form(key=f"rename_saved_form_{run_id}", clear_on_submit=False):
+                new_name = st.text_input(
+                    "Rename run",
+                    value=name,
+                    key=f"rename_input_{run_id}",
+                    label_visibility="collapsed"
+                )
 
-            save_col, cancel_col = st.columns([1, 1])
-            
-            with save_col:
-                if st.button("Save", key=f"save_rename_{run_id}", use_container_width=True):
-                    new_name_clean = new_name.strip()
-                    if new_name_clean:
-                        # 1️⃣ Update saved_runs.json
-                        entry["name"] = new_name_clean
-                        _write_saved_runs(saved_runs)
+                save_col, cancel_col = st.columns([1, 1])
 
-                        # 2️⃣ Update card immediately
-                        name = new_name_clean
+                with save_col:
+                    submitted = st.form_submit_button("Save", use_container_width=True)
+                with cancel_col:
+                    cancelled = st.form_submit_button("Cancel", use_container_width=True)
 
-                        # 3️⃣ Update sidebar only if run already exists
-                        for run in st.session_state.analysis_runs:
-                            if run["id"] == run_id:
-                                run["name"] = new_name_clean
-                                break
+            if submitted:
+                new_name_clean = new_name.strip()
+                if new_name_clean:
+                    # Update saved_runs.json
+                    entry["name"] = new_name_clean
+                    _write_saved_runs(saved_runs)
 
-                        # 4️⃣ Close the rename form for this page
-                        st.session_state["renaming_saved_run_id"] = None
+                    # Update sidebar if run already loaded
+                    for active_run in st.session_state.analysis_runs:
+                        if active_run["id"] == run_id:
+                            active_run["name"] = new_name_clean
+                            break
 
-                        # 5️⃣ Trigger a page rerender safely
-                        st.session_state["_rerun_trigger"] = not st.session_state.get("_rerun_trigger", False)
-
-            with cancel_col:
-                if st.button("Cancel", key=f"cancel_rename_{run_id}", use_container_width=True):
-                    st.session_state["renaming_saved_run_id"] = None
+                st.session_state["renaming_saved_run_id"] = None
+                st.rerun()
+            elif cancelled:
+                st.session_state["renaming_saved_run_id"] = None
+                st.rerun()
 
     with col_replay:
         if not folder_exists:
