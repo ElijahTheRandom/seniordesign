@@ -122,6 +122,11 @@ def initialize_session_state() -> None:
     # Key suffix for two-column checkboxes (Pearson, Spearman, Regression)
     st.session_state.setdefault("checkbox_key_twocol", 0)
 
+    # Session-scoped mirror of every method/viz checkbox value. Survives
+    # checkbox_key bumps and view switches so user selections persist across
+    # runs within a single session.
+    st.session_state.setdefault("method_selections", {})
+
     # ------------------------------------------------------------------
     # Modal / Notification State
     # ------------------------------------------------------------------
