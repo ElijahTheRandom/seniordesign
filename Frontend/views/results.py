@@ -409,7 +409,7 @@ def _render_charts_zip_download_button(run: dict) -> None:
             continue
         chart_type = chart.get("type", f"chart_{idx}")
         charts_payload.append({
-            "name": f"{chart_type}_{idx}.png",
+            "name": f"{chart_type}_{idx}.jpeg",
             "type": chart_type,
             "data": chart_b64,
         })
@@ -451,7 +451,7 @@ def _render_charts_zip_download_button(run: dict) -> None:
                         ctx.filter = "invert(1)";
                     }}
                     ctx.drawImage(img, 0, 0);
-                    const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
+                    const blob = await new Promise(r => canvas.toBlob(r, "image/jpeg"));
                     zip.file(chart.name, blob);
                 }}
                 const zipBlob = await zip.generateAsync({{ type: "blob" }});
