@@ -277,7 +277,13 @@ def _load_run_from_cache(entry: dict) -> None:
         st.error(f"Failed to read cached results: {exc}")
         return
 
-    # 2. Re-execute the computation with original inputs
+    # Load the table CSV first so we can use the DataFrame as data
+    table_path = os.path.join(cache_folder, "table.csv")
+    if os.path.isfile(table_path):
+        replay_data = pd.read_csv(table_path)
+    else:
+        replay_data = pd.DataFrame(data_dict.get("data", []))
+
     request = Message(
         dataset_id=data_dict.get("dataset_id"),
         dataset_version=data_dict.get("dataset_version"),
@@ -285,7 +291,7 @@ def _load_run_from_cache(entry: dict) -> None:
         selection=data_dict.get("selection", {}),
         methods=data_dict.get("methods", []),
         graphics=data_dict.get("graphics", []),
-        data=data_dict.get("data", []),
+        data=replay_data.to_dict(orient="list") if not replay_data.empty else {},
     )
 
     try:
@@ -294,13 +300,6 @@ def _load_run_from_cache(entry: dict) -> None:
     except Exception as exc:
         st.error(f"Replay failed: {exc}")
         return
-
-    # 3. Load the table CSV (saved by the Save Run action)
-    table_path = os.path.join(cache_folder, "table.csv")
-    if os.path.isfile(table_path):
-        table_df = pd.read_csv(table_path)
-    else:
-        table_df = pd.DataFrame()
 
     # 4. Extract method and visualization names for the run dict
     methods_list = entry.get("methods", [])
@@ -313,8 +312,8 @@ def _load_run_from_cache(entry: dict) -> None:
         "methods":        methods_list,
         "visualizations": viz_list,
         "result_message": result_message,
-        "table":          table_df,
-        "data":           table_df,
+        "table":          replay_data,
+        "data":           replay_data,
     }
 
     # Generate stat/error cards from results
