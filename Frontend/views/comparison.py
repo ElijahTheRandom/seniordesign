@@ -112,15 +112,17 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
 
         st.write("Choose an export format:")
 
-        # ---------- TXT REPORT ----------
+        # ---------- TXT REPORT (UI-CONSISTENT VERSION) ----------
         export_sections = []
         run_names = []
 
         for run in runs:
-            export_sections.append(_build_export_text(run))
+            # FORCE same formatting as Results page export
+            section = _build_export_text(run)
+            export_sections.append(section)
             run_names.append(run["name"])
 
-        export_text = ("\n\n" + "=" * 60 + "\n\n").join(export_sections)
+        export_text = ("\n\n" + "-" * 80 + "\n\n").join(export_sections)
 
         filename = f"{', '.join(run_names)} Combined Report.txt"
 
