@@ -3,10 +3,18 @@ import streamlit.components.v1 as components
 import os
 import base64
 import json
+import sys
 from pathlib import Path
 from PIL import Image
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Import state.py (sibling module) to trigger the once-per-process
+# results_cache prune. We do this here so the prune runs even for users
+# who open the landing page and never reach mainpage.py.
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+import state  # noqa: F401 — imported for its module-level side effects
 
 
 st.set_page_config(

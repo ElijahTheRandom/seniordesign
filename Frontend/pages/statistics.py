@@ -12,7 +12,6 @@ and persisted to results_cache/<run>/results_*.json.
 import glob
 import json
 import os
-import shutil
 import sys
 from datetime import datetime
 
@@ -221,18 +220,6 @@ else:
         t = r["timings"]
         label = f"{r['folder_name']} — total {_fmt_ms(t.get('total_ms'))}"
         with st.expander(label, expanded=False):
-            del_key = f"stats_delete_{r['folder_name']}"
-            if st.button(
-                "Delete run",
-                key=del_key,
-                help="Permanently remove this run's cached folder.",
-            ):
-                try:
-                    shutil.rmtree(r["folder_path"])
-                    st.rerun()
-                except OSError as exc:
-                    st.error(f"Failed to delete {r['folder_path']}: {exc}")
-
             c1, c2 = st.columns(2)
 
             with c1:
@@ -286,24 +273,11 @@ if legacy:
     st.markdown("<div class='ps-stats-section'></div>", unsafe_allow_html=True)
     st.subheader("Pre-instrumentation runs")
     st.caption(
-        "These runs were saved before timing instrumentation landed. "
-        "They have no compute/chart breakdown — delete them if you don't need them."
+        "These runs were saved before timing instrumentation landed and have "
+        "no compute/chart breakdown."
     )
     for r in legacy:
-        c_label, c_btn = st.columns([4, 1])
-        with c_label:
-            st.markdown(
-                f"**{r['folder_name']}** — {r['dataset_id']} v{r['dataset_version']}"
-                f"  ·  {len(r['method_ids'])} method(s), {len(r['chart_types'])} chart(s)"
-            )
-        with c_btn:
-            if st.button(
-                "Delete",
-                key=f"stats_delete_legacy_{r['folder_name']}",
-                use_container_width=True,
-            ):
-                try:
-                    shutil.rmtree(r["folder_path"])
-                    st.rerun()
-                except OSError as exc:
-                    st.error(f"Failed to delete {r['folder_path']}: {exc}")
+        st.markdown(
+            f"**{r['folder_name']}** — {r['dataset_id']} v{r['dataset_version']}"
+            f"  ·  {len(r['method_ids'])} method(s), {len(r['chart_types'])} chart(s)"
+        )
