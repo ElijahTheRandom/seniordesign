@@ -850,9 +850,12 @@ def render_homepage(base_dir: str) -> None:
             st.session_state._csv_future = None
             st.rerun()
             return
-        # Still loading (or just kicked off) — poll.
-        time.sleep(0.5)
-        st.rerun()
+        # Still loading (or just kicked off) — the _csv_loading_watcher
+        # fragment in mainpage.py polls _csv_future every 500 ms and triggers
+        # a full-app rerun when it's done, at which point this function's
+        # elif-branch above picks up the result. Do not sleep+rerun here;
+        # that pattern causes full-page jitter (see CLAUDE.md).
+        return
 
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     st.markdown(
@@ -2159,12 +2162,24 @@ def _compute_data_info(
     # Measurement-level counts — only count columns that are also numeric.
     # A column tagged "Ratio" but containing strings would still fail at
     # float-cast in the backend, so it must not enable any method.
+    ml_dict = st.session_state.get("column_measurement_levels", {}) or {}
+    num_interval_ratio = sum(
+        1 for c in numeric_cols
+        if ml_dict.get(c) in ("Interval", "Ratio")
+    )
+    num_ordinal_plus = sum(
+        1 for c in numeric_cols
+        if ml_dict.get(c) in ("Ordinal", "Interval", "Ratio")
+    )
+
     return {
         "num_selected_cols": len(col1),
         "num_numeric_cols": numeric_count,
         "num_rows": num_rows,
         "all_numeric": numeric_count == len(col1) and len(col1) > 0,
         "has_numeric": numeric_count > 0,
+        "num_interval_ratio": num_interval_ratio,
+        "num_ordinal_plus": num_ordinal_plus,
     }
 
 
@@ -2225,8 +2240,23 @@ def _render_computation_options(
     # n_ir / n_ord already only count columns that are both numeric and
     # tagged at the right measurement level (enforced in _compute_data_info).
 
-    dis_one_col = not data_ready or not all_num or n_cols < 1
-    dis_two_col = not data_ready or not all_num or n_cols < 2
+    # Baseline gates (Req 4.2): methods are additionally disabled when the
+    # selected columns aren't tagged at the required measurement level.
+    not_ready = not data_ready or not all_num or n_cols < 1
+    not_ready_two = not data_ready or not all_num or n_cols < 2
+
+    dis_mean     = not_ready     or n_ir  < 1
+    dis_median   = not_ready     or n_ord < 1
+    dis_mode     = not data_ready or not has_num
+    dis_variance = not_ready     or n_ir  < 1 or n_rows < 2
+    dis_std      = dis_mean
+    dis_pct      = not_ready     or n_ord < 1
+
+    dis_pearson  = not_ready_two or n_ir  < 2 or n_rows < 3
+    dis_spearman = not_ready_two or n_ord < 2 or n_rows < 3
+    dis_lsr      = not_ready_two or n_ir  < 2 or n_rows < 2
+    dis_chi      = not_ready     or n_rows < 2
+    dis_cv       = not_ready     or n_ir  < 1
 
     # If user drops from >=2 columns to 1 column,
     # reset two-column statistical method checkboxes
@@ -2236,19 +2266,19 @@ def _render_computation_options(
     c1, c2 = st.columns(2)
 
     with c1:
-        mean        = st.checkbox("Mean",                disabled=dis_one_col, key=f"mean_c1_{k1}")        and not dis_one_col
-        median      = st.checkbox("Median",              disabled=dis_one_col, key=f"median_c1_{k1}")      and not dis_one_col
-        mode        = st.checkbox("Mode",                disabled=dis_one_col, key=f"mode_c1_{k2}")        and not dis_one_col
-        variance    = st.checkbox("Variance",            disabled=dis_one_col, key=f"variance_c1_{k2}")    and not dis_one_col
-        std         = st.checkbox("Standard Deviation",  disabled=dis_one_col, key=f"std_c1_{k1}")         and not dis_one_col
-        percentiles = st.checkbox("Percentiles",         disabled=dis_one_col, key=f"percentiles_c1_{k1}") and not dis_one_col
+        mean        = st.checkbox("Mean",                disabled=dis_mean,     key=f"mean_c1_{k1}")        and not dis_mean
+        median      = st.checkbox("Median",              disabled=dis_median,   key=f"median_c1_{k1}")      and not dis_median
+        mode        = st.checkbox("Mode",                disabled=dis_mode,     key=f"mode_c1_{k2}")        and not dis_mode
+        variance    = st.checkbox("Variance",            disabled=dis_variance, key=f"variance_c1_{k2}")    and not dis_variance
+        std         = st.checkbox("Standard Deviation",  disabled=dis_std,      key=f"std_c1_{k1}")         and not dis_std
+        percentiles = st.checkbox("Percentiles",         disabled=dis_pct,      key=f"percentiles_c1_{k1}") and not dis_pct
 
     with c2:
-        pearson                  = st.checkbox("Pearson's Correlation",    disabled=dis_two_col, key=f"pearson_c2_{k2}")    and not dis_two_col
-        spearman                 = st.checkbox("Spearman's Rank",          disabled=dis_two_col, key=f"spearman_c2_{k2}")   and not dis_two_col
-        least_squares_regression = st.checkbox("Least Squares Regression", disabled=dis_two_col, key=f"lsr_c2_{k2}")        and not dis_two_col
-        chi_squared              = st.checkbox("Chi-Square Test",          disabled=dis_one_col, key=f"chi_squared_c2_{k2}") and not dis_one_col
-        variation                = st.checkbox("Coefficient of Variation", disabled=dis_one_col, key=f"variation_c2_{k2}")  and not dis_one_col
+        pearson                  = st.checkbox("Pearson's Correlation",    disabled=dis_pearson,  key=f"pearson_c2_{k2}")    and not dis_pearson
+        spearman                 = st.checkbox("Spearman's Rank",          disabled=dis_spearman, key=f"spearman_c2_{k2}")   and not dis_spearman
+        least_squares_regression = st.checkbox("Least Squares Regression", disabled=dis_lsr,      key=f"lsr_c2_{k2}")        and not dis_lsr
+        chi_squared              = st.checkbox("Chi-Square Test",          disabled=dis_chi,      key=f"chi_squared_c2_{k2}") and not dis_chi
+        variation                = st.checkbox("Coefficient of Variation", disabled=dis_cv,       key=f"variation_c2_{k2}")  and not dis_cv
 
     # --- Conditional parameter inputs (appear inline when the method is checked) ---
     invalid_params = False
@@ -2263,7 +2293,7 @@ def _render_computation_options(
                 key="percentile_values_input",
                 placeholder="e.g. 10, 25, 50, 75, 90",
                 help="Enter any values between 0 and 100, separated by commas.",
-                disabled=dis_one_col,
+                disabled=dis_pct,
             )
         try:
             parsed_pcts = [float(v.strip()) for v in percentile_input_val.split(",") if v.strip()]
@@ -2686,8 +2716,10 @@ def _create_method_dialog():
             )
             if ok:
                 _after_method_change()
-                st.success(msg)
-                time.sleep(1)
+                # st.toast is non-blocking and auto-dismisses, so we don't
+                # need time.sleep to let the user see the success message
+                # before rerunning (CLAUDE.md forbids time.sleep+st.rerun).
+                st.toast(msg)
                 st.rerun()
             else:
                 st.error(msg)
@@ -2873,8 +2905,7 @@ def _edit_method_dialog():
             )
             if ok:
                 _after_method_change()
-                st.success(msg)
-                time.sleep(1)
+                st.toast(msg)
                 st.rerun()
             else:
                 st.error(msg)
@@ -2930,8 +2961,7 @@ def _delete_method_dialog():
             ok, msg = delete_custom_method(entry["id"])
             if ok:
                 _after_method_change()
-                st.success(msg)
-                time.sleep(1)
+                st.toast(msg)
                 st.rerun()
             else:
                 st.error(msg)

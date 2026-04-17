@@ -139,3 +139,20 @@ def _computation_watcher():
 _computation_watcher()
 
 
+# CSV parse watcher — same isolated-fragment pattern as the computation
+# watcher, but for the background CSV read triggered from the homepage's
+# data panel. Replaces a prior time.sleep(0.5)+st.rerun() loop that caused
+# half-second full-page jitter during file loads.
+@st.fragment(run_every="500ms")
+def _csv_loading_watcher():
+    if not st.session_state.get("_csv_loading"):
+        return
+    csv_future = st.session_state.get("_csv_future")
+    if csv_future is None or csv_future.done():
+        # Future not created yet (need a render to kick it off) OR finished
+        # (need a render to pick up the result). Either way: wake the app.
+        st.rerun(scope="app")
+
+_csv_loading_watcher()
+
+

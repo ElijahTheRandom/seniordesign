@@ -448,6 +448,15 @@ div[data-testid="column"] button {
    5. Sidebar
    ========================================================================== */
 
+/* Hide Streamlit's auto-generated multipage navigation. The app uses a
+   custom sidebar (render_sidebar) and routes via session state — the
+   auto-nav would leak page filenames like "mainpage" and "statistics"
+   (the hidden debug page) into the UI. */
+div[data-testid="stSidebarNav"],
+section[data-testid="stSidebar"] nav[aria-label="pages"] {
+    display: none !important;
+}
+
 /* Sidebar styling */
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, rgba(20, 20, 20, 0.95) 0%, rgba(10, 10, 10, 0.98) 100%) !important;
