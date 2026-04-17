@@ -113,9 +113,21 @@ const AgGridRange = (props) => {
         }
     }, [])
 
+    // Stabilize the columnDefs reference: Python rebuilds the list on every
+    // rerun, so the prop identity flips even when the field list is
+    // unchanged.  Without this, AG Grid reconciles columns on the post-
+    // mouseup rerun and drops the active partial range — invisible locally
+    // because the round-trip is sub-frame, but clearly visible on AWS where
+    // the rerun takes long enough for the user to see the selection snap
+    // away the moment they release the mouse.  We keep the previous
+    // reference as long as the field signature is unchanged.
+    const columnDefsSig = columnDefs.map(c => c.field).join('\0')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const stableColumnDefs = useMemo(() => columnDefs, [columnDefsSig])
+
     // Track renamed headers — merge incoming columnDefs field names with renames
     const effectiveColumnDefs = useMemo(() => {
-        return columnDefs.map(col => {
+        return stableColumnDefs.map(col => {
             const renamed = renamedHeaders[col.field]
             return {
                 ...col,
@@ -123,7 +135,7 @@ const AgGridRange = (props) => {
                 headerClass: selectedColIds.has(col.field) ? 'full-column-selected' : ''
             }
         })
-    }, [columnDefs, selectedColIds, renamedHeaders])
+    }, [stableColumnDefs, selectedColIds, renamedHeaders])
 
     // Auto-resize height on mount and updates
     useEffect(() => {
