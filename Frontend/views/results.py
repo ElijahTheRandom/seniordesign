@@ -212,22 +212,65 @@ def _render_stat_cards(run: dict, show_divider: bool = True) -> None:
     st.subheader("Statistical Analysis", anchor=False)
     st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
 
-    # Render in rows of 3
-    for i in range(0, len(cards), 3):
-        cols = st.columns([1, 1, 1], gap="large")
-        for j in range(3):
-            if i + j < len(cards):
-                card = cards[i + j]
-                with cols[j]:
-                    if card[0] == "error":
-                        _render_error_card(card[1], card[2])
-                    else:
-                        _render_stat_card(*card[1:])  # unpack title, value, [subtext]
+    # Greedy-pack into rows of 3 slots: cards with long values (LSR equation,
+    # Percentile lists) span 2 slots so they don't get smushed.
+    for row in _pack_stat_cards(cards, row_slots=3):
+        weights = [w for w, _ in row]
+        used = sum(weights)
+        # Pad the last row to 3 slots so solo/narrow rows don't stretch.
+        if used < 3:
+            weights = weights + [3 - used]
+        cols = st.columns(weights, gap="large")
+        for idx, (_, card) in enumerate(row):
+            with cols[idx]:
+                if card[0] == "error":
+                    _render_error_card(card[1], card[2])
+                else:
+                    _render_stat_card(*card[1:])  # unpack title, value, [subtext]
 
         st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
 
     if show_divider:
         st.markdown("---")
+
+
+def _card_slot_width(card: tuple) -> int:
+    """
+    Decide how many layout slots (out of 3) a card should span.
+
+    Rationale: cards like Least Squares Regression ("y = 1.23x + 4.56  R² = ...")
+    and Percentile ("25th: 10.50, 50th: 20.00, 75th: 30.50") carry a lot more
+    text than a single scalar. At 1/3 page width with the 2.5rem stat font,
+    they either wrap ugly or overflow. 2/3 width lets them breathe.
+    """
+    if card[0] == "error":
+        return 1
+    value_str = card[2] if len(card) >= 3 else ""
+    subtext = card[3] if len(card) >= 4 else ""
+    longest = max(len(value_str), len(subtext))
+    multi_part = value_str.count(",") >= 2  # percentile-style lists
+    equation = "=" in value_str  # LSR y = ... R² = ... or any structured result
+    if longest > 35 or multi_part or equation:
+        return 2
+    return 1
+
+
+def _pack_stat_cards(cards: list, row_slots: int = 3) -> list:
+    """Greedy row-pack cards using per-card slot widths."""
+    rows: list = []
+    current: list = []
+    used = 0
+    for card in cards:
+        w = min(_card_slot_width(card), row_slots)
+        if used + w > row_slots:
+            rows.append(current)
+            current = []
+            used = 0
+        current.append((w, card))
+        used += w
+    if current:
+        rows.append(current)
+    return rows
 
 
 def _render_stat_card(title: str, value: str, subtext: str = None) -> None:
@@ -409,7 +452,7 @@ def _render_charts_zip_download_button(run: dict) -> None:
             continue
         chart_type = chart.get("type", f"chart_{idx}")
         charts_payload.append({
-            "name": f"{chart_type}_{idx}.png",
+            "name": f"{chart_type}_{idx}.jpeg",
             "type": chart_type,
             "data": chart_b64,
         })
@@ -451,7 +494,7 @@ def _render_charts_zip_download_button(run: dict) -> None:
                         ctx.filter = "invert(1)";
                     }}
                     ctx.drawImage(img, 0, 0);
-                    const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
+                    const blob = await new Promise(r => canvas.toBlob(r, "image/jpeg"));
                     zip.file(chart.name, blob);
                 }}
                 const zipBlob = await zip.generateAsync({{ type: "blob" }});
@@ -603,6 +646,21 @@ def _build_export_text(run: dict) -> str:
         lines.append(f"Selected Rows: {', '.join(str(r) for r in sel_rows)}")
     else:
         lines.append("Selected Rows: All")
+    # --- Req 4.1: Include the measurement level tagged on each selected column.
+    # Fresh runs populate run["measurement_levels"]; replayed runs only have it
+    # on result_message.metadata. Check both.
+    measurement_levels = run.get("measurement_levels") or {}
+    if not measurement_levels:
+        msg = run.get("result_message")
+        meta = getattr(msg, "metadata", None) if msg is not None else None
+        if isinstance(meta, dict):
+            measurement_levels = meta.get("measurement_levels") or {}
+    if measurement_levels:
+        lines.append("Column Measurement Levels:")
+        for col in sel_cols or list(measurement_levels.keys()):
+            level = measurement_levels.get(col)
+            if level:
+                lines.append(f"  - {col}: {level}")
     lines.append("")
 
     if run.get("cards"):

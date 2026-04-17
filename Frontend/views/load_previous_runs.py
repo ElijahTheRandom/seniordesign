@@ -284,6 +284,15 @@ def _load_run_from_cache(entry: dict) -> None:
     else:
         replay_data = pd.DataFrame(data_dict.get("data", []))
 
+    # Column-major list of lists matches the format homepage.py sends on a
+    # fresh run (see _run_analysis). Using .to_dict() here instead produces a
+    # {col_name: [...]} dict, which the backend can't convert to a numpy array
+    # and fails every method with "len() of unsized object".
+    if not replay_data.empty:
+        replay_payload = [replay_data[c].tolist() for c in replay_data.columns]
+    else:
+        replay_payload = []
+
     request = Message(
         dataset_id=data_dict.get("dataset_id"),
         dataset_version=data_dict.get("dataset_version"),
@@ -291,7 +300,7 @@ def _load_run_from_cache(entry: dict) -> None:
         selection=data_dict.get("selection", {}),
         methods=data_dict.get("methods", []),
         graphics=data_dict.get("graphics", []),
-        data=replay_data.to_dict(orient="list") if not replay_data.empty else {},
+        data=replay_payload,
     )
 
     try:

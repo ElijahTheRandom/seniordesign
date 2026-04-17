@@ -7,8 +7,16 @@ import json
 
 
 import queue
+import sys
 import threading
+import time
 import uuid
+
+
+# Per-worker timeout in _threads_compute.join() — prevents a hung statistical
+# method from blocking the UI thread indefinitely. Missing results are filled
+# with error entries so the run still persists.
+_WORKER_JOIN_TIMEOUT_SECONDS = 60.0
 
 
 class BackendHandler:
@@ -56,8 +64,13 @@ class BackendHandler:
                 import plotly.io as _pio
                 from io import BytesIO as _BytesIO
                 _pio.write_image(_go.Figure(), _BytesIO(), format="png", width=10, height=10)
-            except Exception:
-                pass
+            except Exception as _prewarm_exc:
+                # Don't kill boot if Kaleido is unavailable, but surface the
+                # failure so chart generation issues aren't silently masked.
+                print(
+                    f"[backend_handler] Kaleido pre-warm failed: {_prewarm_exc!r}",
+                    file=sys.stderr,
+                )
         return self._chart_generation_methods
 
     def _package_results(self, message, results):
@@ -109,17 +122,22 @@ class BackendHandler:
         """
         Compute each method via a task queue, dispatching work to up to
         max_threads concurrent worker threads. Results are returned in the
-        same order as method_requests.
+        same order as method_requests, alongside a per-method wall-clock
+        timing dict (ms).
 
         :param self: self
         :param method_requests: List of (method_id, method_params) tuples
         :param data: Data for computations
         :param metadata: Metadata for computations
         :param max_threads: Maximum number of concurrent threads
+        :return: (ordered_results, per_method_ms) where per_method_ms is
+                 {method_id: elapsed_ms}. If the same method appears twice,
+                 the key is suffixed with the index (e.g. "mean#1").
         """
         task_queue = queue.Queue()
         results_lock = threading.Lock()
         results = {}
+        per_method_ms = {}
 
         # Enqueue all tasks with their original index so order can be restored
         for idx, (method_id, method_params) in enumerate(method_requests):
@@ -139,12 +157,17 @@ class BackendHandler:
                     task_queue.task_done()
                     break
                 idx, method_id, method_params, method_data, method_metadata = task
+                t0 = time.perf_counter()
                 try:
                     result = self.worker(method_id, method_data, method_metadata, method_params)
                 except Exception as exc:
                     result = self._generate_error_result(method_id, str(exc), method_params)
+                elapsed_ms = (time.perf_counter() - t0) * 1000.0
                 with results_lock:
                     results[idx] = result
+                    # Disambiguate duplicate method ids by appending #<idx>
+                    key = method_id if method_id not in per_method_ms else f"{method_id}#{idx}"
+                    per_method_ms[key] = round(elapsed_ms, 3)
                 task_queue.task_done()
 
         threads = [threading.Thread(target=thread_worker, daemon=True) for _ in range(num_threads)]
@@ -154,11 +177,26 @@ class BackendHandler:
         # Block until every task (including sentinels) has been marked done
         task_queue.join()
 
+        # Bounded join so a hung worker can't block the UI thread forever.
         for t in threads:
-            t.join()
+            t.join(timeout=_WORKER_JOIN_TIMEOUT_SECONDS)
 
-        # Return results in original request order
-        return [results[i] for i in range(len(method_requests))]
+        # Fill any missing results with an error entry. Missing indices can
+        # occur if a worker thread was interrupted before writing its result,
+        # or if join() timed out on a hung worker.
+        ordered_results = []
+        for i, (method_id, method_params) in enumerate(method_requests):
+            if i in results:
+                ordered_results.append(results[i])
+            else:
+                ordered_results.append(
+                    self._generate_error_result(
+                        method_id,
+                        "Worker did not return a result (timed out or interrupted).",
+                        method_params,
+                    )
+                )
+        return ordered_results, per_method_ms
 
     def _generate_error_result(self, method_name, error_message, params):
         return {
@@ -247,10 +285,12 @@ class BackendHandler:
 
     def _generate_charts(self, graphics_requests, data, metadata, results_folder):
         # Generate charts in parallel threads — each chart writes to its own file
-        # so there are no shared-state conflicts.
+        # so there are no shared-state conflicts. Also records per-chart wall-clock
+        # timings for the /statistics debug page.
 
         results_lock = threading.Lock()
         results_dict = {}
+        per_chart_ms = {}
 
         def _gen_one(idx, graphic_request):
             chart_type = graphic_request.get("type")
@@ -264,6 +304,7 @@ class BackendHandler:
             else:
                 chart_params["path"] = os.path.join(results_folder, f"{chart_type}_{idx}.png")
 
+            t0 = time.perf_counter()
             chart_class = self.chart_generation_methods.get(chart_type)
             if chart_class:
                 chart_instance = chart_class(data, metadata, chart_params)
@@ -276,8 +317,10 @@ class BackendHandler:
                     "error": f"Chart type {chart_type} not found.",
                     "params_used": chart_params,
                 }
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
             with results_lock:
                 results_dict[idx] = chart_result
+                per_chart_ms[f"{chart_type}_{idx}"] = round(elapsed_ms, 3)
 
         threads = []
         for idx, graphic_request in enumerate(graphics_requests):
@@ -286,9 +329,22 @@ class BackendHandler:
             t.start()
 
         for t in threads:
-            t.join()
+            t.join(timeout=_WORKER_JOIN_TIMEOUT_SECONDS)
 
-        return [results_dict[i] for i in range(len(graphics_requests))]
+        # Fill any missing chart results (e.g. timed-out thread)
+        ordered = []
+        for i, graphic_request in enumerate(graphics_requests):
+            if i in results_dict:
+                ordered.append(results_dict[i])
+            else:
+                ordered.append({
+                    "type": graphic_request.get("type"),
+                    "ok": False,
+                    "path": None,
+                    "error": "Chart generation timed out or was interrupted.",
+                    "params_used": graphic_request,
+                })
+        return ordered, per_chart_ms
 
 
     def _save_embedded_charts(self, results, run_folder):
@@ -330,32 +386,63 @@ class BackendHandler:
         3. Generate charts, saving images into the persistence folder
         4. Save the complete message (results + chart paths) as JSON
         5. Return the message
+
+        Wall-clock timings for each phase are captured on request.timings
+        so the /statistics debug page can display them.
         """
 
+        # Timing bookkeeping — drives the /statistics debug page.
+        started_at = datetime.now().isoformat(timespec="milliseconds")
+        t_total_start = time.perf_counter()
+
         # --- 1. Computations ---
+        t_dispatch_start = time.perf_counter()
         methods, data, metadata = self._get_methods(request)
         method_requests = self._get_method_requests(methods)
+        dispatch_ms = (time.perf_counter() - t_dispatch_start) * 1000.0
+
         max_threads = 4  # arbitrary limit, can be changed to a user configurable value later
-        results = self._threads_compute(method_requests, data, metadata, max_threads)
+        t_compute_start = time.perf_counter()
+        results, per_method_ms = self._threads_compute(method_requests, data, metadata, max_threads)
+        compute_ms = (time.perf_counter() - t_compute_start) * 1000.0
         final_result_message = self._package_results(request, results)
 
         # --- 2. Create unique persistence folder ---
+        t_folder_start = time.perf_counter()
         run_folder = self._create_run_folder(final_result_message)
         final_result_message.run_folder = run_folder
 
         # --- 2.5. Save embedded method charts (e.g. LSR) into the persistence folder ---
         self._save_embedded_charts(final_result_message.results, run_folder)
+        folder_and_embedded_ms = (time.perf_counter() - t_folder_start) * 1000.0
 
         # --- 3. Generate charts into the persistence folder ---
-        chart_results = self._generate_charts(
+        t_charts_start = time.perf_counter()
+        chart_results, per_chart_ms = self._generate_charts(
             final_result_message.graphics,
             final_result_message.data,
             final_result_message.metadata,
             run_folder,
         )
         final_result_message.graphics = chart_results
+        charts_ms = (time.perf_counter() - t_charts_start) * 1000.0
 
         # --- 4. Save complete message as JSON ---
+        # Populate timings first so the saved JSON captures the final numbers.
+        # persistence_ms below is an estimate: it includes the folder-create and
+        # embedded-chart-save time but not the JSON save itself (which wraps
+        # this very assignment). The total_ms captures the JSON save too.
+        final_result_message.timings = {
+            "started_at": started_at,
+            "dispatch_ms": round(dispatch_ms, 3),
+            "compute_ms": round(compute_ms, 3),
+            "per_method_ms": per_method_ms,
+            "charts_ms": round(charts_ms, 3),
+            "per_chart_ms": per_chart_ms,
+            "persistence_ms": round(folder_and_embedded_ms, 3),
+            "total_ms": round((time.perf_counter() - t_total_start) * 1000.0, 3),
+            "finished_at": datetime.now().isoformat(timespec="milliseconds"),
+        }
         self._save_run_json(final_result_message, run_folder)
 
         # --- 5. Return the message ---

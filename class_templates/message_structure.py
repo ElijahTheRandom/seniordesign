@@ -23,6 +23,10 @@ class Message:
 
         self.run_folder = run_folder  # Path to the results_cache folder for this run
 
+        # Wall-clock timing breakdown for the /statistics debug page.
+        # Populated by backend_handler; absent on older persisted runs.
+        self.timings = {}
+
     @property
     def data(self):
         """Lazily convert raw data to a numpy array on first access."""
@@ -42,6 +46,12 @@ class Message:
 
 
     def to_dict(self) -> dict:
+        # Serialize data as a plain list so json.dump doesn't fall back to
+        # default=str and persist a stringified numpy array. Replay reads
+        # this key when table.csv is missing.
+        data = self.data
+        if isinstance(data, np.ndarray):
+            data = data.tolist()
         return {
             "dataset_id": self.dataset_id,
             "dataset_version": self.dataset_version,
@@ -49,8 +59,9 @@ class Message:
             "selection": self.selection,
             "methods": self.methods,
             "graphics": self.graphics,
-            "data": self.data,
+            "data": data,
             "results": self.results,
+            "timings": self.timings,
         }
     
 """
