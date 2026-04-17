@@ -67,7 +67,6 @@ _HUZZAH_PATH = Path(__file__).parent.parent / "pages" / "assets" / "huzzahAhSqui
 with open(_HUZZAH_PATH, "rb") as _f:
     _HUZZAH_B64 = base64.b64encode(_f.read()).decode()
 
-
 if "show_success_save_dialog" not in st.session_state:
     st.session_state.show_success_save_dialog = False
 
@@ -369,7 +368,7 @@ def _export_run_dialog(run: dict):
     st.download_button(
         "Export CSV Data",
         data=run["data"].to_csv(index=False),
-        file_name=f"{run['name']}.csv",
+        file_name=f"{run['name']} Full Report.csv",
         mime="text/csv",
         use_container_width=True,
     )
@@ -378,7 +377,7 @@ def _export_run_dialog(run: dict):
     st.download_button(
         "Export TSV Data",
         data=run["data"].to_csv(index=False, sep="\t"),
-        file_name=f"{run['name']}.tsv",
+        file_name=f"{run['name']} Full Report.tsv",
         mime="text/tab-separated-values",
         use_container_width=True,
     )
@@ -421,7 +420,7 @@ def _render_charts_zip_download_button(run: dict) -> None:
 
     run_id = run.get("id", "")
     if st.button("Export Charts", use_container_width=True, key=f"export_charts_{run_id}"):
-        zip_name = f"{run.get('name', 'run')}_charts.zip"
+        zip_name = f"{run.get('name', 'run')} Charts.zip"
         payload_json = json.dumps(charts_payload)
         components.html(
             f"""
@@ -605,6 +604,7 @@ def _build_export_text(run: dict) -> str:
     else:
         lines.append("Selected Rows: All")
     lines.append("")
+
     if run.get("cards"):
         stat_cards = [c for c in run["cards"] if c[0] == "stat"]
         error_cards = [c for c in run["cards"] if c[0] == "error"]
@@ -616,16 +616,16 @@ def _build_export_text(run: dict) -> str:
                 value  = card[2]
                 if len(card) == 4:
                     subtext = card[3]
-                    lines.append(f"{title}: {value} ({subtext})")
+                    lines.append(f"- {title}: {value} ({subtext})")
                 else:
-                    lines.append(f"{title}: {value}")
+                    lines.append(f"- {title}: {value}")
             lines.append("")
 
         if error_cards:
             lines.append("Errors:")
             for card in error_cards:
                 title = card[1].replace("<b>", "").replace("</b>", "")
-                lines.append(f"{title}: {card[2]}")
+                lines.append(f"- {title}: {card[2]}")
             lines.append("")
 
     if run.get("visualizations"):

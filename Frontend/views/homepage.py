@@ -2248,7 +2248,7 @@ def _render_computation_options(
         spearman                 = st.checkbox("Spearman's Rank",          disabled=dis_two_col, key=f"spearman_c2_{k2}")   and not dis_two_col
         least_squares_regression = st.checkbox("Least Squares Regression", disabled=dis_two_col, key=f"lsr_c2_{k2}")        and not dis_two_col
         chi_squared              = st.checkbox("Chi-Square Test",          disabled=dis_one_col, key=f"chi_squared_c2_{k2}") and not dis_one_col
-        variation                = st.checkbox("Coefficient of Variation", disabled=dis_one_col, key=f"variation_c2_{k2}")  and not dis_one_col              and not dis_cv
+        variation                = st.checkbox("Coefficient of Variation", disabled=dis_one_col, key=f"variation_c2_{k2}")  and not dis_one_col
 
     # --- Conditional parameter inputs (appear inline when the method is checked) ---
     invalid_params = False
@@ -2263,7 +2263,7 @@ def _render_computation_options(
                 key="percentile_values_input",
                 placeholder="e.g. 10, 25, 50, 75, 90",
                 help="Enter any values between 0 and 100, separated by commas.",
-                disabled=dis_pct,
+                disabled=dis_one_col,
             )
         try:
             parsed_pcts = [float(v.strip()) for v in percentile_input_val.split(",") if v.strip()]
