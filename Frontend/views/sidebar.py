@@ -208,6 +208,7 @@ def _render_rename_form(run: dict) -> None:
     Shown below the run's nav button when the ✏️ icon has been clicked.
     Provides a text input pre-filled with the current name, and two
     buttons: Save (commits the new name) and Cancel (discards it).
+    Pressing Enter in the text input triggers Save.
 
     Empty or whitespace-only names are rejected — the existing name is
     kept instead. This prevents runs with blank labels in the sidebar.
@@ -216,33 +217,34 @@ def _render_rename_form(run: dict) -> None:
         run: The run dict being renamed. Its "name" key is mutated
              in-place on Save.
     """
-    new_name = st.text_input(
-        "Rename run",
-        value=run["name"],
-        key=f"rename_input_{run['id']}",
-        label_visibility="collapsed"
-    )
+    with st.form(key=f"rename_form_{run['id']}", clear_on_submit=False):
+        new_name = st.text_input(
+            "Rename run",
+            value=run["name"],
+            key=f"rename_input_{run['id']}",
+            label_visibility="collapsed"
+        )
 
-    save_col, cancel_col = st.columns([1, 1])  # You can tweak ratios here
+        save_col, cancel_col = st.columns([1, 1])
 
-    with save_col:
-        if st.button(
-            "Save",
-            key=f"save_rename_{run['id']}",
-            use_container_width=True,
-            type="secondary"  # Make it blend like Home button when inactive
-        ):
-            run["name"] = new_name.strip() or run["name"]
-            st.session_state["renaming_run_id"] = None
+        with save_col:
+            submitted = st.form_submit_button(
+                "Save",
+                use_container_width=True
+            )
+        with cancel_col:
+            cancelled = st.form_submit_button(
+                "Cancel",
+                use_container_width=True
+            )
 
-    with cancel_col:
-        if st.button(
-            "Cancel",
-            key=f"cancel_rename_{run['id']}",
-            use_container_width=True,
-            type="secondary"  # Same as above
-        ):
-            st.session_state["renaming_run_id"] = None
+    if submitted:
+        run["name"] = new_name.strip() or run["name"]
+        st.session_state["renaming_run_id"] = None
+        st.rerun()
+    elif cancelled:
+        st.session_state["renaming_run_id"] = None
+        st.rerun()
 
 def _render_load_button() -> None:
     is_active = st.session_state.get("current_view") == "load"

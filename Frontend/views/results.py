@@ -74,16 +74,66 @@ if "show_success_save_dialog" not in st.session_state:
 if "modal_message" not in st.session_state:
     st.session_state.modal_message = ""
 
-@st.dialog("Saved Successfully")
-def success_dialog():
-    col_img, col_text = st.columns([1, 1.5], gap="medium")
-    with col_img:
-        st.markdown(
-            f'<img class="ps-squirrel" src="data:image/png;base64,{_HUZZAH_B64}" style="width:100%;max-width:500px;" />',
-            unsafe_allow_html=True,
-        )
-    with col_text:
-        st.markdown(st.session_state.modal_message)
+def _show_success_save_toast() -> None:
+    """Inject a self-dismissing toast notification matching the homepage style."""
+    import re, json as _json
+    message = st.session_state.get("modal_message", "")
+    b64 = _HUZZAH_B64
+
+    html_msg = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', message)
+    html_msg = html_msg.replace("\n", "<br>")
+    msg_json = _json.dumps(html_msg)
+
+    components.html(
+        f"""
+        <script>
+        (function() {{
+            const doc = window.parent.document;
+
+            if (!doc.getElementById('ps-toast-styles')) {{
+                const s = doc.createElement('style');
+                s.id = 'ps-toast-styles';
+                s.textContent =
+                    '@keyframes ps-in{{from{{opacity:0;transform:translateY(-14px)}}' +
+                    'to{{opacity:1;transform:translateY(0)}}}}' +
+                    '@keyframes ps-out{{from{{opacity:1;transform:translateY(0)}}' +
+                    'to{{opacity:0;transform:translateY(-14px)}}}}' ;
+                doc.head.appendChild(s);
+            }}
+
+            const prev = doc.getElementById('ps-success-toast');
+            if (prev) prev.remove();
+
+            const toast = doc.createElement('div');
+            toast.id = 'ps-success-toast';
+            toast.style.cssText = [
+                'position:fixed', 'top:1.25rem', 'right:1.25rem', 'z-index:9999',
+                'background:#1e2530', 'border:1px solid rgba(228,120,29,0.45)',
+                'border-radius:12px', 'padding:0.9rem 1.1rem',
+                'display:flex', 'align-items:center', 'gap:0.9rem',
+                'box-shadow:0 8px 32px rgba(0,0,0,0.55)', 'max-width:340px',
+                'pointer-events:none',
+                'animation:ps-in 0.3s ease, ps-out 0.45s ease 4.55s forwards'
+            ].join(';');
+
+            const img = doc.createElement('img');
+            img.src = 'data:image/png;base64,{b64}';
+            img.style.cssText = 'width:52px;height:52px;object-fit:contain;border-radius:6px;flex-shrink:0';
+
+            const txt = doc.createElement('div');
+            txt.innerHTML = {msg_json};
+            txt.style.cssText = 'color:#ffffff;font-size:0.875rem;line-height:1.45;font-family:sans-serif';
+
+            toast.appendChild(img);
+            toast.appendChild(txt);
+            doc.body.appendChild(toast);
+
+            setTimeout(() => {{ if (toast.parentNode) toast.remove(); }}, 5000);
+        }})();
+        </script>
+        """,
+        height=0,
+    )
 
 # ---------------------------------------------------------------------------
 # Public interface
@@ -113,7 +163,7 @@ def render_results(run: dict, base_dir: str) -> None:
 
     if st.session_state.get("show_success_save_dialog"):
         st.session_state.show_success_save_dialog = False
-        success_dialog()
+        _show_success_save_toast()
 
     if st.session_state.get("show_export_dialog"):
         _export_run_dialog(run)
