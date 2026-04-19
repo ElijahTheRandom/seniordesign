@@ -150,6 +150,12 @@ class HorBar:
                 else:
                     labels = [str(i) for i in range(len(values))]
 
+        if len(labels) > 100:
+            raise ValueError(
+                f"Bar chart supports at most 100 categories "
+                f"(got {len(labels):,}). Reduce the selection."
+            )
+
         figure = go.Figure()
 
         # Format values for display

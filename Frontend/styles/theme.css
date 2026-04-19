@@ -929,6 +929,15 @@ button[aria-label="More info"]:hover:not(:disabled) {
     color: rgba(255, 255, 255, 0.75) !important;
 }
 
+/* Tooltip icon SVG — keep it full-size and untransformed even inside checkboxes. */
+div[data-testid="stTooltipIcon"] svg,
+button[data-testid="stTooltipIcon"] svg,
+button[aria-label="More info"] svg {
+    transform: none !important;
+    width: 14px !important;
+    height: 14px !important;
+}
+
 /* Shared hover micro-animation for all buttons */
 button:hover:not(:disabled) {
     transform: translateY(-1px) !important;
@@ -951,14 +960,14 @@ button {
    Checkboxes  
    ========================================================================== */
 
-/* Base box */
-label[data-baseweb="checkbox"] span {
+/* Base box — direct-child span only, so nested tooltip spans don't get styled */
+label[data-baseweb="checkbox"] > span {
     background-color: #1f2128 !important;
     border: 1.5px solid rgba(228, 120, 29, 0.45) !important;
     border-radius: 8px !important;
     width: 20px !important;
     height: 20px !important;
-    transition: 
+    transition:
         background-color 0.25s ease,
         border-color 0.25s ease,
         box-shadow 0.25s ease,
@@ -966,7 +975,7 @@ label[data-baseweb="checkbox"] span {
 }
 
 /* HOVER (correct target) */
-label[data-baseweb="checkbox"]:hover span {
+label[data-baseweb="checkbox"]:hover > span {
     border-color: rgba(228, 120, 29, 0.75) !important;
     box-shadow: 0 0 0 3px rgba(228, 120, 29, 0.18) !important;
     transform: scale(1);
@@ -977,28 +986,20 @@ label[data-baseweb="checkbox"] input:checked + span {
     background-color: #c86a1a !important;   /* muted orange */
     border-color: #c86a1a !important;
     box-shadow: 0 0 6px rgba(200, 106, 26, 0.35);
-}
-
-/* Smooth check animation */
-label[data-baseweb="checkbox"] input:checked + span {
     animation: checkbox-pop 0.18s ease-out;
 }
 
-/* Check icon */
-label[data-baseweb="checkbox"] svg {
+/* Check icon (scope tightly to the checkmark, not the help tooltip svg) */
+label[data-baseweb="checkbox"] > span > div svg {
     transform: scale(0.2) !important;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 /* Force icon wrapper smaller than box */
-label[data-baseweb="checkbox"] span > div {
+label[data-baseweb="checkbox"] > span > div {
     width: 60% !important;
     height: 60% !important;
-}
-
-/* Ensure svg fills the wrapper */
-label[data-baseweb="checkbox"] span > div svg {
-    width: 100% !important;
-    height: 100% !important;
 }
 
 /* Focus ring */

@@ -151,6 +151,12 @@ class VertBar:
                 else:
                     labels = [str(i) for i in range(len(values))]
 
+        if len(labels) > 100:
+            raise ValueError(
+                f"Bar chart supports at most 100 categories "
+                f"(got {len(labels):,}). Reduce the selection."
+            )
+
         figure = go.Figure()
 
         # Dynamic font size for x-axis labels (category labels) and value labels

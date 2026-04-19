@@ -273,10 +273,16 @@ const AgGridRange = (props) => {
             return { startRow, endRow, columns }
         })
 
-        // Keep our internal rowData in sync with AG Grid's post-edit state so
-        // future version-gated prop updates don't overwrite the user's edit
-        // with the pre-edit snapshot Python sent in on this same render.
-        setInternalRowData(updatedRows)
+        // AG Grid has already applied the edit to its internal node data; we
+        // do NOT call setInternalRowData here because the resulting rowData
+        // prop change forces a full row-model reconciliation, which clears
+        // the active cell range and fires a spurious empty
+        // onRangeSelectionChanged that wipes lastKnownRanges before
+        // onRowDataUpdated can restore it — leaving the grid unable to
+        // respond to subsequent selection attempts.  Python never bumps
+        // rowDataVersion on a plain edit, and the paths that do bump it
+        // (rename / header toggle / file swap) already bake edits into the
+        // records Python sends, so skipping this sync is safe.
         setHasEdits(true)
 
         const currentRenamed = renamedHeadersRef.current

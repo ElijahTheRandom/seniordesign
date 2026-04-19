@@ -88,6 +88,28 @@ from custom_methods_loader import (
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# Bundled demo CSVs live at the repo root so they're baked into the Docker
+# image — required for the AWS server demo where the user has no local files.
+_REPO_ROOT = os.path.dirname(BASE_DIR)
+_DEMO_CSV_DIR = os.path.join(_REPO_ROOT, "csvs")
+
+
+class _DemoCSVFile(io.BytesIO):
+    """BytesIO with `.name` and `.size` so demo CSVs match Streamlit's UploadedFile shape."""
+
+    def __init__(self, data: bytes, name: str):
+        super().__init__(data)
+        self.name = name
+        self.size = len(data)
+
+
+def _list_demo_csvs() -> list[Path]:
+    """Every `.csv` under the bundled demo folder, sorted by filename."""
+    if not os.path.isdir(_DEMO_CSV_DIR):
+        return []
+    return sorted(Path(_DEMO_CSV_DIR).rglob("*.csv"), key=lambda p: p.name.lower())
+
+
 def _img_to_b64(filename: str) -> str:
     path = Path(BASE_DIR) / "pages" / "assets" / filename
     with open(path, "rb") as f:
@@ -231,6 +253,12 @@ _LARGE_FILE_ROW_THRESHOLD = 10_000
 # to "all rows" in the full dataset via the total_rows short-circuit in
 # normalize_grid_selection, so computations always run on the full data.
 _SAMPLE_DISPLAY_ROWS = 10_000
+
+# Scatter / best-fit chart caps.  Plotly + kaleido renders every marker
+# via a headless chromium, and throughput degrades sharply past a few
+# thousand points.  Soft cap triggers a confirm dialog; hard cap blocks.
+_SCATTER_SOFT_CAP = 5_000
+_SCATTER_HARD_CAP = 50_000
 
 
 @st.dialog("Large File Detected", width="small")
@@ -869,6 +897,10 @@ def render_homepage(base_dir: str) -> None:
     if st.session_state.get("_large_file_warning_pending"):
         _large_file_warning_dialog()
 
+    # Fire scatter soft-warn dialog once _handle_run_analysis stashes a payload
+    if st.session_state.get("_scatter_warn_payload"):
+        _scatter_soft_warn_dialog()
+
     left_col, right_col = st.columns([3, 2], gap="medium")
 
     with left_col:
@@ -880,6 +912,59 @@ def render_homepage(base_dir: str) -> None:
 # ---------------------------------------------------------------------------
 # Left column — Data Input Panel
 # ---------------------------------------------------------------------------
+
+@st.dialog("Load Demo CSV", width="small")
+def _demo_csv_dialog() -> None:
+    """Pick a CSV bundled with the application.
+
+    Used for the AWS server demo where the user has no local CSVs to
+    upload. Once loaded, the file behaves identically to a user upload
+    (same grid, Remove/Download buttons, analysis flow).
+    """
+    csvs = _list_demo_csvs()
+
+    if not csvs:
+        st.info(
+            f"No CSVs found. Place `.csv` files in the `csvs/` folder "
+            f"at the project root (`{_DEMO_CSV_DIR}`)."
+        )
+        if st.button("Close", key="_demo_csv_close", use_container_width=True):
+            st.rerun()
+        return
+
+    st.markdown(
+        "Choose one of the CSVs shipped with the application. "
+        "This lets the demo work on servers where you can't upload files locally."
+    )
+    st.markdown("<div style='margin-bottom:0.5rem'></div>", unsafe_allow_html=True)
+
+    for path in csvs:
+        size_kb = path.stat().st_size / 1024
+        size_str = f"{size_kb:,.1f} KB" if size_kb < 1024 else f"{size_kb / 1024:,.1f} MB"
+
+        col_name, col_load = st.columns([3, 1])
+        with col_name:
+            st.markdown(
+                f"<div style='padding-top:0.35rem;font-size:0.92rem;line-height:1.2'>"
+                f"{path.name}"
+                f"<div style='color:#888;font-size:0.75rem'>{size_str}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+        with col_load:
+            if st.button("Load", key=f"_demo_load_{path.name}", use_container_width=True):
+                with open(path, "rb") as f:
+                    data = f.read()
+                _clear_file_state()
+                st.session_state.uploaded_file = _DemoCSVFile(data, path.name)
+                st.session_state.has_file = True
+                st.session_state._csv_loading = True
+                st.rerun()
+
+    st.markdown("<div style='margin-bottom:0.75rem'></div>", unsafe_allow_html=True)
+    if st.button("Cancel", key="_demo_csv_cancel", use_container_width=True):
+        st.rerun()
+
 
 def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
     """
@@ -908,6 +993,9 @@ def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
             st.session_state.has_file = True
             st.session_state._csv_loading = True
             st.rerun()
+
+        if st.button("Load Demo CSV", key="_open_demo_dialog", use_container_width=True):
+            _demo_csv_dialog()
 
         st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
 
@@ -1598,15 +1686,48 @@ def _display_aggrid_server(
         edited_data = None
         renamed_headers = None
 
-    # Apply cell edits back to the sample DataFrame
+    # Apply cell edits back to the sample portion of the cached DataFrame.
+    #
+    # We rebuild by concatenation rather than `df.iloc[:n] = edited_df.values`
+    # because the latter fails on mixed-dtype frames (e.g. an int "Index"
+    # column alongside object columns): pandas refuses the coercion, the
+    # exception escapes to _render_grid_from_file's outer try/except, and
+    # `apply_grid_selection_to_filters` below never runs — so the selection
+    # silently fails to populate every time the user edits a cell.
+    #
+    # Wrapped in try/except so a malformed payload can't take down the
+    # selection-apply path downstream.
     if edited_data is not None:
-        edited_df = pd.DataFrame(edited_data)
-        if list(edited_df.columns) == list(sample_df.columns):
-            # Update the sample portion of the cached DataFrame
-            df.iloc[:sample_size] = edited_df.values
-            st.session_state.edited_data_cache[data_key] = df
-            # Invalidate sample records cache so edits are reflected
-            st.session_state.pop(cache_key, None)
+        try:
+            edited_df = pd.DataFrame(edited_data)
+            if set(edited_df.columns) == set(sample_df.columns):
+                edited_df = edited_df.reindex(columns=list(df.columns))
+                # React's valueParser turns numeric-looking edits into JS
+                # numbers, so a string column (e.g. "Customer Id") can end up
+                # with a mix of str + int after the JSON round-trip.
+                # PyArrow refuses to serialize such object columns when
+                # Streamlit later renders the result, surfacing as an
+                # ArrowTypeError that aborts the computation display.
+                # Coerce each column back to the source dtype to keep the
+                # frame Arrow-safe.
+                for col in df.columns:
+                    orig_dtype = df[col].dtype
+                    try:
+                        if pd.api.types.is_numeric_dtype(orig_dtype):
+                            edited_df[col] = pd.to_numeric(edited_df[col], errors="coerce")
+                        else:
+                            mask = edited_df[col].notna()
+                            edited_df.loc[mask, col] = edited_df.loc[mask, col].astype(str)
+                    except Exception:
+                        pass
+                tail = df.iloc[sample_size:]
+                new_df = pd.concat([edited_df, tail], ignore_index=True) if len(tail) else edited_df
+                st.session_state.edited_data_cache[data_key] = new_df
+                df = new_df
+                st.session_state.pop(cache_key, None)
+        except Exception as exc:
+            import sys
+            print(f"[aggrid_server] edit apply failed: {exc}", file=sys.stderr)
 
     # Apply header renames
     if renamed_headers and isinstance(renamed_headers, dict):
@@ -3938,6 +4059,22 @@ def _handle_run_analysis(
         else "unknown"
     )
 
+    # Scatter / Best-Fit point caps.  Rendering 100K markers via plotly+kaleido
+    # freezes the backend (single-threaded chromium render).  The hard cap
+    # blocks outright; the soft cap defers the actual submit into a confirm
+    # dialog so the user acknowledges the wait.
+    scatter_like_selected = method_flags.get("scat_plot") or method_flags.get("best_fit")
+    point_count = len(parsed_data)
+    if scatter_like_selected and point_count > _SCATTER_HARD_CAP:
+        st.session_state.modal_message = (
+            f"Scatter and Line of Best Fit charts are limited to "
+            f"{_SCATTER_HARD_CAP:,} points. Your selection has "
+            f"{point_count:,} rows — reduce the row selection before running."
+        )
+        st.session_state.show_error_dialog = True
+        st.rerun()
+        return
+
     run_count = len(st.session_state.analysis_runs) + 1
     st.session_state._compute_meta = {
         "run_id":         str(uuid.uuid4()),
@@ -3950,6 +4087,32 @@ def _handle_run_analysis(
         "rows":           col2,
         "measurement_levels": dict(st.session_state.get("column_measurement_levels", {})),
     }
+
+    # Stash everything the submit step needs, keyed off session state so the
+    # confirm dialog can re-trigger the submit without recomputing anything.
+    submit_payload = {
+        "parsed_data":   parsed_data,
+        "method_flags":  method_flags,
+        "methods":       methods,
+        "graphics":      graphics,
+        "dataset_id":    dataset_id,
+        "selected_cols": selected_cols,
+        "selected_rows": selected_rows,
+    }
+
+    if scatter_like_selected and point_count > _SCATTER_SOFT_CAP:
+        st.session_state["_scatter_warn_payload"] = submit_payload
+        st.session_state["_scatter_warn_points"]  = point_count
+        st.rerun()
+        return
+
+    _submit_analysis(**submit_payload)
+    st.rerun()
+
+
+def _submit_analysis(parsed_data, method_flags, methods, graphics,
+                     dataset_id, selected_cols, selected_rows) -> None:
+    """Kick off the background analysis run and show the loading caption."""
     st.session_state._compute_future = _get_executor().submit(
         _background_run,
         parsed_data,
@@ -3962,7 +4125,37 @@ def _handle_run_analysis(
         _get_backend_handler().handle_request,
     )
     st.session_state._loading_caption = "Running analysis… this won't take long."
-    st.rerun()
+
+
+@st.dialog("Large scatter plot")
+def _scatter_soft_warn_dialog() -> None:
+    """Confirm before rendering a scatter/best-fit with >5K points."""
+    payload = st.session_state.get("_scatter_warn_payload")
+    points  = st.session_state.get("_scatter_warn_points", 0)
+    if not payload:
+        return
+
+    st.markdown(
+        f"You selected **{points:,} points** for a scatter or line-of-best-fit "
+        f"chart.  Rendering more than {_SCATTER_SOFT_CAP:,} points can take a "
+        f"while and may slow the browser.  Hard limit is "
+        f"{_SCATTER_HARD_CAP:,}."
+    )
+    st.markdown("Do you want to continue?")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Cancel", key="_scatter_warn_cancel", use_container_width=True):
+            st.session_state.pop("_scatter_warn_payload", None)
+            st.session_state.pop("_scatter_warn_points", None)
+            st.rerun()
+    with c2:
+        if st.button("Run anyway", key="_scatter_warn_confirm",
+                     type="primary", use_container_width=True):
+            _submit_analysis(**payload)
+            st.session_state.pop("_scatter_warn_payload", None)
+            st.session_state.pop("_scatter_warn_points", None)
+            st.rerun()
 
 # ---------------------------------------------------------------------------
 # Light/Dark Mode Theme Toggler

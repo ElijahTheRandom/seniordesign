@@ -159,6 +159,12 @@ class PieChart:
                 else:
                     labels = [str(i) for i in range(len(values))]
 
+        if len(labels) > 100:
+            raise ValueError(
+                f"Pie chart supports at most 100 slices "
+                f"(got {len(labels):,}). Reduce the selection."
+            )
+
         colors = self.color_pallette(len(labels))
 
         fig = go.Figure(go.Pie(

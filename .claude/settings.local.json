@@ -35,7 +35,8 @@
       "Bash(MSYS_NO_PATHCONV=1 docker exec seniordesign-ui-1 python /app/in_container_cards.py)",
       "Bash(./.venv/Scripts/python.exe -m pytest testsuite/ -q)",
       "Bash(MSYS_NO_PATHCONV=1 docker cp in_container_replay.py \"seniordesign-ui-1:/app/in_container_replay.py\")",
-      "Bash(MSYS_NO_PATHCONV=1 docker exec seniordesign-ui-1 python /app/in_container_replay.py)"
+      "Bash(MSYS_NO_PATHCONV=1 docker exec seniordesign-ui-1 python /app/in_container_replay.py)",
+      "Bash(git log *)"
     ]
   }
 }
