@@ -49,7 +49,7 @@ from PIL import Image
 
 from utils.helpers import df_to_ascii_table
 from frontend_handler import handle_result
-from logic.run_manager import build_success_save_message
+from logic.run_manager import VIZ_NAMES, build_success_save_message
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -322,9 +322,8 @@ def _render_precision_warnings(run: dict) -> None:
         lines.append(f"**{w['name']}**: {w['note']}")
 
     st.info(
-        "**Precision / Overflow Notices**\n\n"
-        + "\n\n".join(lines),
-        icon="ℹ️",
+        "**Precision/Overflow Notices**\n\n"
+        + "\n".join(lines),
     )
     st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
 
@@ -372,7 +371,9 @@ def _render_visualizations(run: dict, show_divider: bool = True) -> None:
                 st.image(image)
 
         else:
-            st.error(f"{chart.get('type', 'Chart')}: {chart.get('error', 'Failed to generate')}")
+            chart_type = chart.get('type', 'Chart')
+            friendly = VIZ_NAMES.get(chart_type, chart_type.replace('_', ' ').title())
+            st.error(f"**{friendly}:** {chart.get('error', 'Failed to generate')}.")
 
 
 def _render_data_table(run: dict, show_divider: bool = True) -> None:

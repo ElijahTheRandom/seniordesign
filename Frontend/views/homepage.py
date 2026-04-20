@@ -962,9 +962,6 @@ def _demo_csv_dialog() -> None:
                 st.rerun()
 
     st.markdown("<div style='margin-bottom:0.75rem'></div>", unsafe_allow_html=True)
-    if st.button("Cancel", key="_demo_csv_cancel", use_container_width=True):
-        st.rerun()
-
 
 def _render_data_panel(base_dir: str) -> pd.DataFrame | None:
     """
@@ -2368,7 +2365,7 @@ def _render_computation_options(
 
     dis_mean     = not_ready     or n_ir  < 1
     dis_median   = not_ready     or n_ord < 1
-    dis_mode     = not data_ready or not has_num
+    dis_mode     = not_ready
     dis_variance = not_ready     or n_ir  < 1 or n_rows < 2
     dis_std      = dis_mean
     dis_pct      = not_ready     or n_ord < 1
