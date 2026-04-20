@@ -553,15 +553,6 @@ def _show_success_toast() -> None:
 # Header detection helpers
 # ---------------------------------------------------------------------------
 
-def _col_letter(i: int) -> str:
-    """Return a spreadsheet-style column label for index i (0-based): A, B, …, Z, AA, AB, …"""
-    label = ""
-    i += 1  # convert to 1-based
-    while i > 0:
-        i, rem = divmod(i - 1, 26)
-        label = chr(65 + rem) + label
-    return label
-
 def _detect_has_headers(raw_bytes: bytes) -> bool:
     """
     Heuristic: does the CSV's first row look like column headers?
@@ -604,6 +595,12 @@ def _detect_has_headers(raw_bytes: bytes) -> bool:
 def _on_header_toggle(file_key: str) -> None:
     """Callback: re-parse CSV when the user toggles the header checkbox."""
     has_headers = st.session_state.get(f"_has_headers_{file_key}", True)
+
+    # Persist the user's choice *first* so Streamlit widget-state GC
+    # (on navigation / fragment reruns) can't revert it. Done before any
+    # early-return paths below so the preference always reflects intent.
+    st.session_state[f"_has_headers_pref_{file_key}"] = has_headers
+
     raw = st.session_state.get("_csv_raw_bytes")
 
     # Try to recover raw bytes from the uploaded file if not cached
@@ -624,7 +621,7 @@ def _on_header_toggle(file_key: str) -> None:
         df = pd.read_csv(io.BytesIO(raw))
     else:
         df = pd.read_csv(io.BytesIO(raw), header=None)
-        df.columns = [f"Column {_col_letter(i)}" for i in range(len(df.columns))]
+        df.columns = [f"Column {i + 1}" for i in range(len(df.columns))]
 
     st.session_state.edited_data_cache[file_key] = df
 
@@ -677,9 +674,18 @@ def _render_header_settings(uploaded_file) -> None:
         return
 
     # --- Header toggle ---
-    detected = st.session_state.get(f"_headers_detected_{file_key}", True)
+    # The persistent preference lives at _has_headers_pref_{file_key} and is
+    # never widget-bound, so it survives Streamlit's widget-state GC when
+    # the user navigates away from the homepage and back. We copy it into
+    # the widget key *every render* so the checkbox always reflects the
+    # user's last choice rather than the heuristic default.
+    pref_key = f"_has_headers_pref_{file_key}"
+    if pref_key not in st.session_state:
+        st.session_state[pref_key] = st.session_state.get(
+            f"_headers_detected_{file_key}", True
+        )
     toggle_key = f"_has_headers_{file_key}"
-    st.session_state.setdefault(toggle_key, detected)
+    st.session_state[toggle_key] = st.session_state[pref_key]
 
     st.checkbox(
         "First row contains headers",
@@ -844,14 +850,14 @@ def render_homepage(base_dir: str) -> None:
                 else:
                     detected = True
                 st.session_state[f"_headers_detected_{file_key}"] = detected
-                st.session_state.setdefault(f"_has_headers_{file_key}", detected)
+                st.session_state.setdefault(f"_has_headers_pref_{file_key}", detected)
 
                 if not detected:
                     # Re-parse without headers and generate column names
                     if raw is not None:
                         df = pd.read_csv(io.BytesIO(raw), header=None)
                     df.columns = [
-                        f"Column {_col_letter(i)}" for i in range(len(df.columns))
+                        f"Column {i + 1}" for i in range(len(df.columns))
                     ]
 
                 st.session_state.edited_data_cache[file_key] = df
@@ -1096,7 +1102,12 @@ def _clear_file_state() -> None:
 
     # Clear per-file header detection state and sample records cache
     for key in list(st.session_state.keys()):
-        if key.startswith(("_headers_detected_", "_has_headers_", "_sample_records_")):
+        if key.startswith((
+            "_headers_detected_",
+            "_has_headers_",
+            "_has_headers_pref_",
+            "_sample_records_",
+        )):
             del st.session_state[key]
 
     st.session_state.has_file = False
