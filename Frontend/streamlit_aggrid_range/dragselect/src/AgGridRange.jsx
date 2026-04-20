@@ -69,16 +69,6 @@ const AgGridRange = (props) => {
     // spurious onRangeSelectionChanged that clearRangeSelection() triggers.
     const isRestoringRef = useRef(false)
 
-    // Debounces the Streamlit.setComponentValue call that finalizes a drag.
-    // AG Grid fires mousedown+mouseup as two separate "finished" events when
-    // the user clicks-and-drags quickly; on AWS the first round-trip's
-    // Python rerun returns mid-drag and snaps the selection back to the
-    // starting cell.  Coalescing into a single delayed send eliminates the
-    // mid-drag rerun entirely.  gridApiRef lets the timer read the latest
-    // ranges at fire time instead of closing over a stale cellRanges list.
-    const pendingSendTimer = useRef(null)
-    const gridApiRef = useRef(null)
-
     // Refs mirror state that the selection/edit callbacks read.  Using refs
     // instead of closing over the values keeps the callback identity stable
     // (no dep-array churn) and removes stale-closure races during rapid drag
@@ -184,23 +174,11 @@ const AgGridRange = (props) => {
 
     const onGridReady = (params) => {
         setGridApi(params.api)
-        gridApiRef.current = params.api
         // Don't call Streamlit.setFrameHeight() here — the containerHeight
         // effect already sets it, and re-resizing the iframe right after
         // AG Grid mounts throws off the first drag's mouse coordinates
         // because AG Grid caches the container's client rect on mount.
     }
-
-    // Clear any pending debounced send on unmount so timers don't fire
-    // against a dead grid.
-    useEffect(() => {
-        return () => {
-            if (pendingSendTimer.current) {
-                clearTimeout(pendingSendTimer.current)
-                pendingSendTimer.current = null
-            }
-        }
-    }, [])
 
     // Handle selection changes
     const onRangeSelectionChanged = useCallback((event) => {
@@ -208,13 +186,6 @@ const AgGridRange = (props) => {
         // Suppress spurious empty-selection events fired during programmatic
         // range restore (onRowDataUpdated calls clearRangeSelection first).
         if (isRestoringRef.current) return
-
-        // Any new selection event invalidates a pending debounced send —
-        // the old ranges would be wrong by the time the timer fired.
-        if (pendingSendTimer.current) {
-            clearTimeout(pendingSendTimer.current)
-            pendingSendTimer.current = null
-        }
 
         const cellRanges = event.api.getCellRanges()
         // In server mode use the known total; in client mode use displayed count
@@ -267,47 +238,21 @@ const AgGridRange = (props) => {
         const finished = event.finished
         if (finished === false) return
 
-        // Debounce the round-trip: a single click-drag on AWS was firing two
-        // finished=true events (mousedown settles on the start cell, mouseup
-        // on the end cell), and the first one's Python rerun was landing
-        // mid-drag and snapping the selection back.  A 150ms window swallows
-        // both mousedown+mouseup into one send without being perceptible on
-        // deliberate clicks.  Ranges are re-fetched from gridApiRef at fire
-        // time so the payload reflects the grid's final state, not whichever
-        // intermediate event scheduled the timer.
-        pendingSendTimer.current = setTimeout(() => {
-            pendingSendTimer.current = null
-            const api = gridApiRef.current
-            if (!api) return
+        // In client mode, if edits exist, include current row data so a
+        // selection event doesn't overwrite prior cell edits in Streamlit state.
+        let currentEditedData = null
+        if (!isServerMode && hasEditsRef.current && event.api) {
+            const updatedRows = []
+            event.api.forEachNode(node => updatedRows.push({ ...node.data }))
+            currentEditedData = updatedRows
+        }
 
-            const latestRanges = api.getCellRanges() || []
-            const serializedRanges = latestRanges.map((range) => {
-                let startRow = range.startRow ? range.startRow.rowIndex : 0
-                let endRow = range.endRow ? range.endRow.rowIndex : 0
-                if (startRow > endRow) {
-                    const temp = startRow; startRow = endRow; endRow = temp
-                }
-                const columns = range.columns.map((col) => col.colId)
-                return { startRow, endRow, columns }
-            })
-            lastKnownRanges.current = serializedRanges
-
-            // In client mode, if edits exist, include current row data so a
-            // selection event doesn't overwrite prior cell edits.
-            let currentEditedData = null
-            if (!isServerMode && hasEditsRef.current) {
-                const updatedRows = []
-                api.forEachNode(node => updatedRows.push({ ...node.data }))
-                currentEditedData = updatedRows
-            }
-
-            const currentRenamed = renamedHeadersRef.current
-            Streamlit.setComponentValue({
-                selections: serializedRanges,
-                editedData: currentEditedData,
-                renamedHeaders: Object.keys(currentRenamed).length > 0 ? currentRenamed : null
-            })
-        }, 150)
+        const currentRenamed = renamedHeadersRef.current
+        Streamlit.setComponentValue({
+            selections: formattedRanges,
+            editedData: currentEditedData,
+            renamedHeaders: Object.keys(currentRenamed).length > 0 ? currentRenamed : null
+        })
     }, [isServerMode, serverTotalRows])
 
     // Handle cell value editing (client mode only).  Memoized with a stable
