@@ -173,6 +173,8 @@ def render_results(run: dict, base_dir: str) -> None:
 
     st.header(f"Analysis Results — {run['name']}", anchor=False)
     _render_stat_cards(run)
+    _render_precision_notice(run)
+    _render_multi_column_notice(run)
     _render_precision_warnings(run)
     _render_visualizations(run)
     _render_data_table(run)
@@ -308,6 +310,57 @@ def _render_error_card(title: str, error_msg: str) -> None:
     """, unsafe_allow_html=True)
 
 
+def _render_precision_notice(run: dict) -> None:
+    """
+    Render a small footnote under the stat cards disclosing that values are
+    rounded for display (Req 5.6). Kept visually distinct from the overflow /
+    cancellation notices below — this is "your display is abbreviated",
+    those are "your values may be wrong".
+    """
+    has_stat_card = any(c[0] == "stat" for c in run.get("cards", []))
+    if not has_stat_card:
+        return
+    st.caption(
+        "Displayed values are rounded to 6 significant figures. "
+        "CSV and TSV exports contain the full computed precision."
+    )
+
+
+def _render_multi_column_notice(run: dict) -> None:
+    """
+    Render an info box when univariate methods ran against >1 selected column.
+
+    These methods (mean, median, mode, variance, standard deviation, percentile,
+    coefficient of variation) flatten their input, so selecting multiple columns
+    produces one combined result — not per-column results. The user rarely
+    expects that, so we spell it out explicitly.
+
+    The detection list is built in frontend_handler.handle_result as
+    run["multi_column_univariate_names"].
+    """
+    names = run.get("multi_column_univariate_names") or []
+    if not names:
+        return
+
+    selected = run.get("columns") or []
+    col_count = len(selected)
+    unique_names = sorted(set(names))
+    if len(unique_names) == 1:
+        subject = unique_names[0]
+        verb = "is"
+    else:
+        subject = ", ".join(unique_names[:-1]) + f", and {unique_names[-1]}"
+        verb = "are"
+
+    st.info(
+        f"**Column selection notice**\n\n"
+        f"{subject} {verb} univariate — with {col_count} columns selected, "
+        f"all values were combined into a single dataset before computing. "
+        f"To get per-column results, run the analysis separately on each column."
+    )
+    st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
+
+
 def _render_precision_warnings(run: dict) -> None:
     """
     If any method flagged a loss-of-precision risk, render an info box
@@ -408,19 +461,19 @@ def _export_run_dialog(run: dict):
         use_container_width=True,
     )
 
-    # CSV export
+    # CSV export — results section followed by selected data (Req 3.8, 3.9)
     st.download_button(
-        "Export CSV Data",
-        data=run["data"].to_csv(index=False),
+        "Export CSV Report",
+        data=_build_combined_export(run, sep=","),
         file_name=f"{run['name']} Full Report.csv",
         mime="text/csv",
         use_container_width=True,
     )
 
-    # TSV export
+    # TSV export — results section followed by selected data (Req 3.8, 3.9)
     st.download_button(
-        "Export TSV Data",
-        data=run["data"].to_csv(index=False, sep="\t"),
+        "Export TSV Report",
+        data=_build_combined_export(run, sep="\t"),
         file_name=f"{run['name']} Full Report.tsv",
         mime="text/tab-separated-values",
         use_container_width=True,
@@ -612,14 +665,192 @@ def _read_saved_runs() -> list:
 
 
 def _write_saved_runs(saved_runs: list) -> None:
-    """Atomically write the saved_runs list to saved_runs.json."""
-    with open(SAVED_RUNS_FILE, "w") as f:
-        json.dump(saved_runs, f, indent=2)
+    """Atomically write the saved_runs list to saved_runs.json.
+
+    Uses a temp-file + os.replace() so a crash mid-write cannot truncate
+    or corrupt the history index that prior saved runs depend on.
+    """
+    tmp_path = SAVED_RUNS_FILE + ".tmp"
+    try:
+        os.makedirs(os.path.dirname(SAVED_RUNS_FILE), exist_ok=True)
+        with open(tmp_path, "w") as f:
+            json.dump(saved_runs, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, SAVED_RUNS_FILE)
+    except OSError as exc:
+        # Best-effort cleanup of the partial temp file; leave the existing
+        # saved_runs.json untouched so previously saved runs still load.
+        try:
+            if os.path.isfile(tmp_path):
+                os.remove(tmp_path)
+        except OSError:
+            pass
+        st.error(f"Failed to save run history: {exc}")
 
 
 # ---------------------------------------------------------------------------
 # Export builder
 # ---------------------------------------------------------------------------
+
+def _explode_result_value(value, params_used):
+    """
+    Return a list of (field_label, cell_value) pairs for a single result's
+    value. Scalars become one row; lists/dicts/DataFrames expand so the
+    CSV/TSV is actually tabular instead of serializing structured values
+    into an opaque string.
+    """
+    if isinstance(value, bool):
+        return [("value", value)]
+    if isinstance(value, (int, float)):
+        return [("value", value)]
+    if isinstance(value, list):
+        if (
+            params_used is not None
+            and isinstance(params_used, (list, tuple))
+            and len(params_used) == len(value)
+            and all(isinstance(v, (int, float)) for v in value)
+        ):
+            pairs = []
+            for p, v in zip(params_used, value):
+                p_int = int(p) if float(p).is_integer() else p
+                label = f"{p_int}th percentile" if isinstance(p_int, int) else f"{p_int} percentile"
+                pairs.append((label, v))
+            return pairs
+        return [(f"value[{i}]", v) for i, v in enumerate(value)]
+    if isinstance(value, dict):
+        return [(str(k), v) for k, v in value.items()]
+    try:
+        if isinstance(value, pd.DataFrame):
+            pairs = []
+            for i, row in value.iterrows():
+                for col in value.columns:
+                    pairs.append((f"row{i}/{col}", row[col]))
+            return pairs
+    except Exception:
+        pass
+    return [("value", str(value) if value is not None else "")]
+
+
+def _build_results_dataframe(run: dict, run_name: str | None = None) -> pd.DataFrame:
+    """
+    Build a long-format DataFrame of the run's computed results (Req 3.8).
+
+    One row per (statistic, field) pair. Multi-valued outputs (percentile
+    lists, LSR slope/intercept/equation, binomial tables) are exploded
+    into multiple rows so downstream tools can consume them directly.
+    Row/column selection is repeated on every row (Req 3.9).
+    """
+    from frontend_handler import _ID_TO_DISPLAY  # local import avoids cycle at module load
+
+    sel_cols = ", ".join(str(c) for c in (run.get("columns") or []))
+    sel_rows_list = run.get("rows") or []
+    sel_rows = "All" if not sel_rows_list else ", ".join(str(r) for r in sel_rows_list)
+
+    msg = run.get("result_message")
+    results = list(getattr(msg, "results", []) or [])
+
+    rows = []
+    for res in results:
+        stat_id = res.get("id", "")
+        display = _ID_TO_DISPLAY.get(stat_id, stat_id)
+        status = "ok" if res.get("ok") else "error"
+        error_msg = res.get("error") or ""
+        params = res.get("params_used")
+        params_str = "" if params in (None, "", [], {}) else str(params)
+
+        if res.get("ok"):
+            exploded = _explode_result_value(res.get("value"), params)
+        else:
+            exploded = [("value", "")]
+
+        for field, cell_value in exploded:
+            row = {
+                "Statistic": display,
+                "Field": field,
+                "Value": cell_value,
+                "Status": status,
+                "Error": error_msg,
+                "Params": params_str,
+                "Selection Columns": sel_cols,
+                "Selection Rows": sel_rows,
+            }
+            if run_name is not None:
+                row = {"Run": run_name, **row}
+            rows.append(row)
+
+    if not rows:
+        cols = ["Statistic", "Field", "Value", "Status", "Error",
+                "Params", "Selection Columns", "Selection Rows"]
+        if run_name is not None:
+            cols = ["Run"] + cols
+        return pd.DataFrame(columns=cols)
+
+    return pd.DataFrame(rows)
+
+
+def _build_combined_export(run: dict, sep: str = ",") -> str:
+    """
+    Build a single CSV/TSV string with the run's results on top followed
+    by the selected input data — mirrors the TXT report layout so the
+    computed results (Req 3.8) and the exact selection they came from
+    (Req 3.9) are in one downloadable file.
+    """
+    import csv
+    import io
+
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=sep, lineterminator="\n")
+
+    # ---- Header ----
+    w.writerow([f"Analysis Results - {run.get('name', '')}"])
+
+    sel_cols = run.get("columns") or []
+    sel_rows = run.get("rows") or []
+    if sel_cols:
+        w.writerow([f"Selected Columns: {', '.join(str(c) for c in sel_cols)}"])
+    if sel_rows:
+        w.writerow([f"Selected Rows: {', '.join(str(r) for r in sel_rows)}"])
+    else:
+        w.writerow(["Selected Rows: All"])
+
+    measurement_levels = run.get("measurement_levels") or {}
+    if not measurement_levels:
+        msg = run.get("result_message")
+        meta = getattr(msg, "metadata", None) if msg is not None else None
+        if isinstance(meta, dict):
+            measurement_levels = meta.get("measurement_levels") or {}
+    if measurement_levels:
+        w.writerow(["Column Measurement Levels:"])
+        for col in (sel_cols or list(measurement_levels.keys())):
+            level = measurement_levels.get(col)
+            if level:
+                w.writerow([f"  {col}: {level}"])
+
+    w.writerow([])
+
+    # ---- Results section ----
+    w.writerow(["=== Results ==="])
+    results_df = _build_results_dataframe(run)
+    buf.flush()
+    if not results_df.empty:
+        buf.write(results_df.to_csv(index=False, sep=sep, lineterminator="\n"))
+    else:
+        w.writerow(["(no computed results)"])
+
+    w.writerow([])
+
+    # ---- Selected Data section ----
+    w.writerow(["=== Selected Data ==="])
+    data = run.get("data")
+    buf.flush()
+    if data is not None and not data.empty:
+        buf.write(data.to_csv(index=False, sep=sep, lineterminator="\n"))
+    else:
+        w.writerow(["(no data)"])
+
+    return buf.getvalue()
+
 
 def _build_export_text(run: dict) -> str:
     """

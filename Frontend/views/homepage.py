@@ -763,10 +763,28 @@ def poll_background_computation() -> None:
         "rows":           meta.get("rows", []),
         "measurement_levels": meta.get("measurement_levels", {}),
     }
-    handle_result(run)
+    try:
+        handle_result(run)
+    except Exception as exc:
+        # A malformed result (most often from a buggy LLM-generated custom
+        # method) must not white-screen the app.  Surface a friendly error
+        # dialog, drop the future, and let the user continue.
+        st.session_state._compute_future = None
+        st.session_state._compute_meta = None
+        st.session_state.modal_message = (
+            "The computation finished but the result couldn't be displayed. "
+            "This usually means a custom method returned an unexpected shape. "
+            f"({exc.__class__.__name__}: {str(exc)[:200]})"
+        )
+        st.session_state.show_error_dialog = True
+        st.rerun()
+        return
 
     st.session_state.analysis_runs.append(run)
-    st.session_state.modal_message = build_success_message(run)
+    try:
+        st.session_state.modal_message = build_success_message(run)
+    except Exception:
+        st.session_state.modal_message = "Analysis complete."
     st.session_state.show_success_dialog = True
     st.session_state._compute_future = None
     st.session_state._compute_meta = None
@@ -3186,6 +3204,43 @@ STRICT RULES — violating any will cause the method to fail validation:
 """
 
 
+class _AIHandled(Exception):
+    """
+    Sentinel raised after a user-friendly st.error() has already been shown
+    in the AI generation flow. Caught silently by the outer handler so the
+    same error isn't reported twice.
+    """
+    pass
+
+
+def _sanitize_ai_error(exc: Exception, api_key: str, include_type: bool = False) -> str:
+    """
+    Turn an exception into a short, user-safe message for the dialog.
+
+    Strips the API key from the stringified exception if it leaked into
+    an SDK error message. When include_type is True, prepends the
+    exception's class name so the collapsible "Technical details" pane
+    still has enough info to diagnose.
+    """
+    try:
+        msg = str(exc) or exc.__class__.__name__
+    except Exception:
+        msg = exc.__class__.__name__
+
+    if api_key:
+        stripped = api_key.strip()
+        if stripped and stripped in msg:
+            msg = msg.replace(stripped, "[REDACTED]")
+
+    # Keep it terse — SDK errors sometimes include multi-kilobyte JSON blobs.
+    if len(msg) > 500:
+        msg = msg[:500] + "…"
+
+    if include_type:
+        return f"{exc.__class__.__name__}: {msg}"
+    return msg
+
+
 def _call_openai(api_key: str, prompt: str) -> str:
     """Call OpenAI Chat Completions API and return the generated code string."""
     import openai
@@ -3544,16 +3599,31 @@ def _ai_generate_method_dialog():
                             "List": "list",
                             "Dictionary": "dictionary",
                         }[output_type_label]
-                        user_prompt = _build_llm_user_prompt(
-                            method_description.strip(), input_key, output_key_now
-                        )
                         try:
-                            if provider_key_id == "openai":
-                                raw_code = _call_openai(api_key.strip(), user_prompt)
-                            elif provider_key_id == "anthropic":
-                                raw_code = _call_anthropic(api_key.strip(), user_prompt)
-                            else:
-                                raw_code = _call_gemini(api_key.strip(), user_prompt)
+                            user_prompt = _build_llm_user_prompt(
+                                method_description.strip(), input_key, output_key_now
+                            )
+
+                            try:
+                                if provider_key_id == "openai":
+                                    raw_code = _call_openai(api_key.strip(), user_prompt)
+                                elif provider_key_id == "anthropic":
+                                    raw_code = _call_anthropic(api_key.strip(), user_prompt)
+                                else:
+                                    raw_code = _call_gemini(api_key.strip(), user_prompt)
+                            except ImportError as imp_exc:
+                                st.error(
+                                    "The selected provider's SDK is not installed. "
+                                    f"Ask an administrator to install it. ({imp_exc})"
+                                )
+                                raise _AIHandled()
+
+                            if not isinstance(raw_code, str) or not raw_code.strip():
+                                st.error(
+                                    "The AI returned an empty or unreadable response. "
+                                    "Try again, rephrase your description, or pick a different provider."
+                                )
+                                raise _AIHandled()
 
                             generated_code = _strip_markdown_fences(raw_code)
 
@@ -3571,8 +3641,14 @@ def _ai_generate_method_dialog():
                             # Re-set routing flag so the dialog re-opens after rerun
                             st.session_state["cm_pending_dialog"] = "ai_generate"
                             st.rerun()
+                        except _AIHandled:
+                            # Already surfaced a friendly message above; do not re-report.
+                            pass
                         except Exception as exc:
-                            st.error(f"API call failed: {exc}")
+                            safe_msg = _sanitize_ai_error(exc, api_key)
+                            st.error(f"AI generation failed: {safe_msg}")
+                            with st.expander("Technical details"):
+                                st.code(_sanitize_ai_error(exc, api_key, include_type=True))
         with cancel_col:
             if st.button("Cancel", use_container_width=True):
                 for k in ("_ai_gen_step", "_ai_gen_generated_code",
@@ -3650,27 +3726,40 @@ def _ai_generate_method_dialog():
         save_col, back_col, cancel_col = st.columns(3)
         with save_col:
             if st.button("Save Method", use_container_width=True, type="primary", key="_ai_gen_save"):
-                ok, msg = save_custom_method(
-                    name=method_name,
-                    description=description,
-                    input_type=input_key,
-                    output_type=output_key,
-                    user_code=user_code,
-                    dependencies=[],
-                )
-                if ok:
-                    for k in ("_ai_gen_step", "_ai_gen_generated_code",
-                              "_ai_gen_provider", "_ai_gen_api_key",
-                              "_ai_gen_description", "_ai_gen_input_type",
-                              "_ai_gen_output_type", "_ai_gen_prev_provider",
-                              "_ai_gen_remember", "_ai_gen_output_warnings"):
-                        st.session_state.pop(k, None)
-                    _after_method_change()
-                    st.success(msg)
-                    time.sleep(1)
-                    st.rerun()
+                try:
+                    ok, msg = save_custom_method(
+                        name=method_name,
+                        description=description,
+                        input_type=input_key,
+                        output_type=output_key,
+                        user_code=user_code,
+                        dependencies=[],
+                    )
+                except Exception as exc:
+                    st.error(
+                        "Could not save the method. "
+                        f"{exc.__class__.__name__}: {str(exc)[:300]}"
+                    )
                 else:
-                    st.error(msg)
+                    if ok:
+                        for k in ("_ai_gen_step", "_ai_gen_generated_code",
+                                  "_ai_gen_provider", "_ai_gen_api_key",
+                                  "_ai_gen_description", "_ai_gen_input_type",
+                                  "_ai_gen_output_type", "_ai_gen_prev_provider",
+                                  "_ai_gen_remember", "_ai_gen_output_warnings"):
+                            st.session_state.pop(k, None)
+                        try:
+                            _after_method_change()
+                        except Exception:
+                            # Registry refresh is best-effort; saved file is source of truth.
+                            pass
+                        # st.toast is non-blocking and auto-dismisses, so we don't
+                        # need time.sleep to let the user see the success message
+                        # before rerunning (CLAUDE.md forbids time.sleep+st.rerun).
+                        st.toast(msg)
+                        st.rerun()
+                    else:
+                        st.error(msg)
         with back_col:
             if st.button("Back", use_container_width=True, key="_ai_gen_back"):
                 st.session_state["_ai_gen_step"] = 1

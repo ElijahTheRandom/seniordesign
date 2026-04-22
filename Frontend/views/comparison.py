@@ -39,7 +39,8 @@ from views.results import (
     _render_stat_cards,
     _render_visualizations,
     _render_data_table,
-    _build_export_text
+    _build_export_text,
+    _build_combined_export,
 )
 
 def _big_section_divider():
@@ -134,26 +135,25 @@ def render_comparison(selected_run_ids: list, base_dir: str) -> None:
             use_container_width=True,
         )
 
-        # ---------- CSV ----------
-        combined_df = pd.concat(
-            [run["data"].assign(Run=run["name"]) for run in runs],
-            ignore_index=True
-        )
-
         combined_filename = ', '.join(run_names)
 
+        def _build_combined_multi(sep: str) -> str:
+            divider = "\n" + ("-" * 80) + "\n\n"
+            return divider.join(_build_combined_export(r, sep=sep) for r in runs)
+
+        # ---------- Combined CSV (results + selected data per run) ----------
         st.download_button(
-            "Export CSV Data",
-            data=combined_df.to_csv(index=False),
+            "Export CSV Report",
+            data=_build_combined_multi(","),
             file_name=f"{combined_filename} Combined Report.csv",
             mime="text/csv",
             use_container_width=True,
         )
 
-        # ---------- TSV ----------
+        # ---------- Combined TSV (results + selected data per run) ----------
         st.download_button(
-            "Export TSV Data",
-            data=combined_df.to_csv(index=False, sep="\t"),
+            "Export TSV Report",
+            data=_build_combined_multi("\t"),
             file_name=f"{combined_filename} Combined Report.tsv",
             mime="text/tab-separated-values",
             use_container_width=True,

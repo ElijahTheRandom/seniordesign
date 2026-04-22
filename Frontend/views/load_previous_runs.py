@@ -352,6 +352,25 @@ def _read_saved_runs() -> list:
 
 
 def _write_saved_runs(saved_runs: list) -> None:
-    """Write the saved_runs list to saved_runs.json."""
-    with open(SAVED_RUNS_FILE, "w") as f:
-        json.dump(saved_runs, f, indent=2)
+    """Atomically write the saved_runs list to saved_runs.json.
+
+    Uses a temp-file + os.replace() so a crash mid-write cannot truncate
+    or corrupt the history index that prior saved runs depend on.
+    """
+    tmp_path = SAVED_RUNS_FILE + ".tmp"
+    try:
+        os.makedirs(os.path.dirname(SAVED_RUNS_FILE), exist_ok=True)
+        with open(tmp_path, "w") as f:
+            json.dump(saved_runs, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, SAVED_RUNS_FILE)
+    except OSError as exc:
+        # Best-effort cleanup of the partial temp file; leave the existing
+        # saved_runs.json untouched so previously saved runs still load.
+        try:
+            if os.path.isfile(tmp_path):
+                os.remove(tmp_path)
+        except OSError:
+            pass
+        st.error(f"Failed to save run history: {exc}")

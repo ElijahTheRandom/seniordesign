@@ -36,7 +36,23 @@
       "Bash(./.venv/Scripts/python.exe -m pytest testsuite/ -q)",
       "Bash(MSYS_NO_PATHCONV=1 docker cp in_container_replay.py \"seniordesign-ui-1:/app/in_container_replay.py\")",
       "Bash(MSYS_NO_PATHCONV=1 docker exec seniordesign-ui-1 python /app/in_container_replay.py)",
-      "Bash(git log *)"
+      "Bash(git log *)",
+      "Bash(git revert *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8501/_stcore/health)",
+      "Bash(curl *)",
+      "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/python.exe' -c 'import playwright, pytest, pandas, numpy, PIL; print\\('\\\\''playwright:'\\\\'', playwright.__version__\\); print\\('\\\\''pytest:'\\\\'', pytest.__version__\\); print\\('\\\\''ok'\\\\''\\)')",
+      "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/python.exe' -c 'import pytest_playwright; print\\('\\\\''pytest_playwright ok'\\\\''\\)')",
+      "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/pip.exe' install pytest-playwright)",
+      "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/playwright.exe' install chromium)",
+      "Bash($VENV/python.exe *)",
+      "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/python.exe' 'C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/testsuite/e2e/fixtures/_generate.py')",
+      "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/pytest.exe' testsuite/e2e/01_ingestion_exports/test_smoke.py -v --tb=short --timeout=120)",
+      "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/python.exe' 'C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/testsuite/e2e/_debug.py')",
+      "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/pytest.exe' testsuite/e2e/01_ingestion_exports/test_smoke.py -v --tb=long --timeout=120)",
+      "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/pytest.exe' testsuite/e2e/01_ingestion_exports/test_ingestion.py -v --tb=short --timeout=150 -x)",
+      "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/pytest.exe' testsuite/e2e/01_ingestion_exports/test_ingestion.py -v --tb=short --timeout=150)",
+      "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/python.exe' -c ' *)",
+      "Bash(dir testsuite *)"
     ]
   }
 }

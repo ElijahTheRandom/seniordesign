@@ -22,6 +22,22 @@ _ID_TO_DISPLAY: dict[str, str] = {
     "coefficient_variation":    "Coefficient of Variation",
 }
 
+# Methods that reduce their input to a single 1-D dataset. When the user
+# selects more than one column and picks one of these, the backend flattens
+# all selected columns together (see methods/*.py — np.asarray(data) with
+# no axis, or an explicit .flatten()). We surface a notice on the results
+# page so the user isn't surprised by a combined result. Custom methods are
+# intentionally excluded — we can't know their shape contract.
+_UNIVARIATE_METHOD_IDS: set[str] = {
+    "mean",
+    "median",
+    "mode",
+    "variance",
+    "standard_deviation",
+    "percentile",
+    "coefficient_variation",
+}
+
 
 def _load_custom_display_names():
     """Merge custom method display names into _ID_TO_DISPLAY at runtime."""
@@ -43,42 +59,83 @@ def _ordinal(n: int) -> str:
     return f"{n}{suffix}"
 
 
-def _format_value(value, params_used=None) -> str:
-    """Convert a result value to a human-readable string."""
-    if isinstance(value, (int, float)):
-        return f"{value:.2f}"
-    if isinstance(value, list):
-        # If params_used is a list of percentile values, label each result.
-        if (
-            params_used is not None
-            and isinstance(params_used, (list, tuple))
-            and len(params_used) == len(value)
-            and all(isinstance(v, (int, float)) for v in value)
-        ):
-            parts = []
-            for p, v in zip(params_used, value):
-                p_int = int(p) if float(p).is_integer() else p
-                label = _ordinal(p_int) if isinstance(p_int, int) else f"{p_int}"
-                parts.append(f"{label}: {v:.2f}")
-            return ", ".join(parts)
-        formatted = [f"{float(v):.2f}" if isinstance(v, (int, float)) else str(v) for v in value]
-        return ", ".join(formatted)
-    if isinstance(value, dict):
-        # Structured result (e.g. Least Squares Regression)
-        if "equation" in value:
-            parts = [value["equation"]]
-            if "r_squared" in value:
-                parts.append(f"R² = {value['r_squared']:.4f}")
-            return "  ".join(parts)
-        return str(value)
-    # pandas DataFrame (e.g. binomial distribution table)
+def _format_scalar(value) -> str:
+    """Format a numeric stat value for display, preserving small-magnitude signal.
+
+    Uses 6 significant figures so p-values like 0.00012 stay visible instead of
+    collapsing to "0.00". Integers and round floats still render cleanly
+    ("3" or "3.14"). Exported reports carry full precision; see
+    _render_precision_notice in results.py.
+    """
     try:
-        import pandas as pd
-        if isinstance(value, pd.DataFrame):
-            return value.to_string(index=False, float_format="{:.4f}".format)
+        v = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if v != v or v in (float("inf"), float("-inf")):
+        return str(v)
+    if v == 0:
+        return "0"
+    return f"{v:.6g}"
+
+
+def _format_value(value, params_used=None) -> str:
+    """Convert a result value to a human-readable string.
+
+    Wrapped defensively: custom (LLM-generated) methods can return
+    malformed shapes (non-numeric params, mixed types, nested structures).
+    Any formatting failure falls back to ``str(value)`` rather than
+    propagating an exception up into the render loop.
+    """
+    try:
+        if isinstance(value, (int, float)):
+            return _format_scalar(value)
+        if isinstance(value, list):
+            # If params_used is a list of percentile values, label each result.
+            try:
+                if (
+                    params_used is not None
+                    and isinstance(params_used, (list, tuple))
+                    and len(params_used) == len(value)
+                    and all(isinstance(v, (int, float)) for v in value)
+                    and all(isinstance(p, (int, float)) for p in params_used)
+                ):
+                    parts = []
+                    for p, v in zip(params_used, value):
+                        p_int = int(p) if float(p).is_integer() else p
+                        label = _ordinal(p_int) if isinstance(p_int, int) else f"{p_int}"
+                        parts.append(f"{label}: {_format_scalar(v)}")
+                    return ", ".join(parts)
+            except Exception:
+                pass
+            formatted = [
+                _format_scalar(v) if isinstance(v, (int, float)) else str(v)
+                for v in value
+            ]
+            return ", ".join(formatted)
+        if isinstance(value, dict):
+            # Structured result (e.g. Least Squares Regression)
+            if "equation" in value:
+                parts = [str(value["equation"])]
+                if "r_squared" in value:
+                    try:
+                        parts.append(f"R² = {float(value['r_squared']):.4f}")
+                    except Exception:
+                        parts.append(f"R² = {value['r_squared']}")
+                return "  ".join(parts)
+            return str(value)
+        # pandas DataFrame (e.g. binomial distribution table)
+        try:
+            import pandas as pd
+            if isinstance(value, pd.DataFrame):
+                return value.to_string(index=False, float_format="{:.4f}".format)
+        except Exception:
+            pass
+        return str(value)
     except Exception:
-        pass
-    return str(value)
+        try:
+            return str(value)
+        except Exception:
+            return "<unprintable result>"
 
 
 def handle_result(run: dict) -> dict:
@@ -90,12 +147,17 @@ def handle_result(run: dict) -> dict:
              (a Message object returned by BackendHandler).
 
     Returns:
-        The same run dict with run["cards"] and run["precision_warnings"] populated.
+        The same run dict with run["cards"], run["precision_warnings"], and
+        run["multi_column_univariate_names"] populated.
         run["precision_warnings"] is a list of {"name": str, "note": str} dicts,
         one entry per result where loss_of_precision is a non-False truthy value.
+        run["multi_column_univariate_names"] lists the display names of the
+        univariate methods that ran against >1 selected column; empty if none.
     """
     cards = []
     precision_warnings = []
+    multi_column_univariate_names: list[str] = []
+    multi_column = len(run.get("columns") or []) > 1
     for result in run["result_message"].results:
         display_name = _ID_TO_DISPLAY.get(result['id'], result['id'])
         if result.get("ok"):
@@ -110,6 +172,10 @@ def handle_result(run: dict) -> dict:
         if lop:
             precision_warnings.append({"name": display_name, "note": str(lop)})
 
+        if multi_column and result.get("id") in _UNIVARIATE_METHOD_IDS:
+            multi_column_univariate_names.append(display_name)
+
     run["cards"] = cards
     run["precision_warnings"] = precision_warnings
+    run["multi_column_univariate_names"] = multi_column_univariate_names
     return run

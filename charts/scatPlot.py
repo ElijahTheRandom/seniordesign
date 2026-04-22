@@ -33,7 +33,28 @@ class ScatPlot:
         # Check whether this statistic is valid for the given data selection
         if "path" not in self.params or not self.params["path"]:
             return "No output path provided"
+        if self.data is None or len(self.data) < 2:
+            return "Scatter plot requires two numeric columns (x and y)."
+        try:
+            x_len = len(self.data[0])
+            y_len = len(self.data[1])
+        except TypeError:
+            return "Scatter plot requires two sequence-like numeric columns."
+        if x_len != y_len:
+            return (
+                f"Scatter plot requires x and y of equal length "
+                f"(got x={x_len}, y={y_len})."
+            )
         return None
+
+    def _coerce_numeric(self):
+        """Coerce x and y to float numpy arrays; raise ValueError on non-numeric."""
+        try:
+            x = np.asarray(self.data[0], dtype=float)
+            y = np.asarray(self.data[1], dtype=float)
+        except (ValueError, TypeError):
+            raise ValueError("Scatter plot requires numeric data for both columns.")
+        return x, y
 
     def _generate_return_structure(self):
         # Check whether this statistic is valid for the given data selection
@@ -55,11 +76,13 @@ class ScatPlot:
         }
 
     def _create_chart(self):
+        x, y = self._coerce_numeric()
+
         fig = go.Figure()
 
         fig.add_trace(go.Scatter(
-            x = self.data[0],
-            y = self.data[1],
+            x = x,
+            y = y,
             mode = "markers",
             marker = dict(
                 color = "#e4781d",
