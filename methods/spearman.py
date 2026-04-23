@@ -51,7 +51,40 @@ class SpearmanCoefficient:
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 
-        return self._generate_return_structure(float(spearman_corr))
+        spearman_corr = float(spearman_corr)
+
+        precision_note = False
+        if np.isnan(spearman_corr):
+            # spearmanr returns NaN when a column is constant (all tied ranks)
+            # or when input contains NaN values. Distinguish the two so the
+            # user knows what to fix.
+            has_nan = np.isnan(data1).any() or np.isnan(data2).any()
+            if has_nan:
+                precision_note = (
+                    "NaN result: the input contains NaN values that propagated "
+                    "through the Spearman computation. Clean the data before re-running."
+                )
+            elif np.std(data1) == 0 or np.std(data2) == 0:
+                precision_note = (
+                    "Spearman is undefined when one variable has no variance "
+                    "(all values tied). Select a column with at least two distinct values."
+                )
+            else:
+                precision_note = (
+                    "Spearman returned NaN. The input may be degenerate (constant ranks "
+                    "or undefined entries); inspect the selected columns."
+                )
+        elif np.abs(np.concatenate([data1, data2])).max() > 1e15:
+            precision_note = (
+                "Large-magnitude values detected (>1e15). Spearman ranks are robust "
+                "to scale, but the underlying values already exceed float64's 15-16 "
+                "significant-digit precision — equality checks for tied ranks may "
+                "behave unexpectedly."
+            )
+
+        result = self._generate_return_structure(spearman_corr)
+        result["loss_of_precision"] = precision_note
+        return result
 
     def create_graphic(self, results):
         # Generate a chart or visualization object for the computed results

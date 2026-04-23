@@ -60,7 +60,26 @@ class Percentile:
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 
+        precision_note = False
+        if any(np.isinf(r) for r in percentile_results):
+            precision_note = (
+                "Overflow detected: at least one percentile is infinite. The selected "
+                "data contains values outside the float64 range (~1.8e308)."
+            )
+        elif any(np.isnan(r) for r in percentile_results):
+            precision_note = (
+                "NaN result: the input contains NaN values that propagated through "
+                "the percentile computation. Clean the data before re-running."
+            )
+        elif np.abs(flat_data).max() > 1e15:
+            precision_note = (
+                "Large-magnitude values detected (>1e15). Percentile interpolation "
+                "between two values of this scale can lose precision beyond 15-16 "
+                "significant digits."
+            )
+
         results = self._generate_return_structure(percentile_results)
+        results["loss_of_precision"] = precision_note
         return results
 
     def create_graphic(self, results):

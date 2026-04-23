@@ -50,8 +50,28 @@ class Median:
             median_value = float(np.median(data_array))
         except Exception as e:
             return self._generate_return_structure_error(str(e))
-        
-        return self._generate_return_structure(median_value)
+
+        precision_note = False
+        if np.isinf(median_value):
+            precision_note = (
+                "Overflow detected: the median is infinite. The selected data "
+                "contains values outside the float64 range (~1.8e308)."
+            )
+        elif np.isnan(median_value):
+            precision_note = (
+                "NaN result: the input contains NaN values that propagated through "
+                "the median computation. Clean the data before re-running."
+            )
+        elif np.abs(data_array).max() > 1e15:
+            precision_note = (
+                "Large-magnitude values detected (>1e15). Median is sort-based and "
+                "robust, but the underlying values may already exceed the 15-16 "
+                "significant-digit precision of float64."
+            )
+
+        result = self._generate_return_structure(median_value)
+        result["loss_of_precision"] = precision_note
+        return result
 
 
     def create_graphic(self, results):

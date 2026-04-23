@@ -104,7 +104,39 @@ class Binomial:
         except Exception as exc:
             return self._generate_stat_error(str(exc))
 
-        return self._generate_stat_structure(df)
+        # Precision / underflow checks. Binomial PMFs degenerate in two ways:
+        #   1. Boundary p (≤ 1e-15 or ≥ 1 - 1e-15): tail probabilities collapse
+        #      to 0 or 1 and lose all distributional information.
+        #   2. Very large n combined with k far from n*p: pmf underflows below
+        #      float64 minimum (~5e-324) across the whole requested table.
+        precision_note = False
+        if p <= 1e-15 or p >= 1 - 1e-15:
+            precision_note = (
+                f"Boundary probability p={p:g} detected. Binomial tail values "
+                "collapse to 0 or 1 at this scale; the distribution is effectively "
+                "degenerate and reported probabilities lose meaningful precision."
+            )
+        else:
+            try:
+                pmf_sum = float(df["P(X = k)"].sum())
+                if pmf_sum < 1e-300:
+                    precision_note = (
+                        f"Underflow detected: every P(X = k) in the requested k-range "
+                        f"underflowed to 0 (n={n}, p={p:g}). The probability mass for "
+                        "this k-window is below float64's minimum representable value."
+                    )
+                elif n >= 10_000 and pmf_sum < 1e-12:
+                    precision_note = (
+                        f"Large n={n} combined with the requested k-range puts the bulk "
+                        "of the binomial mass outside the displayed window; reported "
+                        "probabilities may be near float64 underflow and lose precision."
+                    )
+            except Exception:
+                pass
+
+        result = self._generate_stat_structure(df)
+        result["loss_of_precision"] = precision_note
+        return result
 
     def _generate_return_structure(self):
         # Check whether this statistic is valid for the given data selection
