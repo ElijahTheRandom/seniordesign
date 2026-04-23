@@ -2210,6 +2210,25 @@ def _render_column_row_selectors(
     col1 = st.session_state.get("selected_columns", []) if data_ready else []
     col2 = st.session_state.get("selected_rows",    []) if data_ready else []
 
+    # Sanitize against the current table. If a column was renamed (header
+    # toggle, grid rename, dedupe) or a row dropped out of range between
+    # the selection event and this render, the stale name/index would
+    # otherwise propagate into edited_table[col1] downstream and raise a
+    # KeyError that white-screens the page. Drop unknowns silently and
+    # write the cleaned list back so the same leak can't repeat next render.
+    if data_ready and edited_table is not None:
+        valid_cols = list(edited_table.columns)
+        cleaned_col1 = [c for c in col1 if c in valid_cols]
+        if cleaned_col1 != col1:
+            col1 = cleaned_col1
+            st.session_state.selected_columns = col1
+        if col2:
+            row_count = len(edited_table)
+            cleaned_col2 = [r for r in col2 if isinstance(r, int) and 1 <= r <= row_count]
+            if cleaned_col2 != col2:
+                col2 = cleaned_col2
+                st.session_state.selected_rows = col2
+
     # ------------------------------------------------------------------
     # Sync text input from grid selection when the grid changed
     # (but not when the change came from the user typing a range).

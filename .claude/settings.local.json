@@ -57,7 +57,8 @@
       "Bash(.venv/Scripts/python.exe -m pytest testsuite/test_median.py testsuite/test_mode.py testsuite/test_percentile.py testsuite/test_spearman.py testsuite/test_binomial.py -q)",
       "Bash(.venv/Scripts/python.exe -c ' *)",
       "Bash(.venv/Scripts/python.exe -m py_compile Frontend/views/results.py)",
-      "Bash(.venv/Scripts/python.exe -m py_compile Frontend/views/results.py Frontend/views/comparison.py)"
+      "Bash(.venv/Scripts/python.exe -m py_compile Frontend/views/results.py Frontend/views/comparison.py)",
+      "Bash(.venv/Scripts/python.exe -m py_compile Frontend/views/homepage.py)"
     ]
   }
 }
