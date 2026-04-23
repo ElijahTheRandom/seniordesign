@@ -1,3 +1,4 @@
+import math
 import statistics
 
 class Mode:
@@ -56,7 +57,26 @@ class Mode:
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 
-        return self._generate_return_structure(mode_value)
+        # Mode is selection-based (no float arithmetic), so the only real
+        # precision concern is whether the raw inputs already carry Inf/NaN
+        # — which means the dataset itself overflowed before reaching us.
+        precision_note = False
+        try:
+            for v in flat:
+                if isinstance(v, (int, float)) and not math.isfinite(v):
+                    precision_note = (
+                        "Non-finite values detected in input (Inf or NaN). The mode "
+                        "itself is well-defined, but the underlying data has already "
+                        "overflowed or carries undefined entries — downstream "
+                        "statistics on this column will be unreliable."
+                    )
+                    break
+        except TypeError:
+            pass
+
+        result = self._generate_return_structure(mode_value)
+        result["loss_of_precision"] = precision_note
+        return result
 
 
     def create_graphic(self, results):

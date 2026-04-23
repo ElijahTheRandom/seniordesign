@@ -132,6 +132,29 @@ def render_help_statistical_methods() -> None:
 """, unsafe_allow_html=True)
 
         # ------------------------------------------------------------------ #
+        #  Display-precision overview (referenced by every method note below) #
+        # ------------------------------------------------------------------ #
+        st.markdown(
+            """
+            #### Display precision
+
+            Every statistic is computed in full **float64** (≈17 significant
+            digits) on the backend, then rounded to **6 significant figures**
+            for the on-screen stat cards so values stay readable. To see the
+            full computed precision for any run, open that run's results
+            page and tick **Enhanced Precision (full float64 fidelity)**
+            above the stat cards. The toggle is per-run — turning it on for
+            one run does not affect others.
+
+            CSV and TSV exports always carry the full computed precision,
+            regardless of the on-screen toggle. Per-method precision and
+            overflow caveats (large-magnitude inputs, catastrophic
+            cancellation, near-zero divisors, etc.) appear inline as warning
+            notices on the results page when triggered.
+            """
+        )
+
+        # ------------------------------------------------------------------ #
         #  Helper: renders a consistent section divider                        #
         # ------------------------------------------------------------------ #
         def _section_divider():
@@ -156,7 +179,12 @@ def render_help_statistical_methods() -> None:
             """
         )
         st.markdown("> (2 + 4 + 6) / 3 = **4**")
-        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
+        st.markdown(
+            "💡 Stat cards round to **6 significant figures** by default. "
+            "Tick **Enhanced Precision** at the top of the run's results page "
+            "to see the full ~17-digit float64 value the computation produced. "
+            "CSV/TSV exports always carry the full computed precision."
+        )
 
         _section_divider()
 
@@ -182,7 +210,12 @@ def render_help_statistical_methods() -> None:
         )
         st.markdown("> `1, 3, 3, 6, 7, 8, 9` → median = **6** (middle value)")
         st.markdown("> `1, 2, 3, 4, 5, 6, 8, 9` → median = (4 + 5) / 2 = **4.5**")
-        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
+        st.markdown(
+            "💡 Stat cards round to **6 significant figures** by default. "
+            "Tick **Enhanced Precision** at the top of the run's results page "
+            "to see the full ~17-digit float64 value the computation produced. "
+            "CSV/TSV exports always carry the full computed precision."
+        )
 
         _section_divider()
 
@@ -205,7 +238,12 @@ def render_help_statistical_methods() -> None:
         )
         st.markdown("> `1, 2, 2, 3, 4` → mode = **2**")
         st.markdown("> `1, 1, 2, 2, 3, 3` → modes = **1, 2, 3** (all tie for highest frequency)")
-        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
+        st.markdown(
+            "💡 Stat cards round to **6 significant figures** by default. "
+            "Tick **Enhanced Precision** at the top of the run's results page "
+            "to see the full ~17-digit float64 value the computation produced. "
+            "CSV/TSV exports always carry the full computed precision."
+        )
 
         _section_divider()
 
@@ -226,7 +264,12 @@ def render_help_statistical_methods() -> None:
         )
         st.markdown("> Squared differences: (2−4)² = 4, (4−4)² = 0, (6−4)² = 4")
         st.markdown("> Variance = (4 + 0 + 4) / (N − 1) = (4 + 0 + 4) / 2 = **4**")
-        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
+        st.markdown(
+            "💡 Stat cards round to **6 significant figures** by default. "
+            "Tick **Enhanced Precision** at the top of the run's results page "
+            "to see the full ~17-digit float64 value the computation produced. "
+            "CSV/TSV exports always carry the full computed precision."
+        )
 
         _section_divider()
 
@@ -247,7 +290,12 @@ def render_help_statistical_methods() -> None:
             """
         )
         st.markdown("> Standard deviation = √4 = **2**")
-        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
+        st.markdown(
+            "💡 Stat cards round to **6 significant figures** by default. "
+            "Tick **Enhanced Precision** at the top of the run's results page "
+            "to see the full ~17-digit float64 value the computation produced. "
+            "CSV/TSV exports always carry the full computed precision."
+        )
 
         _section_divider()
 
@@ -277,7 +325,12 @@ def render_help_statistical_methods() -> None:
         st.markdown("> **25th percentile** (Q1) — 25% of values fall below this point")
         st.markdown("> **50th percentile** (median) — 50% of values fall below this point")
         st.markdown("> **75th percentile** (Q3) — 75% of values fall below this point")
-        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
+        st.markdown(
+            "💡 Stat cards round to **6 significant figures** by default. "
+            "Tick **Enhanced Precision** at the top of the run's results page "
+            "to see the full ~17-digit float64 value the computation produced. "
+            "CSV/TSV exports always carry the full computed precision."
+        )
 
         _section_divider()
 
@@ -306,7 +359,12 @@ def render_help_statistical_methods() -> None:
             unsafe_allow_html=True
         )
         st.markdown("> r = **1.0** — a perfect positive linear relationship (as X increases, Y increases proportionally)")
-        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
+        st.markdown(
+            "💡 Stat cards round to **6 significant figures** by default. "
+            "Tick **Enhanced Precision** at the top of the run's results page "
+            "to see the full ~17-digit float64 value the computation produced. "
+            "CSV/TSV exports always carry the full computed precision."
+        )
         _section_divider()
 
         # ------------------------------------------------------------------ #
@@ -338,7 +396,12 @@ def render_help_statistical_methods() -> None:
             unsafe_allow_html=True
         )
         st.markdown("> ρ = **−1.0** — as X increases, Y decreases consistently (perfect inverse monotonic relationship)")
-        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
+        st.markdown(
+            "💡 Stat cards round to **6 significant figures** by default. "
+            "Tick **Enhanced Precision** at the top of the run's results page "
+            "to see the full ~17-digit float64 value the computation produced. "
+            "CSV/TSV exports always carry the full computed precision."
+        )
 
         _section_divider()
 
@@ -363,7 +426,12 @@ def render_help_statistical_methods() -> None:
             and reports the estimated **slope** and **intercept**.
             """
         )
-        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
+        st.markdown(
+            "💡 Stat cards round to **6 significant figures** by default. "
+            "Tick **Enhanced Precision** at the top of the run's results page "
+            "to see the full ~17-digit float64 value the computation produced. "
+            "CSV/TSV exports always carry the full computed precision."
+        )
 
         _section_divider()
 
@@ -393,7 +461,12 @@ def render_help_statistical_methods() -> None:
             categorical inputs arranged in a valid contingency layout.
             """
         )
-        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
+        st.markdown(
+            "💡 Stat cards round to **6 significant figures** by default. "
+            "Tick **Enhanced Precision** at the top of the run's results page "
+            "to see the full ~17-digit float64 value the computation produced. "
+            "CSV/TSV exports always carry the full computed precision."
+        )
 
         _section_divider()
 
@@ -426,7 +499,12 @@ def render_help_statistical_methods() -> None:
             the PMF, CDF, and survival function for each k in that range in tabular form.
             """
         )
-        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
+        st.markdown(
+            "💡 Stat cards round to **6 significant figures** by default. "
+            "Tick **Enhanced Precision** at the top of the run's results page "
+            "to see the full ~17-digit float64 value the computation produced. "
+            "CSV/TSV exports always carry the full computed precision."
+        )
 
         _section_divider()
 
@@ -451,4 +529,9 @@ def render_help_statistical_methods() -> None:
             and skip the computation if the mean of the selected data is zero.
             """
         )
-        st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
+        st.markdown(
+            "💡 Stat cards round to **6 significant figures** by default. "
+            "Tick **Enhanced Precision** at the top of the run's results page "
+            "to see the full ~17-digit float64 value the computation produced. "
+            "CSV/TSV exports always carry the full computed precision."
+        )

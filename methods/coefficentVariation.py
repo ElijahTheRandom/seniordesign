@@ -61,16 +61,29 @@ class CoefficientVariation:
             return self._generate_return_structure_error(str(e))
 
         precision_note = False
-        if np.isinf(cv_value):
+        if np.isnan(cv_value):
+            precision_note = (
+                "NaN result: the coefficient of variation is undefined. Inputs likely "
+                "contained NaN, or both std and mean evaluated to zero. Clean the data "
+                "before re-running."
+            )
+        elif np.isinf(cv_value):
             precision_note = (
                 "Overflow detected: the coefficient of variation is infinite. "
                 "The mean is effectively zero, making CV undefined."
+            )
+        elif cv_value != 0 and abs(cv_value) < 2.2250738585072014e-308:
+            precision_note = (
+                f"Subnormal result (|CV| ≈ {abs(cv_value):.3g}, below ~2.2e-308). "
+                "Float64 loses bits of precision in the subnormal range; treat "
+                "low-order digits as noise."
             )
         elif std_val > 0 and abs(mean_val) < std_val * 1e-6:
             precision_note = (
                 f"Near-zero mean detected (mean ≈ {mean_val:.3g}). The coefficient of "
                 "variation (std/mean) is highly sensitive to small changes in the mean "
-                "at this scale; the result may not be meaningful."
+                "at this scale; the result may not be meaningful — Enhanced Precision "
+                "will expose how unstable the divisor is."
             )
 
         result = self._generate_return_structure(cv_value)

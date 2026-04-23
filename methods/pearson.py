@@ -52,19 +52,39 @@ class PearsonCoefficient:
             return self._generate_return_structure_error(str(e))
 
         precision_note = False
+        pearson_corr_f = float(pearson_corr)
         all_vals = np.concatenate([data1, data2])
-        if np.abs(all_vals).max() > 1e12:
+        if np.isnan(pearson_corr_f):
+            has_nan_input = np.isnan(data1).any() or np.isnan(data2).any()
+            if has_nan_input:
+                precision_note = (
+                    "NaN result: the input contains NaN values that propagated through "
+                    "the Pearson computation. Clean the data before re-running."
+                )
+            elif np.std(data1) == 0 or np.std(data2) == 0:
+                precision_note = (
+                    "Pearson is undefined when one variable has zero variance "
+                    "(all values identical). Select a column with at least two distinct values."
+                )
+            else:
+                precision_note = (
+                    "Pearson returned NaN. The input may be degenerate or contain "
+                    "non-finite values; inspect the selected columns."
+                )
+        elif np.abs(all_vals).max() > 1e12:
             precision_note = (
                 "Large-magnitude values detected (>1e12). Pearson correlation involves "
-                "sums of squared values; intermediate products may lose precision near float64 limits."
+                "sums of squared values; intermediate products may lose precision near "
+                "float64 limits — Enhanced Precision digits past the ~12th will be unreliable."
             )
         elif float(np.std(data1)) < abs(float(np.mean(data1))) * 1e-8 and abs(float(np.mean(data1))) > 1:
             precision_note = (
                 "Near-constant x values detected. Pearson correlation is ill-conditioned "
-                "when one variable has very low variance relative to its mean."
+                "when one variable has very low variance relative to its mean — the result "
+                "may be dominated by floating-point round-off rather than true correlation."
             )
 
-        result = self._generate_return_structure(float(pearson_corr))
+        result = self._generate_return_structure(pearson_corr_f)
         result["loss_of_precision"] = precision_note
         return result
 

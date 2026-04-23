@@ -41,6 +41,7 @@ import sys
 import os
 import json
 import base64
+import re
 from pathlib import Path
 import streamlit as st
 import streamlit.components.v1 as components
@@ -48,7 +49,12 @@ import pandas as pd
 from PIL import Image
 
 from utils.helpers import df_to_ascii_table
-from frontend_handler import handle_result
+from frontend_handler import (
+    handle_result,
+    rebuild_cards_with_precision,
+    DEFAULT_PRECISION,
+    ENHANCED_PRECISION,
+)
 from logic.run_manager import VIZ_NAMES, build_success_save_message
 
 
@@ -172,12 +178,14 @@ def render_results(run: dict, base_dir: str) -> None:
         st.session_state.show_export_dialog = False
 
     st.header(f"Analysis Results — {run['name']}", anchor=False)
+    _render_precision_toggle(run)
     _render_stat_cards(run)
     _render_precision_notice(run)
     _render_multi_column_notice(run)
     _render_precision_warnings(run)
     _render_visualizations(run)
     _render_data_table(run)
+    _render_performance_metrics(run)
     _render_action_buttons(run)
 
 
@@ -194,7 +202,62 @@ def render_results(run: dict, base_dir: str) -> None:
 # Rendered via stat cards using _render_stat_card(title, value, subtext)
 # ============================================================================
 
-def _render_stat_cards(run: dict, show_divider: bool = True) -> None:
+_STRIP_HTML_RE = re.compile(r"<[^>]+>")
+
+
+def _enhanced_precision_state_key(run: dict) -> str:
+    """Per-run session-state key for the Enhanced Precision toggle.
+
+    Keyed by run id so toggling the box on Run 1 doesn't bleed into Run 2.
+    Falls back to a stable string when the run dict has no id (defensive —
+    saved-run replay always sets one).
+    """
+    return f"_enh_precision_{run.get('id', 'default')}"
+
+
+def _is_enhanced_precision(run: dict) -> bool:
+    """Read whether Enhanced Precision is currently on for this run."""
+    return bool(st.session_state.get(_enhanced_precision_state_key(run), False))
+
+
+def _render_precision_toggle(run: dict) -> None:
+    """Render the Enhanced Precision checkbox above the stat cards.
+
+    Hidden when there are no numeric stat cards to format (errors-only
+    runs, or pre-render passes where cards haven't been built yet) since
+    the toggle would be meaningless.
+    """
+    cards = run.get("cards") or []
+    if not any(c[0] == "stat" for c in cards):
+        return
+
+    state_key = _enhanced_precision_state_key(run)
+    st.checkbox(
+        "Enhanced precision (full float64 fidelity)",
+        value=st.session_state.get(state_key, False),
+        key=state_key,
+        help=(
+            f"Default display rounds to {DEFAULT_PRECISION} significant figures. "
+            f"Enable to show the full ~{ENHANCED_PRECISION}-digit float64 "
+            "precision the computation actually produced. Useful for verifying "
+            "numerical agreement, comparing near-identical results, or "
+            "copying precise values out of the page."
+        ),
+    )
+
+
+def _stat_card_plain_title(title_html: str) -> str:
+    """Strip HTML wrappers from a card title so it can be matched against
+    plain display names (used by the comparison view's diff-highlight logic)."""
+    return _STRIP_HTML_RE.sub("", title_html or "").strip()
+
+
+def _render_stat_cards(
+    run: dict,
+    show_divider: bool = True,
+    highlight_titles: set[str] | None = None,
+    row_slots: int = 3,
+) -> None:
     """
     Compute and render all stat cards for the methods in this run.
 
@@ -205,30 +268,59 @@ def _render_stat_cards(run: dict, show_divider: bool = True) -> None:
 
     Cards are laid out in a Pinterest-style grid of 3 columns with
     breathing room between rows.
+
+    Args:
+        highlight_titles: Optional set of plain (non-HTML) card titles that
+            should render with the redder-tinted "differs" style. The
+            comparison view passes this set to flag cards whose underlying
+            statistic differs across runs (Req AT 5.4). None / empty set
+            preserves the standard styling for the normal results page.
+        row_slots: How many cards to pack across one row. Defaults to 3 for
+            the standard results page. The side-by-side comparison view
+            passes 1 so each card fills its (already narrow) per-run
+            column instead of being shrunk to a third of that.
     """
     cards = run.get("cards", [])
 
     if not cards:
         return
 
+    # If the user has toggled Enhanced Precision on for this run, rebuild
+    # the cards at full float64 fidelity. The cached run["cards"] stays at
+    # DEFAULT_PRECISION so toggling off restores the rounded view instantly
+    # without re-running handle_result.
+    if _is_enhanced_precision(run):
+        try:
+            cards = rebuild_cards_with_precision(run, ENHANCED_PRECISION)
+        except Exception:
+            # Defensive: a malformed result would otherwise surface as a
+            # blank cards section. Fall back to the cached default cards.
+            cards = run.get("cards", [])
+
     st.subheader("Statistical Analysis", anchor=False)
     st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
 
-    # Greedy-pack into rows of 3 slots: cards with long values (LSR equation,
-    # Percentile lists) span 2 slots so they don't get smushed.
-    for row in _pack_stat_cards(cards, row_slots=3):
+    highlight_set = highlight_titles or set()
+
+    # Greedy-pack into rows of `row_slots` slots: cards with long values
+    # (LSR equation, Percentile lists) try to span 2 slots so they don't
+    # get smushed — but at row_slots=1 every card naturally fills the row
+    # since the packer caps each card's width at row_slots.
+    for row in _pack_stat_cards(cards, row_slots=row_slots):
         weights = [w for w, _ in row]
         used = sum(weights)
-        # Pad the last row to 3 slots so solo/narrow rows don't stretch.
-        if used < 3:
-            weights = weights + [3 - used]
+        # Pad the last row so solo/narrow rows don't stretch.
+        if used < row_slots:
+            weights = weights + [row_slots - used]
         cols = st.columns(weights, gap="large")
         for idx, (_, card) in enumerate(row):
             with cols[idx]:
+                title_plain = _stat_card_plain_title(card[1])
+                is_diff = title_plain in highlight_set
                 if card[0] == "error":
-                    _render_error_card(card[1], card[2])
+                    _render_error_card(card[1], card[2], highlight=is_diff)
                 else:
-                    _render_stat_card(*card[1:])  # unpack title, value, [subtext]
+                    _render_stat_card(*card[1:], highlight=is_diff)
 
         st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
 
@@ -275,21 +367,30 @@ def _pack_stat_cards(cards: list, row_slots: int = 3) -> list:
     return rows
 
 
-def _render_stat_card(title: str, value: str, subtext: str = None) -> None:
+def _render_stat_card(
+    title: str,
+    value: str,
+    subtext: str = None,
+    highlight: bool = False,
+) -> None:
     """
     Render a single stat card using the .analysis-card CSS class.
 
     Args:
-        title:   Card header HTML (may contain <b> tags).
-        value:   The primary numeric value to display.
-        subtext: Optional secondary label below the value.
+        title:     Card header HTML (may contain <b> tags).
+        value:     The primary numeric value to display.
+        subtext:   Optional secondary label below the value.
+        highlight: When True, swap to the .analysis-card-diff variant — a
+                   redder-tinted-orange border + value glow used by the
+                   comparison view to flag differing statistics (Req AT 5.4).
     """
     subtext_html = (
         f'<div class="analysis-subtext">{subtext}</div>'
         if subtext else ""
     )
+    css_class = "analysis-card analysis-card-diff" if highlight else "analysis-card"
     st.markdown(f"""
-    <div class="analysis-card">
+    <div class="{css_class}">
         <div class="analysis-title">{title}</div>
         <div class="analysis-value">{value}</div>
         {subtext_html}
@@ -297,13 +398,22 @@ def _render_stat_card(title: str, value: str, subtext: str = None) -> None:
     """, unsafe_allow_html=True)
 
 
-def _render_error_card(title: str, error_msg: str) -> None:
+def _render_error_card(title: str, error_msg: str, highlight: bool = False) -> None:
     """
     Render an error card for a method that could not compute.
     Uses smaller text and a red accent to distinguish from success cards.
+
+    Args:
+        highlight: When True, layer the .analysis-card-error-diff variant
+                   on top so the card carries the same redder-tinted-orange
+                   diff cue used by stat cards in the comparison view.
     """
+    css_class = (
+        "analysis-card-error analysis-card-error-diff"
+        if highlight else "analysis-card-error"
+    )
     st.markdown(f"""
-    <div class="analysis-card-error">
+    <div class="{css_class}">
         <div class="analysis-title">{title}</div>
         <div class="analysis-error-msg">{error_msg}</div>
     </div>
@@ -312,18 +422,33 @@ def _render_error_card(title: str, error_msg: str) -> None:
 
 def _render_precision_notice(run: dict) -> None:
     """
-    Render a small footnote under the stat cards disclosing that values are
-    rounded for display (Req 5.6). Kept visually distinct from the overflow /
-    cancellation notices below — this is "your display is abbreviated",
-    those are "your values may be wrong".
+    Render a small footnote under the stat cards disclosing what precision
+    is currently being shown (Req 5.6). Kept visually distinct from the
+    overflow / cancellation notices below — this is "your display is
+    abbreviated", those are "your values may be wrong". Caption text flips
+    to reflect the Enhanced Precision toggle so the user always knows
+    which mode they're in.
     """
     has_stat_card = any(c[0] == "stat" for c in run.get("cards", []))
     if not has_stat_card:
         return
-    st.caption(
-        "Displayed values are rounded to 6 significant figures. "
-        "CSV and TSV exports contain the full computed precision."
-    )
+    if _is_enhanced_precision(run):
+        st.caption(
+            f"Showing full float64 precision (up to {ENHANCED_PRECISION} significant "
+            "figures). Note: Python stores most decimal numbers as the nearest "
+            "binary fraction, so trailing digits past the ~15th often reflect "
+            "binary-representation artifacts rather than additional computational "
+            "accuracy (e.g. `0.1 + 0.2` stores as `0.30000000000000004`). Any "
+            "method whose internal precision is genuinely degraded — overflow, "
+            "underflow, NaN propagation, catastrophic cancellation, ill-conditioning, "
+            "subnormal results — also raises a Precision/Overflow Notice below."
+        )
+    else:
+        st.caption(
+            f"Displayed values are rounded to {DEFAULT_PRECISION} significant figures. "
+            "Check Enhanced Precision above for full float64 fidelity (~17 digits). "
+            "CSV and TSV exports always carry the full computed precision."
+        )
 
 
 def _render_multi_column_notice(run: dict) -> None:
@@ -382,6 +507,114 @@ def _render_precision_warnings(run: dict) -> None:
     )
     st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
 
+
+
+def _format_elapsed_ms(ms: float) -> str:
+    """Format a millisecond duration with a unit appropriate to its magnitude."""
+    if ms is None:
+        return "—"
+    try:
+        ms = float(ms)
+    except (TypeError, ValueError):
+        return "—"
+    if ms < 1000:
+        return f"{ms:.1f} ms"
+    if ms < 60_000:
+        return f"{ms / 1000:.2f} s"
+    minutes = int(ms // 60_000)
+    seconds = (ms % 60_000) / 1000
+    return f"{minutes}m {seconds:.1f}s"
+
+
+def _render_performance_metrics(run: dict, show_divider: bool = True) -> None:
+    """
+    Render recorded performance metrics for the run (Req AT 5.10).
+
+    Surfaces the wall-clock timings the backend already records on
+    result_message.timings (populated in BackendHandler.handle_request),
+    plus dataset shape derived from run["data"]. Older saved runs that
+    pre-date the timing instrumentation render with "—" placeholders
+    rather than crashing.
+    """
+    msg = run.get("result_message")
+    timings = getattr(msg, "timings", None) or {}
+
+    data = run.get("data")
+    try:
+        rows = len(data) if data is not None else 0
+        cols = len(data.columns) if data is not None and hasattr(data, "columns") else 0
+    except Exception:
+        rows, cols = 0, 0
+
+    method_count = len(run.get("methods") or [])
+    chart_count = len(run.get("visualizations") or [])
+
+    # Skip the section entirely if we have nothing meaningful to show
+    # (e.g. a degenerate run with no data and no recorded timings).
+    if not timings and rows == 0 and cols == 0:
+        return
+
+    st.subheader("Run Performance", anchor=False)
+    st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
+
+    total_ms = timings.get("total_ms")
+    metric_cols = st.columns(4)
+    with metric_cols[0]:
+        st.metric("Elapsed Time", _format_elapsed_ms(total_ms))
+    with metric_cols[1]:
+        st.metric("Rows Processed", f"{rows:,}")
+    with metric_cols[2]:
+        st.metric("Columns Processed", f"{cols:,}")
+    with metric_cols[3]:
+        st.metric("Methods Run", f"{method_count:,}")
+
+    started_at = timings.get("started_at")
+    finished_at = timings.get("finished_at")
+    if started_at:
+        st.caption(
+            f"Started {started_at}"
+            + (f" · finished {finished_at}" if finished_at else "")
+        )
+
+    # Detailed breakdown — only worth the expander if we have phase or
+    # per-method timings to show.
+    per_method = timings.get("per_method_ms") or {}
+    per_chart = timings.get("per_chart_ms") or {}
+    has_phases = any(
+        timings.get(k) is not None
+        for k in ("dispatch_ms", "compute_ms", "charts_ms", "persistence_ms")
+    )
+
+    if per_method or per_chart or has_phases:
+        with st.expander("Detailed timing breakdown"):
+            phase_pairs = [
+                ("Dispatch", timings.get("dispatch_ms")),
+                ("Computation", timings.get("compute_ms")),
+                ("Charts", timings.get("charts_ms")),
+                ("Persistence", timings.get("persistence_ms")),
+                ("Total", total_ms),
+            ]
+            phase_pairs = [(label, ms) for label, ms in phase_pairs if ms is not None]
+            if phase_pairs:
+                st.markdown("**Phases**")
+                for label, ms in phase_pairs:
+                    st.markdown(f"- {label}: `{_format_elapsed_ms(ms)}`")
+
+            if per_method:
+                st.markdown("**Per-method (wall clock)**")
+                for key, ms in per_method.items():
+                    st.markdown(f"- `{key}`: `{_format_elapsed_ms(ms)}`")
+
+            if per_chart:
+                st.markdown("**Per-chart (wall clock)**")
+                for key, ms in per_chart.items():
+                    st.markdown(f"- `{key}`: `{_format_elapsed_ms(ms)}`")
+
+            if chart_count and not per_chart:
+                st.caption(f"{chart_count} chart(s) generated.")
+
+    if show_divider:
+        st.markdown("---")
 
 
 def _render_visualizations(run: dict, show_divider: bool = True) -> None:

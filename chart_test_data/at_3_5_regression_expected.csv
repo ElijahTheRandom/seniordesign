@@ -1,0 +1,4 @@
+field,value
+expected_slope,2.0
+expected_intercept,1.0
+line_equation,y = 2x + 1

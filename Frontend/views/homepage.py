@@ -624,35 +624,97 @@ def _detect_has_headers(raw_bytes: bytes) -> bool:
 
 
 def _on_header_toggle(file_key: str) -> None:
-    """Callback: re-parse CSV when the user toggles the header checkbox."""
+    """Callback: re-shape the cached DataFrame when the header checkbox toggles.
+
+    Preserves user edits (and column renames) by transforming the *cached*
+    DataFrame in place instead of re-parsing raw bytes. Only falls back to a
+    raw-bytes reparse when the cache is missing entirely (e.g., very first
+    toggle after a save/restore cycle).
+
+    Toggle semantics:
+        - True → False: prepend the current column names as a new row 0,
+          then rename columns to "Column N". User-applied renames flow into
+          the new row-0 cells (intentional — user intent wins over the
+          original CSV header text).
+        - False → True: take row 0's values as the new column names and drop
+          row 0. Duplicate names get suffixes (".1", ".2", ...) so pandas
+          doesn't silently merge columns.
+    """
     has_headers = st.session_state.get(f"_has_headers_{file_key}", True)
+
+    # ---- Spurious-fire guard --------------------------------------------
+    # Streamlit fires on_change callbacks whenever a widget's state appears
+    # to differ from its previous render. _render_header_settings forces
+    # st.session_state[toggle_key] = st.session_state[pref_key] on every
+    # render so the checkbox survives widget-state GC after navigation.
+    # On the first render after returning from another page, Streamlit
+    # treats the freshly re-seeded toggle_key as "changed" and fires this
+    # callback even though the user never clicked anything. Without this
+    # guard, the False→True branch below would run on a DataFrame that
+    # already has headers — taking row 0 as the new column names, dropping
+    # the first data row, and (when row 0 has duplicate values) renaming
+    # columns to "1" / "1.1" / etc. That is the navigation-corruption bug
+    # we kept failing to reproduce.
+    #
+    # A real user click always produces has_headers != prev_pref because
+    # the click flipped the value. A spurious GC-re-fire produces equality
+    # because line 760 already synced both keys to the same value.
+    prev_pref = st.session_state.get(f"_has_headers_pref_{file_key}")
+    if prev_pref is not None and prev_pref == has_headers:
+        return
 
     # Persist the user's choice *first* so Streamlit widget-state GC
     # (on navigation / fragment reruns) can't revert it. Done before any
     # early-return paths below so the preference always reflects intent.
     st.session_state[f"_has_headers_pref_{file_key}"] = has_headers
 
-    raw = st.session_state.get("_csv_raw_bytes")
+    cache = st.session_state.get("edited_data_cache", {}) or {}
+    cached_df = cache.get(file_key)
 
-    # Try to recover raw bytes from the uploaded file if not cached
-    if raw is None:
-        uf = st.session_state.get("uploaded_file")
-        if uf is not None:
-            try:
-                uf.seek(0)
-                raw = uf.read()
-                st.session_state._csv_raw_bytes = raw
-            except Exception:
-                return
-
-    if raw is None:
-        return
-
-    if has_headers:
-        df = pd.read_csv(io.BytesIO(raw))
+    if cached_df is not None and len(cached_df.columns) > 0:
+        if has_headers:
+            # False → True: row 0 becomes column names.
+            if len(cached_df) >= 1:
+                new_cols_raw = [str(v) for v in cached_df.iloc[0].tolist()]
+                seen: dict[str, int] = {}
+                new_cols: list[str] = []
+                for c in new_cols_raw:
+                    if c in seen:
+                        seen[c] += 1
+                        new_cols.append(f"{c}.{seen[c]}")
+                    else:
+                        seen[c] = 0
+                        new_cols.append(c)
+                df = cached_df.iloc[1:].reset_index(drop=True).copy()
+                df.columns = new_cols
+            else:
+                df = cached_df.copy()
+        else:
+            # True → False: current column names become row 0.
+            header_row = pd.DataFrame(
+                [cached_df.columns.tolist()], columns=cached_df.columns
+            )
+            df = pd.concat([header_row, cached_df], ignore_index=True)
+            df.columns = [f"Column {i + 1}" for i in range(len(df.columns))]
     else:
-        df = pd.read_csv(io.BytesIO(raw), header=None)
-        df.columns = [f"Column {i + 1}" for i in range(len(df.columns))]
+        # Cache empty — fall back to a raw-bytes reparse.
+        raw = st.session_state.get("_csv_raw_bytes")
+        if raw is None:
+            uf = st.session_state.get("uploaded_file")
+            if uf is not None:
+                try:
+                    uf.seek(0)
+                    raw = uf.read()
+                    st.session_state._csv_raw_bytes = raw
+                except Exception:
+                    return
+        if raw is None:
+            return
+        if has_headers:
+            df = pd.read_csv(io.BytesIO(raw))
+        else:
+            df = pd.read_csv(io.BytesIO(raw), header=None)
+            df.columns = [f"Column {i + 1}" for i in range(len(df.columns))]
 
     st.session_state.edited_data_cache[file_key] = df
 
@@ -1886,11 +1948,20 @@ def _display_aggrid(df: pd.DataFrame, grid_key: str) -> pd.DataFrame:
 
     # Apply cell edits back to the DataFrame.
     # edited_data is a list of row-dicts keyed by the column names the grid
-    # knows about.  Only apply it when the keys actually match our current
-    # columns so a stale payload from a previous grid mount can't corrupt df.
+    # knows about.  Use *set* equality on the column names (not ordered list
+    # equality) and reindex to df's column order — mirrors the defensive
+    # shape used by _display_aggrid_server at line 1766. Strict ordered
+    # equality is fragile because pd.DataFrame(list_of_dicts) takes column
+    # order from the first row's key insertion order, and any reordering of
+    # those keys (driven by AG Grid's column-state changes, header renames
+    # in flight, or React reconciliation quirks) would silently fail the
+    # match and drop the edits — manifesting as edits-not-persisting on
+    # navigation, since the cache write at the call site overwrites with
+    # the now-unedited df.
     if edited_data is not None:
         edited_df = pd.DataFrame(edited_data)
-        if list(edited_df.columns) == list(df.columns):
+        if set(edited_df.columns) == set(df.columns):
+            edited_df = edited_df.reindex(columns=list(df.columns))
             df = edited_df
 
     # Apply header renames from the grid component
@@ -2160,6 +2231,25 @@ def _render_column_row_selectors(
     col1 = st.session_state.get("selected_columns", []) if data_ready else []
     col2 = st.session_state.get("selected_rows",    []) if data_ready else []
 
+    # Sanitize against the current table. If a column was renamed (header
+    # toggle, grid rename, dedupe) or a row dropped out of range between
+    # the selection event and this render, the stale name/index would
+    # otherwise propagate into edited_table[col1] downstream and raise a
+    # KeyError that white-screens the page. Drop unknowns silently and
+    # write the cleaned list back so the same leak can't repeat next render.
+    if data_ready and edited_table is not None:
+        valid_cols = list(edited_table.columns)
+        cleaned_col1 = [c for c in col1 if c in valid_cols]
+        if cleaned_col1 != col1:
+            col1 = cleaned_col1
+            st.session_state.selected_columns = col1
+        if col2:
+            row_count = len(edited_table)
+            cleaned_col2 = [r for r in col2 if isinstance(r, int) and 1 <= r <= row_count]
+            if cleaned_col2 != col2:
+                col2 = cleaned_col2
+                st.session_state.selected_rows = col2
+
     # ------------------------------------------------------------------
     # Sync text input from grid selection when the grid changed
     # (but not when the change came from the user typing a range).
@@ -2255,10 +2345,14 @@ def _render_column_row_selectors(
         with st.expander("Column Measurement Types", expanded=False):
             ml_dict = st.session_state.get("column_measurement_levels", {})
             for c in col1:
-                # Auto-detect default: numeric → Interval, text → Nominal
+                # Auto-detect default: any numeric values → Interval, otherwise
+                # Nominal. We use .any() (not .all()) so a column with stray
+                # non-numeric cells still defaults to Interval — the runtime
+                # validation in _background_run will surface the offending cells
+                # by exact row/col coordinates rather than blocking selection.
                 if c not in ml_dict:
                     coerced = pd.to_numeric(edited_table[c], errors="coerce")
-                    ml_dict[c] = "Interval" if coerced.notna().all() and len(coerced) > 0 else "Nominal"
+                    ml_dict[c] = "Interval" if coerced.notna().any() and len(coerced) > 0 else "Nominal"
                 ml_dict[c] = st.selectbox(
                     c,
                     _MEASUREMENT_LEVELS,
@@ -2308,10 +2402,17 @@ def _compute_data_info(
     eligible.  Returns a dict with:
 
         num_selected_cols   – number of columns selected
-        num_numeric_cols    – how many of those columns are numeric
+        num_numeric_cols    – columns tagged Ordinal/Interval/Ratio
         num_rows            – number of data rows in the selection
-        all_numeric         – True if every selected column is numeric
-        has_numeric         – True if at least one selected column is numeric
+        all_numeric         – True if every selected column is tagged numeric
+        has_numeric         – True if at least one selected column is tagged numeric
+        num_interval_ratio  – columns tagged Interval/Ratio
+        num_ordinal_plus    – columns tagged Ordinal/Interval/Ratio
+
+    "Numeric" here means the user's measurement-level tag, not actual cell
+    contents. Stray non-numeric cells inside a numeric-tagged column are
+    detected at execute time by validate_numeric() and surfaced with their
+    exact row/column coordinates rather than blocking method selection.
     """
     if not data_ready or not col1:
         return {
@@ -2333,26 +2434,20 @@ def _compute_data_info(
 
     num_rows = len(subset)
 
-    # A column is "numeric" if pd.to_numeric can coerce every non-null value
-    numeric_count = 0
-    numeric_cols: set = set()
-    for c in subset.columns:
-        coerced = pd.to_numeric(subset[c], errors="coerce")
-        if coerced.notna().all() or subset[c].isna().all():
-            numeric_count += 1
-            numeric_cols.add(c)
-
-    # Measurement-level counts — only count columns that are also numeric.
-    # A column tagged "Ratio" but containing strings would still fail at
-    # float-cast in the backend, so it must not enable any method.
+    # Numeric classification is driven by the user's measurement-level tag,
+    # not by per-cell content. The tag is the contract: if the user declared
+    # a column as Interval/Ratio/Ordinal, treat it as numeric for the purpose
+    # of enabling methods. Any non-numeric cells inside a tagged column are
+    # caught at execute time by validate_numeric() in _background_run, which
+    # reports their exact row/column coordinates (Req AT 1.7).
     ml_dict = st.session_state.get("column_measurement_levels", {}) or {}
+    numeric_levels = ("Ordinal", "Interval", "Ratio")
+    numeric_count = sum(1 for c in col1 if ml_dict.get(c) in numeric_levels)
     num_interval_ratio = sum(
-        1 for c in numeric_cols
-        if ml_dict.get(c) in ("Interval", "Ratio")
+        1 for c in col1 if ml_dict.get(c) in ("Interval", "Ratio")
     )
     num_ordinal_plus = sum(
-        1 for c in numeric_cols
-        if ml_dict.get(c) in ("Ordinal", "Interval", "Ratio")
+        1 for c in col1 if ml_dict.get(c) in numeric_levels
     )
 
     return {

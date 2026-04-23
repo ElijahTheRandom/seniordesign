@@ -98,11 +98,34 @@ class LeastSquaresRegression:
 
             # Precision / conditioning check
             precision_note = False
-            if np.abs(x).max() > 1e12 or np.abs(y).max() > 1e12:
+            x_std = float(np.std(x))
+            if (
+                np.isnan(slope) or np.isnan(intercept) or np.isnan(r_squared)
+                or np.isinf(slope) or np.isinf(intercept)
+            ):
+                precision_note = (
+                    "NaN/Inf in regression coefficients. The fit failed numerically "
+                    "— inputs likely contained NaN/Inf, or the design matrix was "
+                    "singular (e.g. all x values identical). Clean the data or "
+                    "vary the x column before re-running."
+                )
+            elif x_std == 0:
+                # polyfit silently returns finite-but-meaningless coefficients when
+                # x has no variation. Without this guard, Enhanced Precision would
+                # display ~17 digits of pure floating-point noise as if they were
+                # signal — exactly the failure mode the toggle's notice warns about.
+                precision_note = (
+                    "Degenerate x: all x values are identical, so the regression "
+                    "has no defined slope. The numerical solver returned finite "
+                    "coefficients but they are floating-point noise rather than a "
+                    "real fit. Provide x values that vary."
+                )
+            elif np.abs(x).max() > 1e12 or np.abs(y).max() > 1e12:
                 precision_note = (
                     "Large-magnitude values detected (>1e12). Least squares regression "
                     "solves a normal-equations system whose condition number grows with "
-                    "value magnitude, risking loss of precision in the slope/intercept."
+                    "value magnitude, risking loss of precision in the slope/intercept "
+                    "— Enhanced Precision digits past the ~12th will be unreliable."
                 )
             else:
                 x_range = float(x.max() - x.min())
@@ -110,7 +133,8 @@ class LeastSquaresRegression:
                 if x_mean_abs > 1e6 and x_range > 0 and x_range < x_mean_abs * 1e-4:
                     precision_note = (
                         "Ill-conditioned x values: the x range is very small relative to "
-                        "the x magnitude. The regression coefficients may be inaccurate."
+                        "the x magnitude. The regression coefficients may be inaccurate "
+                        "— Enhanced Precision will expose how much round-off contaminates them."
                     )
 
         except Exception as e:

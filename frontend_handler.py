@@ -61,13 +61,27 @@ def _ordinal(n: int) -> str:
     return f"{n}{suffix}"
 
 
-def _format_scalar(value) -> str:
+# Default screen-display precision (significant figures). Standard rounded
+# view; small enough that p-values like 0.00012 still show meaningful digits
+# without flooding the card with noise.
+DEFAULT_PRECISION = 6
+
+# Maximum useful precision for a float64 — matches the digits Python's
+# repr(float) emits. Anything beyond ~17 sig figs is fabricated by the
+# format spec, not actual computed signal. Used by the results page's
+# Enhanced Precision checkbox.
+ENHANCED_PRECISION = 17
+
+
+def _format_scalar(value, precision: int = DEFAULT_PRECISION) -> str:
     """Format a numeric stat value for display, preserving small-magnitude signal.
 
-    Uses 6 significant figures so p-values like 0.00012 stay visible instead of
-    collapsing to "0.00". Integers and round floats still render cleanly
-    ("3" or "3.14"). Exported reports carry full precision; see
-    _render_precision_notice in results.py.
+    Default uses 6 significant figures so p-values like 0.00012 stay visible
+    instead of collapsing to "0.00". Integers and round floats still render
+    cleanly ("3" or "3.14"). Exported reports carry full precision; see
+    _render_precision_notice in results.py. Pass precision=ENHANCED_PRECISION
+    (17) when the user has toggled the Enhanced Precision checkbox to see
+    the full float64 fidelity the computation actually produced.
     """
     try:
         v = float(value)
@@ -77,20 +91,24 @@ def _format_scalar(value) -> str:
         return str(v)
     if v == 0:
         return "0"
-    return f"{v:.6g}"
+    return f"{v:.{precision}g}"
 
 
-def _format_value(value, params_used=None) -> str:
+def _format_value(value, params_used=None, precision: int = DEFAULT_PRECISION) -> str:
     """Convert a result value to a human-readable string.
 
     Wrapped defensively: custom (LLM-generated) methods can return
     malformed shapes (non-numeric params, mixed types, nested structures).
     Any formatting failure falls back to ``str(value)`` rather than
     propagating an exception up into the render loop.
+
+    The precision parameter threads through every nested numeric format —
+    scalars, percentile lists, LSR equation/R², binomial DataFrame cells —
+    so the Enhanced Precision toggle affects the entire card consistently.
     """
     try:
         if isinstance(value, (int, float)):
-            return _format_scalar(value)
+            return _format_scalar(value, precision)
         if isinstance(value, list):
             # If params_used is a list of percentile values, label each result.
             try:
@@ -105,23 +123,41 @@ def _format_value(value, params_used=None) -> str:
                     for p, v in zip(params_used, value):
                         p_int = int(p) if float(p).is_integer() else p
                         label = _ordinal(p_int) if isinstance(p_int, int) else f"{p_int}"
-                        parts.append(f"{label}: {_format_scalar(v)}")
+                        parts.append(f"{label}: {_format_scalar(v, precision)}")
                     return ", ".join(parts)
             except Exception:
                 pass
             formatted = [
-                _format_scalar(v) if isinstance(v, (int, float)) else str(v)
+                _format_scalar(v, precision) if isinstance(v, (int, float)) else str(v)
                 for v in value
             ]
             return ", ".join(formatted)
         if isinstance(value, dict):
-            # Structured result (e.g. Least Squares Regression)
+            # Structured result (e.g. Least Squares Regression). The methods'
+            # baked-in equation string is fixed at 3 decimals; rebuild from
+            # slope/intercept when the user wants more digits.
             if "equation" in value:
-                parts = [str(value["equation"])]
+                if (
+                    precision > DEFAULT_PRECISION
+                    and "slope" in value
+                    and "intercept" in value
+                ):
+                    try:
+                        slope_str = _format_scalar(float(value["slope"]), precision)
+                        intercept_str = _format_scalar(float(value["intercept"]), precision)
+                        parts = [f"y = {slope_str}x + {intercept_str}"]
+                    except (TypeError, ValueError):
+                        parts = [str(value["equation"])]
+                else:
+                    parts = [str(value["equation"])]
                 if "r_squared" in value:
                     try:
-                        parts.append(f"R² = {float(value['r_squared']):.4f}")
-                    except Exception:
+                        r2 = float(value["r_squared"])
+                        if precision > DEFAULT_PRECISION:
+                            parts.append(f"R² = {_format_scalar(r2, precision)}")
+                        else:
+                            parts.append(f"R² = {r2:.4f}")
+                    except (TypeError, ValueError):
                         parts.append(f"R² = {value['r_squared']}")
                 return "  ".join(parts)
             return str(value)
@@ -129,7 +165,14 @@ def _format_value(value, params_used=None) -> str:
         try:
             import pandas as pd
             if isinstance(value, pd.DataFrame):
-                return value.to_string(index=False, float_format="{:.4f}".format)
+                # Default formatter caps at 4 decimals; Enhanced Precision
+                # widens the float column format to match the rest of the UI.
+                fmt = (
+                    f"{{:.{precision}g}}".format
+                    if precision > DEFAULT_PRECISION
+                    else "{:.4f}".format
+                )
+                return value.to_string(index=False, float_format=fmt)
         except Exception:
             pass
         return str(value)
@@ -138,6 +181,45 @@ def _format_value(value, params_used=None) -> str:
             return str(value)
         except Exception:
             return "<unprintable result>"
+
+
+def _build_card_tuples(results, precision: int = DEFAULT_PRECISION) -> list:
+    """Return the list of (kind, title_html, value_or_error_str) tuples for
+    the given list of result dicts at the chosen significant-figures precision.
+
+    Factored out of handle_result so the results page can rebuild just the
+    cards (without re-deriving precision_warnings or multi-column hints,
+    which don't depend on display precision) when the user toggles the
+    Enhanced Precision checkbox.
+    """
+    cards = []
+    for result in results:
+        display_name = _ID_TO_DISPLAY.get(result['id'], result['id'])
+        if result.get("ok"):
+            value = result.get("value")
+            value_str = _format_value(
+                value,
+                params_used=result.get("params_used"),
+                precision=precision,
+            )
+            cards.append(("stat", f"<b>{display_name}</b>", value_str))
+        else:
+            error_msg = result.get("error") or "Computation failed"
+            cards.append(("error", f"<b>{display_name}</b>", str(error_msg)))
+    return cards
+
+
+def rebuild_cards_with_precision(run: dict, precision: int) -> list:
+    """Re-render just the cards list at a different precision without
+    touching the cached defaults on the run dict.
+
+    Used by the results page's Enhanced Precision checkbox so toggling the
+    box re-formats values on the fly while leaving the run["cards"] cache
+    (built at DEFAULT_PRECISION by handle_result) intact.
+    """
+    msg = run.get("result_message")
+    results = getattr(msg, "results", None) or []
+    return _build_card_tuples(results, precision=precision)
 
 
 def handle_result(run: dict) -> dict:
@@ -156,24 +238,18 @@ def handle_result(run: dict) -> dict:
         run["multi_column_univariate_names"] lists the display names of the
         univariate methods that ran against >1 selected column; empty if none.
     """
-    cards = []
+    results = run["result_message"].results
+    multi_column = len(run.get("columns") or []) > 1
+
+    cards = _build_card_tuples(results, precision=DEFAULT_PRECISION)
+
     precision_warnings = []
     multi_column_univariate_names: list[str] = []
-    multi_column = len(run.get("columns") or []) > 1
-    for result in run["result_message"].results:
+    for result in results:
         display_name = _ID_TO_DISPLAY.get(result['id'], result['id'])
-        if result.get("ok"):
-            value = result.get("value")
-            value_str = _format_value(value, params_used=result.get("params_used"))
-            cards.append(("stat", f"<b>{display_name}</b>", value_str))
-        else:
-            error_msg = result.get("error") or "Computation failed"
-            cards.append(("error", f"<b>{display_name}</b>", str(error_msg)))
-
         lop = result.get("loss_of_precision")
         if lop:
             precision_warnings.append({"name": display_name, "note": str(lop)})
-
         if multi_column and result.get("id") in _UNIVARIATE_METHOD_IDS:
             multi_column_univariate_names.append(display_name)
 

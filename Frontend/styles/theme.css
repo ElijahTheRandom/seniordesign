@@ -1956,6 +1956,55 @@ div[data-testid="stExpander"] div[data-testid="stSelectbox"] div[data-baseweb="s
     word-wrap: break-word;
 }
 
+/* ---------------------------------------------------------------------------
+   Comparison-view diff highlight (Req AT 5.4)
+   When two runs are compared and a statistic's value differs between them,
+   the comparison view tags those cards with .analysis-card-diff (or
+   .analysis-card-error-diff). Layered ON TOP of the base .analysis-card
+   class so we only override the orange accent — the dark gradient,
+   typography, and layout stay identical to the standard card.
+   --------------------------------------------------------------------------- */
+.analysis-card-diff {
+    border-color: rgba(220, 65, 25, 0.55) !important;
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.1),
+        0 8px 16px rgba(0, 0, 0, 0.15),
+        0 16px 32px rgba(0, 0, 0, 0.1),
+        0 0 0 1px rgba(220, 65, 25, 0.22);
+}
+
+.analysis-card-diff::before {
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(220, 65, 25, 0.7),
+        transparent) !important;
+}
+
+.analysis-card-diff:hover {
+    border-color: rgba(220, 65, 25, 0.8) !important;
+    box-shadow:
+        0 8px 12px rgba(0, 0, 0, 0.15),
+        0 16px 24px rgba(0, 0, 0, 0.2),
+        0 24px 48px rgba(0, 0, 0, 0.15),
+        0 0 0 1px rgba(220, 65, 25, 0.45) !important;
+}
+
+.analysis-card-diff .analysis-value {
+    color: #f56342 !important;
+    text-shadow: 0 2px 8px rgba(220, 75, 30, 0.35) !important;
+}
+
+.analysis-card-error-diff {
+    border-color: rgba(220, 65, 25, 0.55) !important;
+}
+
+.analysis-card-error-diff::before {
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(220, 65, 25, 0.7),
+        transparent) !important;
+}
+
 /* 🎯 ONLY containers inside run-card-wrapper */
 .run-card-wrapper > div[data-testid="stVerticalBlock"] {
     background: linear-gradient(145deg, #2e2f34, #272a30);

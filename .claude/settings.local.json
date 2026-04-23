@@ -53,7 +53,18 @@
       "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/pytest.exe' testsuite/e2e/01_ingestion_exports/test_ingestion.py -v --tb=short --timeout=150)",
       "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/python.exe' -c ' *)",
       "Bash(dir testsuite *)",
-      "Bash(pytest testsuite/test_standardDeviation.py testsuite/test_coefficentVariation.py testsuite/test_variance.py -q)"
+      "Bash(pytest testsuite/test_standardDeviation.py testsuite/test_coefficentVariation.py testsuite/test_variance.py -q)",
+      "Bash(.venv/Scripts/python.exe -m pytest testsuite/test_median.py testsuite/test_mode.py testsuite/test_percentile.py testsuite/test_spearman.py testsuite/test_binomial.py -q)",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(.venv/Scripts/python.exe -m py_compile Frontend/views/results.py)",
+      "Bash(.venv/Scripts/python.exe -m py_compile Frontend/views/results.py Frontend/views/comparison.py)",
+      "Bash(.venv/Scripts/python.exe -m py_compile Frontend/views/homepage.py)",
+      "Bash(.venv/Scripts/python.exe -m py_compile frontend_handler.py Frontend/views/results.py Frontend/views/help_statistical_methods.py)",
+      "Bash(.venv/Scripts/python.exe -m pytest testsuite/ -q)",
+      "Bash(.venv/Scripts/python.exe -m pytest testsuite/test_chisquared.py -q)",
+      "Bash(.venv/Scripts/python.exe -m pytest testsuite/test_mean.py testsuite/test_variance.py testsuite/test_standardDeviation.py testsuite/test_pearson.py testsuite/test_coefficentVariation.py testsuite/test_least_squares_regression.py -q)",
+      "Bash(.venv/Scripts/python.exe -m pytest testsuite/ -q --ignore=testsuite/test_chisquared.py)",
+      "Bash(.venv/Scripts/python.exe -m pytest testsuite/test_chisquared.py -v)"
     ]
   }
 }
