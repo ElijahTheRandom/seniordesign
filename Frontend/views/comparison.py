@@ -34,6 +34,8 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+import math
+
 from utils.helpers import df_to_ascii_table
 from views.results import (
     _render_stat_cards,
@@ -42,6 +44,135 @@ from views.results import (
     _build_export_text,
     _build_combined_export,
 )
+from frontend_handler import _ID_TO_DISPLAY
+
+
+# ---------------------------------------------------------------------------
+# Diff-detection (Req AT 5.4)
+# ---------------------------------------------------------------------------
+# When the user opens the comparison view we compare the underlying numeric
+# results across runs (not the formatted display strings) and surface a
+# redder-tinted-orange highlight on every card whose statistic differs.
+# A method that ran in some runs but not others also counts as a diff —
+# coverage gaps are themselves a difference dimension.
+
+def _values_equal(va, vb) -> bool:
+    """Tolerant equality for stat-result values across runs.
+
+    Handles the shapes the methods actually return: scalar numbers, lists
+    (percentile), and dicts (least-squares regression's slope/intercept/etc.).
+    Falls back to string equality for anything else (e.g. binomial DataFrames
+    — exact equality is good enough for the user-visible comparison).
+    """
+    if va is None and vb is None:
+        return True
+    if va is None or vb is None:
+        return False
+    if isinstance(va, bool) or isinstance(vb, bool):
+        return va == vb
+    if isinstance(va, (int, float)) and isinstance(vb, (int, float)):
+        try:
+            fa, fb = float(va), float(vb)
+        except (TypeError, ValueError):
+            return va == vb
+        if math.isnan(fa) and math.isnan(fb):
+            return True
+        if math.isnan(fa) or math.isnan(fb):
+            return False
+        return math.isclose(fa, fb, rel_tol=1e-9, abs_tol=1e-12)
+    if isinstance(va, list) and isinstance(vb, list):
+        if len(va) != len(vb):
+            return False
+        return all(_values_equal(x, y) for x, y in zip(va, vb))
+    if isinstance(va, dict) and isinstance(vb, dict):
+        # Drop noisy keys whose equality doesn't reflect a meaningful
+        # numeric difference (LSR's `chart` is a base64 PNG that varies
+        # with rendering env even when the regression itself is identical).
+        keys = (set(va) | set(vb)) - {"chart"}
+        return all(_values_equal(va.get(k), vb.get(k)) for k in keys)
+    try:
+        return str(va) == str(vb)
+    except Exception:
+        return va is vb
+
+
+def _build_diff_titles(runs: list) -> set[str]:
+    """Return display names of statistics that differ across the given runs.
+
+    A statistic is flagged when:
+      - its value differs across runs (tolerant float comparison), OR
+      - its error differs across runs, OR
+      - it appears in some runs but not others (coverage gap).
+
+    Returns the set of display names so the renderer can match against the
+    plain title text on each card.
+    """
+    if len(runs) < 2:
+        return set()
+
+    by_id: dict[str, list] = {}
+    for run in runs:
+        msg = run.get("result_message")
+        results = getattr(msg, "results", None) or []
+        seen: dict[str, dict] = {}
+        for r in results:
+            mid = r.get("id")
+            if mid:
+                seen[mid] = r
+        # Record one entry per run per method id (None if the method didn't
+        # run for that run — that's a coverage gap and counts as a diff).
+        all_ids_so_far = set(by_id) | set(seen)
+        for mid in all_ids_so_far:
+            by_id.setdefault(mid, []).append(seen.get(mid))
+
+    diff_ids: set[str] = set()
+    for mid, entries in by_id.items():
+        # Pad missing trailing runs (when a method appears in run 1 but not
+        # in run 2, by_id only has one entry — but we need to know it was
+        # absent in run 2 too).
+        while len(entries) < len(runs):
+            entries.append(None)
+
+        if any(e is None for e in entries) and not all(e is None for e in entries):
+            diff_ids.add(mid)
+            continue
+
+        present = [e for e in entries if e is not None]
+        if len(present) < 2:
+            continue
+
+        first = present[0]
+        for other in present[1:]:
+            if first.get("ok") != other.get("ok"):
+                diff_ids.add(mid)
+                break
+            if first.get("ok"):
+                if not _values_equal(first.get("value"), other.get("value")):
+                    diff_ids.add(mid)
+                    break
+            else:
+                if str(first.get("error") or "") != str(other.get("error") or ""):
+                    diff_ids.add(mid)
+                    break
+
+    return {_ID_TO_DISPLAY.get(mid, mid) for mid in diff_ids}
+
+
+def _render_diff_legend(has_diffs: bool, run_count: int) -> None:
+    """Small legend explaining the diff highlight so users know what the
+    redder tint means. Renders even when no diffs are found so the absence
+    is also informative."""
+    if run_count < 2:
+        return
+    if has_diffs:
+        st.caption(
+            "Cards with a redder-orange border indicate statistics whose value, "
+            "error, or presence differs across the runs being compared."
+        )
+    else:
+        st.caption(
+            "All shared statistics produced matching values across the selected runs."
+        )
 
 def _big_section_divider():
     st.markdown(
@@ -222,10 +353,21 @@ def _render_side_by_side_comparison(runs: list, base_dir: str) -> None:
             st.header(run["name"], anchor=False)
 
     # ---------- Row 2: Statistical Analysis ----------
+    # Each run already lives in a 1/N-width column, so pack stat cards
+    # one-per-row inside that column instead of squeezing 3 into the
+    # already-narrow space. The standard results page (full width) keeps
+    # the default 3-per-row layout.
+    diff_titles = _build_diff_titles(runs)
+    _render_diff_legend(bool(diff_titles), len(runs))
     cols = st.columns(len(runs))
     for col, run in zip(cols, runs):
         with col:
-            _render_stat_cards(run, show_divider=False)
+            _render_stat_cards(
+                run,
+                show_divider=False,
+                highlight_titles=diff_titles,
+                row_slots=1,
+            )
 
     _big_section_divider()
 
@@ -264,16 +406,22 @@ def _render_stacked_comparison(runs: list, base_dir: str) -> None:
     Each run is displayed in full width below the previous one,
     with consistent headers and section dividers.
     """
+    diff_titles = _build_diff_titles(runs)
+    _render_diff_legend(bool(diff_titles), len(runs))
+
     for run in runs:
         # Big header like side-by-side
         st.header(run["name"], anchor=False)
-        
-        # Render stat cards
-        _render_stat_cards(run, show_divider=False)
-        
+
+        # Render stat cards (with diff highlight passed across all runs so
+        # the same stat lights up in every section it appears in).
+        _render_stat_cards(
+            run, show_divider=False, highlight_titles=diff_titles
+        )
+
         # Render visualizations
         _render_visualizations(run, show_divider=False)
-        
+
         # Render data table
         _render_data_table(run, show_divider=False)
 
