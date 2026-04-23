@@ -642,6 +642,27 @@ def _on_header_toggle(file_key: str) -> None:
     """
     has_headers = st.session_state.get(f"_has_headers_{file_key}", True)
 
+    # ---- Spurious-fire guard --------------------------------------------
+    # Streamlit fires on_change callbacks whenever a widget's state appears
+    # to differ from its previous render. _render_header_settings forces
+    # st.session_state[toggle_key] = st.session_state[pref_key] on every
+    # render so the checkbox survives widget-state GC after navigation.
+    # On the first render after returning from another page, Streamlit
+    # treats the freshly re-seeded toggle_key as "changed" and fires this
+    # callback even though the user never clicked anything. Without this
+    # guard, the False→True branch below would run on a DataFrame that
+    # already has headers — taking row 0 as the new column names, dropping
+    # the first data row, and (when row 0 has duplicate values) renaming
+    # columns to "1" / "1.1" / etc. That is the navigation-corruption bug
+    # we kept failing to reproduce.
+    #
+    # A real user click always produces has_headers != prev_pref because
+    # the click flipped the value. A spurious GC-re-fire produces equality
+    # because line 760 already synced both keys to the same value.
+    prev_pref = st.session_state.get(f"_has_headers_pref_{file_key}")
+    if prev_pref is not None and prev_pref == has_headers:
+        return
+
     # Persist the user's choice *first* so Streamlit widget-state GC
     # (on navigation / fragment reruns) can't revert it. Done before any
     # early-return paths below so the preference always reflects intent.
