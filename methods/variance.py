@@ -53,12 +53,28 @@ class Variance:
             return self._generate_return_structure_error(str(e))
 
         precision_note = False
-        if np.isinf(variance):
-            precision_note = "Overflow detected: the variance is infinite. Values may exceed float64 range."
+        if np.isnan(variance):
+            precision_note = (
+                "NaN result: the variance is undefined. Inputs likely contained NaN "
+                "or the squared-deviation sum produced an undefined operation. Clean "
+                "the data before re-running."
+            )
+        elif np.isinf(variance):
+            precision_note = (
+                "Overflow detected: the variance is infinite. The sum of squared "
+                "deviations exceeded the float64 range (~1.8e308)."
+            )
         elif np.abs(array).max() > 1e15:
             precision_note = (
                 "Large-magnitude values detected (>1e15). Sample variance uses the "
-                "sum of squared deviations, which can overflow or lose precision at this scale."
+                "sum of squared deviations, which can overflow or lose precision at "
+                "this scale — Enhanced Precision digits past the ~15th are unreliable."
+            )
+        elif variance != 0 and variance < 2.2250738585072014e-308:
+            precision_note = (
+                f"Subnormal result (variance ≈ {variance:.3g}, below ~2.2e-308). "
+                "Float64 loses bits of precision in the subnormal range; treat "
+                "low-order digits as noise."
             )
         else:
             mean_abs = abs(float(np.mean(array)))
@@ -67,7 +83,7 @@ class Variance:
                 precision_note = (
                     "Catastrophic cancellation risk: values are nearly identical relative to "
                     "their magnitude. The computed variance may have fewer significant digits "
-                    "than expected."
+                    "than expected — Enhanced Precision will expose the noisy bits."
                 )
 
         results = self._generate_return_structure(variance)

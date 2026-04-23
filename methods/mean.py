@@ -52,13 +52,41 @@ class Mean:
             return self._generate_return_structure_error(str(e))
 
         precision_note = False
-        if np.isinf(mean_value):
-            precision_note = "Overflow detected: the mean is infinite. Values may exceed float64 range (~1.8e308)."
+        if np.isnan(mean_value):
+            precision_note = (
+                "NaN result: the mean is undefined. Inputs likely contained NaN, "
+                "or an undefined operation (0/0, inf-inf) occurred during summation. "
+                "Clean the data before re-running."
+            )
+        elif np.isinf(mean_value):
+            precision_note = (
+                "Overflow detected: the mean is infinite. Values exceed the float64 "
+                "range (~1.8e308) or the running sum overflowed mid-computation."
+            )
         elif np.abs(data_array).max() > 1e15:
             precision_note = (
                 "Large-magnitude values detected (>1e15). Floating-point summation "
-                "may lose precision beyond 15-16 significant digits."
+                "may lose precision beyond 15-16 significant digits — Enhanced "
+                "Precision will display digits past that point but they reflect "
+                "rounding error rather than computed signal."
             )
+        elif mean_value != 0 and abs(mean_value) < 2.2250738585072014e-308:
+            precision_note = (
+                f"Subnormal result (|mean| ≈ {abs(mean_value):.3g}, below ~2.2e-308). "
+                "Float64 loses bits of precision in the subnormal range; treat "
+                "low-order digits as noise."
+            )
+        else:
+            finite = data_array[np.isfinite(data_array)]
+            nonzero = np.abs(finite[finite != 0])
+            if nonzero.size > 1:
+                ratio = float(nonzero.max() / nonzero.min())
+                if ratio > 1e15:
+                    precision_note = (
+                        f"Mixed-magnitude inputs (largest/smallest ≈ {ratio:.2g}). "
+                        "Float64 summation order materially affects the result when "
+                        "terms span this many orders of magnitude."
+                    )
 
         result = self._generate_return_structure(mean_value)
         result["loss_of_precision"] = precision_note

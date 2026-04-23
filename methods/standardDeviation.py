@@ -53,12 +53,27 @@ class StandardDeviation:
             return self._generate_return_structure_error(str(e))
 
         precision_note = False
-        if np.isinf(std_value):
-            precision_note = "Overflow detected: the standard deviation is infinite. Values may exceed float64 range."
+        if np.isnan(std_value):
+            precision_note = (
+                "NaN result: the standard deviation is undefined. Inputs likely contained "
+                "NaN or the squared-deviation sum produced an undefined operation. Clean "
+                "the data before re-running."
+            )
+        elif np.isinf(std_value):
+            precision_note = (
+                "Overflow detected: the standard deviation is infinite. Squared "
+                "deviations exceeded the float64 range (~1.8e308)."
+            )
         elif np.abs(flat).max() > 1e15:
             precision_note = (
                 "Large-magnitude values detected (>1e15). Standard deviation is computed "
-                "from squared deviations, which can lose precision at this scale."
+                "from squared deviations, which can lose precision at this scale — "
+                "Enhanced Precision digits past the ~15th are unreliable."
+            )
+        elif std_value != 0 and std_value < 2.2250738585072014e-308:
+            precision_note = (
+                f"Subnormal result (std ≈ {std_value:.3g}, below ~2.2e-308). Float64 "
+                "loses bits of precision in the subnormal range; treat low-order digits as noise."
             )
         else:
             mean_abs = abs(float(np.mean(flat)))
@@ -67,7 +82,7 @@ class StandardDeviation:
                 precision_note = (
                     "Catastrophic cancellation risk: values are nearly identical relative to "
                     "their magnitude. The computed standard deviation may have fewer significant "
-                    "digits than expected."
+                    "digits than expected — Enhanced Precision will expose the noisy bits."
                 )
 
         result = self._generate_return_structure(std_value)

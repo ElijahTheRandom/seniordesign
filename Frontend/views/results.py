@@ -49,7 +49,12 @@ import pandas as pd
 from PIL import Image
 
 from utils.helpers import df_to_ascii_table
-from frontend_handler import handle_result
+from frontend_handler import (
+    handle_result,
+    rebuild_cards_with_precision,
+    DEFAULT_PRECISION,
+    ENHANCED_PRECISION,
+)
 from logic.run_manager import VIZ_NAMES, build_success_save_message
 
 
@@ -173,6 +178,7 @@ def render_results(run: dict, base_dir: str) -> None:
         st.session_state.show_export_dialog = False
 
     st.header(f"Analysis Results — {run['name']}", anchor=False)
+    _render_precision_toggle(run)
     _render_stat_cards(run)
     _render_precision_notice(run)
     _render_multi_column_notice(run)
@@ -197,6 +203,47 @@ def render_results(run: dict, base_dir: str) -> None:
 # ============================================================================
 
 _STRIP_HTML_RE = re.compile(r"<[^>]+>")
+
+
+def _enhanced_precision_state_key(run: dict) -> str:
+    """Per-run session-state key for the Enhanced Precision toggle.
+
+    Keyed by run id so toggling the box on Run 1 doesn't bleed into Run 2.
+    Falls back to a stable string when the run dict has no id (defensive —
+    saved-run replay always sets one).
+    """
+    return f"_enh_precision_{run.get('id', 'default')}"
+
+
+def _is_enhanced_precision(run: dict) -> bool:
+    """Read whether Enhanced Precision is currently on for this run."""
+    return bool(st.session_state.get(_enhanced_precision_state_key(run), False))
+
+
+def _render_precision_toggle(run: dict) -> None:
+    """Render the Enhanced Precision checkbox above the stat cards.
+
+    Hidden when there are no numeric stat cards to format (errors-only
+    runs, or pre-render passes where cards haven't been built yet) since
+    the toggle would be meaningless.
+    """
+    cards = run.get("cards") or []
+    if not any(c[0] == "stat" for c in cards):
+        return
+
+    state_key = _enhanced_precision_state_key(run)
+    st.checkbox(
+        "Enhanced precision (full float64 fidelity)",
+        value=st.session_state.get(state_key, False),
+        key=state_key,
+        help=(
+            f"Default display rounds to {DEFAULT_PRECISION} significant figures. "
+            f"Enable to show the full ~{ENHANCED_PRECISION}-digit float64 "
+            "precision the computation actually produced. Useful for verifying "
+            "numerical agreement, comparing near-identical results, or "
+            "copying precise values out of the page."
+        ),
+    )
 
 
 def _stat_card_plain_title(title_html: str) -> str:
@@ -237,6 +284,18 @@ def _render_stat_cards(
 
     if not cards:
         return
+
+    # If the user has toggled Enhanced Precision on for this run, rebuild
+    # the cards at full float64 fidelity. The cached run["cards"] stays at
+    # DEFAULT_PRECISION so toggling off restores the rounded view instantly
+    # without re-running handle_result.
+    if _is_enhanced_precision(run):
+        try:
+            cards = rebuild_cards_with_precision(run, ENHANCED_PRECISION)
+        except Exception:
+            # Defensive: a malformed result would otherwise surface as a
+            # blank cards section. Fall back to the cached default cards.
+            cards = run.get("cards", [])
 
     st.subheader("Statistical Analysis", anchor=False)
     st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
@@ -363,18 +422,33 @@ def _render_error_card(title: str, error_msg: str, highlight: bool = False) -> N
 
 def _render_precision_notice(run: dict) -> None:
     """
-    Render a small footnote under the stat cards disclosing that values are
-    rounded for display (Req 5.6). Kept visually distinct from the overflow /
-    cancellation notices below — this is "your display is abbreviated",
-    those are "your values may be wrong".
+    Render a small footnote under the stat cards disclosing what precision
+    is currently being shown (Req 5.6). Kept visually distinct from the
+    overflow / cancellation notices below — this is "your display is
+    abbreviated", those are "your values may be wrong". Caption text flips
+    to reflect the Enhanced Precision toggle so the user always knows
+    which mode they're in.
     """
     has_stat_card = any(c[0] == "stat" for c in run.get("cards", []))
     if not has_stat_card:
         return
-    st.caption(
-        "Displayed values are rounded to 6 significant figures. "
-        "CSV and TSV exports contain the full computed precision."
-    )
+    if _is_enhanced_precision(run):
+        st.caption(
+            f"Showing full float64 precision (up to {ENHANCED_PRECISION} significant "
+            "figures). Note: Python stores most decimal numbers as the nearest "
+            "binary fraction, so trailing digits past the ~15th often reflect "
+            "binary-representation artifacts rather than additional computational "
+            "accuracy (e.g. `0.1 + 0.2` stores as `0.30000000000000004`). Any "
+            "method whose internal precision is genuinely degraded — overflow, "
+            "underflow, NaN propagation, catastrophic cancellation, ill-conditioning, "
+            "subnormal results — also raises a Precision/Overflow Notice below."
+        )
+    else:
+        st.caption(
+            f"Displayed values are rounded to {DEFAULT_PRECISION} significant figures. "
+            "Check Enhanced Precision above for full float64 fidelity (~17 digits). "
+            "CSV and TSV exports always carry the full computed precision."
+        )
 
 
 def _render_multi_column_notice(run: dict) -> None:

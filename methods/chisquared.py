@@ -85,8 +85,15 @@ class ChiSquared:
             return self._generate_return_structure_error(str(e))
 
         precision_note = False
+        chi_f = float(chiSquared)
         min_expected = float(np.asarray(expected).min())
-        if min_expected < 1e-10:
+        if np.isnan(chi_f) or np.isinf(chi_f):
+            precision_note = (
+                "NaN/Inf chi-square statistic. The test failed numerically — most "
+                "often caused by an expected frequency at or near zero, NaN inputs, "
+                "or a degenerate contingency table. Clean the counts before re-running."
+            )
+        elif min_expected < 1e-10:
             precision_note = (
                 "Near-zero expected frequency detected. Division by a value close to zero "
                 "in the chi-square formula may cause numerical overflow."

@@ -58,7 +58,12 @@
       "Bash(.venv/Scripts/python.exe -c ' *)",
       "Bash(.venv/Scripts/python.exe -m py_compile Frontend/views/results.py)",
       "Bash(.venv/Scripts/python.exe -m py_compile Frontend/views/results.py Frontend/views/comparison.py)",
-      "Bash(.venv/Scripts/python.exe -m py_compile Frontend/views/homepage.py)"
+      "Bash(.venv/Scripts/python.exe -m py_compile Frontend/views/homepage.py)",
+      "Bash(.venv/Scripts/python.exe -m py_compile frontend_handler.py Frontend/views/results.py Frontend/views/help_statistical_methods.py)",
+      "Bash(.venv/Scripts/python.exe -m pytest testsuite/ -q)",
+      "Bash(.venv/Scripts/python.exe -m pytest testsuite/test_chisquared.py -q)",
+      "Bash(.venv/Scripts/python.exe -m pytest testsuite/test_mean.py testsuite/test_variance.py testsuite/test_standardDeviation.py testsuite/test_pearson.py testsuite/test_coefficentVariation.py testsuite/test_least_squares_regression.py -q)",
+      "Bash(.venv/Scripts/python.exe -m pytest testsuite/ -q --ignore=testsuite/test_chisquared.py)"
     ]
   }
 }
