@@ -63,7 +63,8 @@
       "Bash(.venv/Scripts/python.exe -m pytest testsuite/ -q)",
       "Bash(.venv/Scripts/python.exe -m pytest testsuite/test_chisquared.py -q)",
       "Bash(.venv/Scripts/python.exe -m pytest testsuite/test_mean.py testsuite/test_variance.py testsuite/test_standardDeviation.py testsuite/test_pearson.py testsuite/test_coefficentVariation.py testsuite/test_least_squares_regression.py -q)",
-      "Bash(.venv/Scripts/python.exe -m pytest testsuite/ -q --ignore=testsuite/test_chisquared.py)"
+      "Bash(.venv/Scripts/python.exe -m pytest testsuite/ -q --ignore=testsuite/test_chisquared.py)",
+      "Bash(.venv/Scripts/python.exe -m pytest testsuite/test_chisquared.py -v)"
     ]
   }
 }

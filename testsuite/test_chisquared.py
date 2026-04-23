@@ -7,7 +7,7 @@ import os
 import math
 import numpy as np
 import pytest
-from scipy.stats import chisquare
+from scipy.stats import chisquare, chi2_contingency
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "methods"))
 from chisquared import ChiSquared
@@ -74,7 +74,16 @@ class TestComputeNormal1D:
 
     def test_result_keys(self, meta):
         result = make_chi([10, 20, 30], meta).compute()
-        assert {"id", "ok", "value", "error", "loss_of_precision", "params_used"} == set(result.keys())
+        # The standard result-shape keys must all be present. The chi-square
+        # method also adds "df" and "p_value" because those are intrinsic to
+        # interpreting a chi-square statistic — a value alone is meaningless
+        # without its degrees of freedom. Use issubset rather than equality
+        # so future additions of intrinsic-companion fields don't force a
+        # test rewrite.
+        expected_keys = {"id", "ok", "value", "error", "loss_of_precision", "params_used"}
+        assert expected_keys.issubset(set(result.keys()))
+        assert "df" in result
+        assert "p_value" in result
 
     def test_uniform_observed_gives_zero_chi2(self, meta):
         """When all observed frequencies are equal, chi-squared against
@@ -100,29 +109,41 @@ class TestComputeNormal1D:
 # ===========================================================================
 
 class TestComputeNormal2D:
-    def test_2d_array_observed_vs_expected(self, meta):
-        """2-row input: row 0 = observed, row 1 = expected."""
-        observed = [10, 20, 30]
-        expected = [15, 15, 30]
-        chi_ref = float(chisquare(observed, f_exp=expected)[0])
+    """2-D input is treated as a contingency table for the chi-square test of
+    independence (chi2_contingency), as documented in the help page and
+    selected by commit e79b7c1. Per-row "observed vs expected" is no longer
+    a supported layout — use 1-D goodness-of-fit instead."""
 
-        result = make_chi([observed, expected], meta).compute()
+    def test_2x3_contingency_matches_scipy(self, meta):
+        """2-D input goes through chi2_contingency; verify the value matches."""
+        table = [[10, 20, 30], [15, 15, 30]]
+        chi_ref, _, _, _ = chi2_contingency(np.asarray(table, dtype=float))
+
+        result = make_chi(table, meta).compute()
         assert result["ok"] is True
-        assert math.isclose(result["value"], chi_ref, rel_tol=1e-9)
+        assert math.isclose(result["value"], float(chi_ref), rel_tol=1e-9)
 
-    def test_2d_equal_observed_expected_gives_zero(self, meta):
-        """If observed == expected, chi-squared should be 0."""
+    def test_2d_proportional_rows_gives_zero(self, meta):
+        """If the rows of a contingency table are perfectly proportional,
+        observed == expected for every cell and chi-square is 0."""
         data = [[10, 20, 30], [10, 20, 30]]
         result = make_chi(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], 0.0, abs_tol=1e-9)
 
-    def test_2d_numpy_array_input(self, meta):
+    def test_2d_numpy_array_contingency(self, meta):
         data = np.array([[5, 10, 15], [10, 10, 10]], dtype=float)
-        chi_ref = float(chisquare(data[0], f_exp=data[1])[0])
+        chi_ref, _, _, _ = chi2_contingency(data)
         result = make_chi(data, meta).compute()
         assert result["ok"] is True
-        assert math.isclose(result["value"], chi_ref, rel_tol=1e-9)
+        assert math.isclose(result["value"], float(chi_ref), rel_tol=1e-9)
+
+    def test_2d_carries_correct_df(self, meta):
+        """df = (rows - 1) * (cols - 1) for a contingency-table chi-square."""
+        table = [[10, 20, 30], [15, 15, 30]]  # 2 rows × 3 cols → df = 2
+        result = make_chi(table, meta).compute()
+        assert result["ok"] is True
+        assert result["df"] == 2
 
 
 # ===========================================================================
