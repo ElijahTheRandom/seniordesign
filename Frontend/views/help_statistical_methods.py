@@ -197,6 +197,9 @@ def render_help_statistical_methods() -> None:
             **one mode**, **multiple modes**, or **no mode** if no value repeats.
             All values in the selection must be **numeric**.
 
+            **Tie handling:** If multiple values tie for most-frequent, the first one encountered
+            in the data is returned.
+
             **Examples:**
             """
         )
@@ -214,14 +217,15 @@ def render_help_statistical_methods() -> None:
         st.markdown(
             """
             **Variance** measures how spread out values are relative to the mean. It is computed
-            by averaging the squared differences between each value and the mean.
+            by summing the squared differences between each value and the mean, then dividing
+            by **N − 1** (sample variance, a.k.a. Bessel's correction).
             All values in the selection must be **numeric**.
 
             **Example:** For the set `2, 4, 6` (mean = 4):
             """
         )
         st.markdown("> Squared differences: (2−4)² = 4, (4−4)² = 0, (6−4)² = 4")
-        st.markdown("> Variance = (4 + 0 + 4) / 3 = **2.67**")
+        st.markdown("> Variance = (4 + 0 + 4) / (N − 1) = (4 + 0 + 4) / 2 = **4**")
         st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
@@ -235,13 +239,14 @@ def render_help_statistical_methods() -> None:
             """
             **Standard deviation** measures the typical distance of values from the mean.
             It is simply the **square root of the variance**, making it easier to interpret
-            because it is expressed in the same units as the original data.
+            because it is expressed in the same units as the original data. The same
+            **sample convention** (dividing by N − 1) is used here as in variance.
             All values in the selection must be **numeric**.
 
-            **Example:** For the set `2, 4, 6` (variance ≈ 2.67):
+            **Example:** For the set `2, 4, 6` (variance = 4):
             """
         )
-        st.markdown("> Standard deviation = √2.67 ≈ **1.63**")
+        st.markdown("> Standard deviation = √4 = **2**")
         st.markdown("⚠ Results are rounded to 4 decimal places. Some loss of precision may occur.")
 
         _section_divider()
@@ -260,6 +265,11 @@ def render_help_statistical_methods() -> None:
             In this application, you specify which percentile values to compute (e.g. `25, 50, 75`)
             and the results are reported for your selected numeric column.
             All values in the selection must be **numeric**.
+
+            **How it's computed:** Percentiles use linear interpolation between adjacent data
+            points. For the *p*th percentile on a sorted dataset of length *N*, the result is
+            taken at position `p × (N − 1) / 100`; when that position falls between two points,
+            the two nearest values are blended linearly.
 
             **Common percentiles:**
             """
@@ -319,6 +329,9 @@ def render_help_statistical_methods() -> None:
             </ul>
 
             This application computes Spearman's ρ for two selected numeric columns of **equal length**.
+
+            **Tie handling:** Tied values receive the average of the ranks they would otherwise
+            occupy (e.g., two values tied for 3rd and 4th both get rank 3.5).
 
             **Example:** For `X = [1, 2, 3]` and `Y = [3, 2, 1]`:
             """,

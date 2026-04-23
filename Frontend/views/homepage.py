@@ -188,7 +188,17 @@ def _show_loading_gif(caption: str = "Loading\u2026") -> None:
 
 
 class _ValidationError(Exception):
-    """Raised inside the background analysis job when data fails validation."""
+    """Raised inside the background analysis job when data fails validation.
+
+    Carries both the human-readable header/tip message (as the exception's
+    str() value) and the full list of offending cell dicts so the error
+    dialog can render every one in a scrollable container without
+    truncation.
+    """
+
+    def __init__(self, message: str, cells: list[dict] | None = None) -> None:
+        super().__init__(message)
+        self.cells = cells or []
 
 
 def _background_run(
@@ -207,7 +217,10 @@ def _background_run(
     """
     non_numeric_cells = validate_numeric(parsed_data, method_flags)
     if non_numeric_cells:
-        raise _ValidationError(build_error_message(non_numeric_cells))
+        raise _ValidationError(
+            build_error_message(non_numeric_cells),
+            non_numeric_cells,
+        )
 
     request = Message(
         dataset_id=dataset_id,
@@ -226,6 +239,9 @@ if "show_success_dialog" not in st.session_state:
 
 if "show_error_dialog" not in st.session_state:
     st.session_state.show_error_dialog = False
+
+if "modal_error_cells" not in st.session_state:
+    st.session_state.modal_error_cells = []
 
 if "_grid_version" not in st.session_state:
     st.session_state._grid_version = 0
@@ -446,6 +462,7 @@ def _hide_computing_toast() -> None:
 @st.dialog("Error", width="small")
 def error_dialog():
     message = st.session_state.modal_message
+    error_cells = st.session_state.get("modal_error_cells", []) or []
 
     # Squirrel centered on top
     _, img_col, _ = st.columns([1, 2, 1])
@@ -479,6 +496,20 @@ def error_dialog():
         if tip_lines:
             st.markdown("<br>", unsafe_allow_html=True)
             st.caption(f"💡 {tip_lines[0]}")
+
+    # When a validation error carries a full list of offending cells, render
+    # every one inside a fixed-height scrollable container so the dialog
+    # stays a reasonable size whether there are 3 or 3,000 bad cells.
+    if error_cells:
+        st.markdown("<div style='margin-top:0.5rem'></div>", unsafe_allow_html=True)
+        with st.container(height=300):
+            for cell in error_cells:
+                row = cell.get("row", "?")
+                col = cell.get("column", "?")
+                val = cell.get("value", "")
+                st.markdown(
+                    f"- Row {row}, Column **{col}**: `{val}`"
+                )
 
 
 def _show_success_toast() -> None:
@@ -736,6 +767,7 @@ def poll_background_computation() -> None:
         st.session_state._compute_future = None
         st.session_state._compute_meta = None
         st.session_state.modal_message = str(ve)
+        st.session_state.modal_error_cells = list(ve.cells)
         st.session_state.show_error_dialog = True
         # Leave _computing_toast_shown = True so render B's future-is-None
         # branch hides the toast after the rerun (calling _hide_computing_toast
@@ -747,6 +779,7 @@ def poll_background_computation() -> None:
         st.session_state._compute_future = None
         st.session_state._compute_meta = None
         st.session_state.modal_message = f"Computation failed: {exc}"
+        st.session_state.modal_error_cells = []
         st.session_state.show_error_dialog = True
         st.rerun()
         return
@@ -776,6 +809,7 @@ def poll_background_computation() -> None:
             "This usually means a custom method returned an unexpected shape. "
             f"({exc.__class__.__name__}: {str(exc)[:200]})"
         )
+        st.session_state.modal_error_cells = []
         st.session_state.show_error_dialog = True
         st.rerun()
         return
@@ -845,6 +879,7 @@ def render_homepage(base_dir: str) -> None:
                 raw = uf.read()
             except Exception as exc:
                 st.session_state.modal_message = f"Failed to read file: {exc}"
+                st.session_state.modal_error_cells = []
                 st.session_state.show_error_dialog = True
                 st.session_state._csv_loading = False
                 st.rerun()
@@ -897,6 +932,7 @@ def render_homepage(base_dir: str) -> None:
                     st.session_state.pop("_total_rows", None)
             except Exception as exc:
                 st.session_state.modal_message = f"Failed to parse CSV: {exc}"
+                st.session_state.modal_error_cells = []
                 st.session_state.show_error_dialog = True
             st.session_state._csv_loading = False
             st.session_state._csv_future = None
@@ -4168,6 +4204,7 @@ def _handle_run_analysis(
             f"{_SCATTER_HARD_CAP:,} points. Your selection has "
             f"{point_count:,} rows — reduce the row selection before running."
         )
+        st.session_state.modal_error_cells = []
         st.session_state.show_error_dialog = True
         st.rerun()
         return

@@ -78,19 +78,18 @@ class TestComputeNormal:
         assert {"id", "ok", "value", "error", "loss_of_precision", "params_used"} == set(result.keys())
 
     def test_known_std_simple(self, meta):
-        """std of [2, 4, 4, 4, 5, 5, 7, 9] = 2.0 (population std, ddof=0)."""
-        # numpy default ddof=0
+        """std of [2, 4, 4, 4, 5, 5, 7, 9] using sample std (ddof=1)."""
         data = [2, 4, 4, 4, 5, 5, 7, 9]
-        expected = float(np.std(data))
+        expected = float(np.std(data, ddof=1))
         result = make_std(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
 
     def test_matches_numpy_std(self, meta):
-        """Result should match numpy.std(data) (population std, ddof=0)."""
+        """Result should match numpy.std(data, ddof=1) (sample std)."""
         rng = np.random.default_rng(seed=42)
         data = rng.normal(10, 3, 500).tolist()
-        expected = float(np.std(data))
+        expected = float(np.std(data, ddof=1))
         result = make_std(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
@@ -109,14 +108,14 @@ class TestComputeNormal:
 
     def test_negative_numbers(self, meta):
         data = [-10, -5, 0, 5, 10]
-        expected = float(np.std(data))
+        expected = float(np.std(data, ddof=1))
         result = make_std(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
 
     def test_numpy_array_input(self, meta):
         data = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-        expected = float(np.std(data))
+        expected = float(np.std(data, ddof=1))
         result = make_std(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
@@ -133,21 +132,21 @@ class TestComputeNormal:
 
 class TestComputeEdgeCases:
     def test_single_element(self, meta):
-        """Std of a single element is 0 (no deviation from itself)."""
+        """Sample std of a single element is NaN (ddof=1 → N-1=0 degrees of freedom)."""
         result = make_std([42], meta).compute()
         assert result["ok"] is True
-        assert math.isclose(result["value"], 0.0, abs_tol=1e-12)
+        assert math.isnan(result["value"])
 
     def test_two_elements(self, meta):
         data = [3, 7]
-        expected = float(np.std(data))
+        expected = float(np.std(data, ddof=1))
         result = make_std(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
 
     def test_large_values(self, meta):
         data = [10**9, 2 * 10**9, 3 * 10**9]
-        expected = float(np.std(np.array(data, dtype=float)))
+        expected = float(np.std(np.array(data, dtype=float), ddof=1))
         result = make_std(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
@@ -155,14 +154,14 @@ class TestComputeEdgeCases:
     def test_large_dataset(self, meta):
         rng = np.random.default_rng(seed=99)
         data = rng.normal(0, 5, 100_000).tolist()
-        expected = float(np.std(data))
+        expected = float(np.std(data, ddof=1))
         result = make_std(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
 
     def test_float_values(self, meta):
         data = [0.1, 0.2, 0.3, 0.4, 0.5]
-        expected = float(np.std(data))
+        expected = float(np.std(data, ddof=1))
         result = make_std(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
@@ -206,10 +205,11 @@ class TestComputeErrors:
 
 class TestStatisticalCorrectness:
     @pytest.mark.parametrize("data,expected_std", [
-        ([2, 4, 4, 4, 5, 5, 7, 9], 2.0),    # classic textbook example
-        ([0, 0, 0, 0], 0.0),                  # constant
-        ([1, -1], 1.0),                        # symmetric around 0
-        ([10], 0.0),                           # single element
+        # sample std (ddof=1): sqrt(sum((x-mean)^2) / (n-1))
+        ([2, 4, 4, 4, 5, 5, 7, 9], math.sqrt(32.0 / 7.0)),  # mean=5, SSD=32, n-1=7
+        ([0, 0, 0, 0], 0.0),                                 # constant
+        ([1, -1], math.sqrt(2.0)),                           # mean=0, SSD=2, n-1=1
+        ([1, 2, 3, 4, 5], math.sqrt(2.5)),                   # mean=3, SSD=10, n-1=4
     ])
     def test_known_expected_values(self, data, expected_std, meta):
         result = make_std(data, meta).compute()

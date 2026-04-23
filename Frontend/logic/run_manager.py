@@ -23,7 +23,7 @@ PUBLIC INTERFACE:
     validate_numeric(data, method_flags)  → list[dict]  (problem cells)
     create_run(parsed_data, edited_table, col1, col2,
                method_flags, run_count)   → dict         (the run object)
-    build_error_message(non_numeric_cells) → str
+    build_error_message(non_numeric_cells) → str  (header + tip only)
     build_success_message(run)             → str
 """
 
@@ -142,28 +142,26 @@ def create_run(
 # Error message sent to the user if they selected incompatible data for some calculation/visual
 def build_error_message(non_numeric_cells: list[dict]) -> str:
     """
-    Build the user-facing error message for non-numeric data.
+    Build the user-facing error header for non-numeric data.
 
-    Shows up to 5 problem cells in detail, then summarises any
-    additional ones.  The final line is an actionable tip so the
-    dialog can display it separately (see error_dialog in homepage.py).
+    Returns only the count summary and the actionable tip.  The full list
+    of offending cells is rendered separately by the error dialog in a
+    scrollable container (see error_dialog in homepage.py), so it never
+    needs to be truncated here.
 
     Args:
         non_numeric_cells: List of problem-cell dicts from
                            validate_numeric().
 
     Returns:
-        A multi-line string suitable for display in the error modal.
+        A two-line string suitable for display in the error modal.
     """
     total = len(non_numeric_cells)
-    preview = non_numeric_cells[:5]
     cell_word = "cell" if total == 1 else "cells"
-    lines = [f"Non-numeric data detected \u2014 {total} {cell_word} cannot be processed:"]
-    for cell in preview:
-        lines.append(f"- Row {cell['row']}, Column **{cell['column']}**: `{cell['value']}`")
-    if total > 5:
-        lines.append(f"*\u2026and {total - 5} more.*")
-    lines.append("Ensure all selected columns contain only numeric values before running.")
+    lines = [
+        f"Non-numeric data detected \u2014 {total} {cell_word} cannot be processed.",
+        "Ensure all selected columns contain only numeric values before running.",
+    ]
     return "\n".join(lines)
 
 # Success message sent to the user once their run tab has been generated and where to go

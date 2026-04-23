@@ -84,9 +84,9 @@ class TestComputeNormal:
         assert {"id", "ok", "value", "error", "loss_of_precision", "params_used"} == set(result.keys())
 
     def test_matches_scipy_variation(self, meta):
-        """CV should match scipy.stats.variation (std/mean)."""
+        """CV should match scipy.stats.variation with ddof=1 (sample std / mean)."""
         data = [10, 20, 30, 40, 50]
-        expected = float(variation(np.array(data, dtype=float)))
+        expected = float(variation(np.array(data, dtype=float), ddof=1))
         result = make_cv(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
@@ -104,7 +104,7 @@ class TestComputeNormal:
 
     def test_numpy_array_input(self, meta):
         data = np.array([4.0, 8.0, 12.0, 16.0])
-        expected = float(variation(data))
+        expected = float(variation(data, ddof=1))
         result = make_cv(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
@@ -113,7 +113,7 @@ class TestComputeNormal:
         """CV on a large seeded dataset should match scipy reference."""
         rng = np.random.default_rng(seed=99)
         data = (rng.random(10_000) + 1.0).tolist()  # all positive, mean ≠ 0
-        expected = float(variation(np.array(data, dtype=float)))
+        expected = float(variation(np.array(data, dtype=float), ddof=1))
         result = make_cv(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
@@ -125,21 +125,21 @@ class TestComputeNormal:
 
 class TestComputeEdgeCases:
     def test_single_element(self, meta):
-        """Single-element list: std=0, mean>0 → CV=0."""
+        """Single-element list with sample std (ddof=1): std=NaN → CV=NaN."""
         result = make_cv([7], meta).compute()
         assert result["ok"] is True
-        assert math.isclose(result["value"], 0.0, abs_tol=1e-9)
+        assert math.isnan(result["value"])
 
     def test_two_elements(self, meta):
         data = [3, 7]
-        expected = float(variation(np.array(data, dtype=float)))
+        expected = float(variation(np.array(data, dtype=float), ddof=1))
         result = make_cv(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
 
     def test_all_positive_floats(self, meta):
         data = [0.1, 0.2, 0.3, 0.4]
-        expected = float(variation(np.array(data, dtype=float)))
+        expected = float(variation(np.array(data, dtype=float), ddof=1))
         result = make_cv(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
@@ -147,7 +147,7 @@ class TestComputeEdgeCases:
     def test_2d_numpy_array_flattened(self, meta):
         """2-D numpy arrays should be flattened before CV calculation."""
         data = np.array([[1, 2], [3, 4]])
-        expected = float(variation(data.flatten().astype(float)))
+        expected = float(variation(data.flatten().astype(float), ddof=1))
         result = make_cv(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
@@ -200,7 +200,7 @@ class TestLegacyAlias:
         data = [10, 20, 30]
         result = CoefficentVariation(data, meta).compute()
         assert result["ok"] is True
-        expected = float(variation(np.array(data, dtype=float)))
+        expected = float(variation(np.array(data, dtype=float), ddof=1))
         assert math.isclose(result["value"], expected, rel_tol=1e-9)
 
 
@@ -216,7 +216,7 @@ class TestStatisticalCorrectness:
         [10, 10, 10, 20],
     ])
     def test_matches_scipy_parametrized(self, data, meta):
-        expected = float(variation(np.array(data, dtype=float)))
+        expected = float(variation(np.array(data, dtype=float), ddof=1))
         result = make_cv(data, meta).compute()
         assert result["ok"] is True
         assert math.isclose(result["value"], expected, rel_tol=1e-9)

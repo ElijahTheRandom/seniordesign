@@ -48,7 +48,7 @@ class StandardDeviation:
         try:
             data_array = np.asarray(self.data, dtype = float)
             flat = data_array.flatten()
-            std_value = float(np.std(data_array))
+            std_value = float(np.std(data_array, ddof=1))
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 

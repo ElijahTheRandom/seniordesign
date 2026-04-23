@@ -52,7 +52,8 @@
       "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/pytest.exe' testsuite/e2e/01_ingestion_exports/test_ingestion.py -v --tb=short --timeout=150 -x)",
       "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/pytest.exe' testsuite/e2e/01_ingestion_exports/test_ingestion.py -v --tb=short --timeout=150)",
       "Bash('C:/Users/pople/Documents/No-OneDrive/School Projects/seniordesign/.venv/Scripts/python.exe' -c ' *)",
-      "Bash(dir testsuite *)"
+      "Bash(dir testsuite *)",
+      "Bash(pytest testsuite/test_standardDeviation.py testsuite/test_coefficentVariation.py testsuite/test_variance.py -q)"
     ]
   }
 }

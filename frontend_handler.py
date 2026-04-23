@@ -22,12 +22,14 @@ _ID_TO_DISPLAY: dict[str, str] = {
     "coefficient_variation":    "Coefficient of Variation",
 }
 
-# Methods that reduce their input to a single 1-D dataset. When the user
-# selects more than one column and picks one of these, the backend flattens
-# all selected columns together (see methods/*.py — np.asarray(data) with
-# no axis, or an explicit .flatten()). We surface a notice on the results
-# page so the user isn't surprised by a combined result. Custom methods are
-# intentionally excluded — we can't know their shape contract.
+# Methods that expect a single 1-D dataset. Message.data converts the
+# column-major list-of-lists into a numpy ndarray of shape (n_cols, n_rows),
+# and each of these methods then either calls np.<fn>(array) with no axis
+# or an explicit .flatten() — both of which combine all selected columns
+# into one flat set of values before computing. We surface a notice on
+# the results page so the user isn't surprised by a combined result.
+# Custom methods are intentionally excluded — we can't know their shape
+# contract.
 _UNIVARIATE_METHOD_IDS: set[str] = {
     "mean",
     "median",

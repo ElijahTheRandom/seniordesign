@@ -54,9 +54,9 @@ class CoefficientVariation:
         # Main Computation Logic
         try:
             data_array = np.asarray(self.data, dtype = float).flatten()
-            cv_value = float(variation(data_array))
+            cv_value = float(variation(data_array, ddof=1))
             mean_val = float(np.mean(data_array))
-            std_val = float(np.std(data_array))
+            std_val = float(np.std(data_array, ddof=1))
         except Exception as e:
             return self._generate_return_structure_error(str(e))
 

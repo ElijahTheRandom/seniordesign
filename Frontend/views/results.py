@@ -347,16 +347,18 @@ def _render_multi_column_notice(run: dict) -> None:
     unique_names = sorted(set(names))
     if len(unique_names) == 1:
         subject = unique_names[0]
-        verb = "is"
+        verb = "expects"
     else:
         subject = ", ".join(unique_names[:-1]) + f", and {unique_names[-1]}"
-        verb = "are"
+        verb = "expect"
 
     st.info(
         f"**Column selection notice**\n\n"
-        f"{subject} {verb} univariate — with {col_count} columns selected, "
-        f"all values were combined into a single dataset before computing. "
-        f"To get per-column results, run the analysis separately on each column."
+        f"{subject} {verb} a single column of data. With {col_count} columns "
+        f"selected, all values were combined into one dataset before computing, "
+        f"so the result reflects every selected column together — not each column "
+        f"individually. To get per-column results, run the analysis separately on "
+        f"each column."
     )
     st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
 
@@ -487,8 +489,7 @@ def _render_charts_zip_download_button(run: dict) -> None:
     Python cannot read the user's current theme (it lives in browser
     localStorage), so on click we inject a zero-height JS block that
     loads each chart PNG onto a canvas, inverts it when the UI is in
-    light mode (except binomial tables, which are exempt), and packs
-    them into a ZIP with JSZip for download.
+    light mode, and packs them into a ZIP with JSZip for download.
 
     Using a real st.button keeps the visual styling in sync with the
     other action buttons via theme.css — the iframe only carries the JS.
@@ -544,7 +545,7 @@ def _render_charts_zip_download_button(run: dict) -> None:
                     canvas.width = img.width;
                     canvas.height = img.height;
                     const ctx = canvas.getContext("2d");
-                    if (isLightMode && chart.type !== "binomial") {{
+                    if (isLightMode) {{
                         ctx.filter = "invert(1)";
                     }}
                     ctx.drawImage(img, 0, 0);

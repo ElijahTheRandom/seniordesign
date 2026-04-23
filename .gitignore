@@ -34,3 +34,6 @@ __pycache__/
 # project-specific
 CLAUDE.md
 .claude
+
+# local-only scratch (reports, notes)
+scratch/
