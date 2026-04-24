@@ -471,21 +471,20 @@ def _render_multi_column_notice(run: dict) -> None:
     col_count = len(selected)
     unique_names = sorted(set(names))
     if len(unique_names) == 1:
-        subject = unique_names[0]
+        bold_subject = f"**{unique_names[0]}**"
         verb = "expects"
     else:
-        subject = ", ".join(unique_names[:-1]) + f", and {unique_names[-1]}"
+        bold_subject = ", ".join(f"**{n}**" for n in unique_names[:-1]) + f", and **{unique_names[-1]}**"
         verb = "expect"
 
     st.info(
-        f"**Column selection notice**\n\n"
-        f"{subject} {verb} a single column of data. With {col_count} columns "
-        f"selected, all values were combined into one dataset before computing, "
-        f"so the result reflects every selected column together — not each column "
-        f"individually. To get per-column results, run the analysis separately on "
-        f"each column."
+        f"**Column Selection Notice**\n\n"
+        f"{bold_subject} {verb} a single column of data.\n\n"
+        f"With {col_count} columns selected, all values were combined into one "
+        f"dataset before computing, so the result reflects every selected column "
+        f"together — not each column individually. To get per-column results, run "
+        f"the analysis separately on each column."
     )
-    st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
 
 
 def _render_precision_warnings(run: dict) -> None:
