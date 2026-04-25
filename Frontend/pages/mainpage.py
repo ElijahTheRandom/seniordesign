@@ -92,7 +92,6 @@ if st.session_state.get("show_success_dialog"):
 
 if st.session_state.get("show_error_dialog"):
     error_dialog()
-    st.session_state.show_error_dialog = False
 
 # ---------------------------------------------------------------------------
 # Main content — route to homepage, selected run, or comparison
