@@ -511,6 +511,11 @@ def error_dialog():
                     f"- Row {row}, Column **{col}**: `{val}`"
                 )
 
+    st.markdown("<div style='margin-top:0.75rem'></div>", unsafe_allow_html=True)
+    if st.button("OK", key="error_dialog_close_btn", use_container_width=True):
+        st.session_state.show_error_dialog = False
+        st.rerun()
+
 
 def _show_success_toast() -> None:
     """Inject a self-dismissing toast notification into the parent page.
